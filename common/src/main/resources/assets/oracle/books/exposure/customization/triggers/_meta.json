@@ -1,0 +1,10 @@
+{
+  "frame_exposed_trigger.mdx": {
+    "name": "Frame Exposed",
+    "icon": "GalleryHorizontal"
+  },
+  "frame_printed_trigger.mdx": {
+    "name": "Frame Printed",
+    "icon": "Printer"
+  }
+}

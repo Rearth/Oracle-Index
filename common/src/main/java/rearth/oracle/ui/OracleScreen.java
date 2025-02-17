@@ -36,7 +36,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
 		@Override
 		protected void build(FlowLayout rootComponent) {
-				rootComponent.surface(Surface.VANILLA_TRANSLUCENT);
+				rootComponent.surface(Surface.blur(8f, 48f));
+				rootComponent.child(Components.box(Sizing.fill(), Sizing.fill()).color(new Color(0.1f, 0.1f, 0.15f, 0.7f)).fill(true).zIndex(-1).positioning(Positioning.absolute(0, 0)));
 				
 				navigationBar = Containers.verticalFlow(Sizing.content(3), Sizing.content(3));
 				rootComponent.child(navigationBar);
@@ -70,14 +71,23 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				
 				var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 				var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, bookId, link -> {
-						if (!link.startsWith("..")) return false;
+						
+						if (link.startsWith("http")) return false;
+						
 						var pathSegments = filePath.getPath().split("/");
 						var newPath = "";
-						for (int i = 0; i < pathSegments.length - 1 - 1; i++) {
+						
+						// build path based on relative information
+						var parentIteration = link.startsWith("../") ? 1 : 0;
+						for (int i = 0; i < pathSegments.length - 1 - parentIteration; i++) {
 								newPath += pathSegments[i] + "/";
 						}
-						newPath += link.replace("../", "") + ".mdx";
+						
+						newPath = newPath.split("#")[0];    // anchors are not supported, so we just remove them
+						newPath += link.replace("../", "") + ".mdx";    // add file ending
+						
 						var newId = Identifier.of(Oracle.MOD_ID, newPath);
+						
 						try {
 								loadContentContainer(newId, bookId);
 						} catch (IOException e) {
@@ -85,17 +95,18 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 						}
 						return true;
 				});
+				
 				for (var paragraph : parsedTexts) {
 						
 						if (paragraph instanceof LabelComponent) {
 								paragraph.horizontalSizing(Sizing.fill());
 						} else if (paragraph instanceof TextureComponent textureComponent) {
 								var ratio = textureComponent.visibleArea().get().width() / (float) textureComponent.visibleArea().get().height();
+								var targetSize = textureComponent.verticalSizing().get().value / 100f;
 								var maxWidth = this.width * 0.6f;
-								var usedWidth = Math.min(maxWidth, textureComponent.visibleArea().get().width() * 0.5f);
+								var usedWidth = maxWidth * targetSize * 0.8f;
 								var height = usedWidth / ratio;
 								
-								System.out.println(ratio + " " + usedWidth + " " + height);
 								textureComponent.sizing(Sizing.fixed((int) usedWidth), Sizing.fixed((int) height));
 						}
 						
@@ -116,11 +127,20 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				var modSelectorDropdown = Components.dropdown(Sizing.content(3));
 				for (var bookId : bookIds) {
 						modSelectorDropdown.button(Text.translatable(bookId), elem -> {
+								modSelectorDropdown.remove();
 								buildModNavigationBar(bookId);
 						});
 				}
 				
-				rootComponent.child(modSelectorDropdown.positioning(Positioning.absolute(10, 10)));
+				var modSelectorButton = Components.button(Text.of("Dropdown"), button -> {
+						if (modSelectorDropdown.hasParent()) {
+								modSelectorDropdown.remove();
+								return;
+						}
+						rootComponent.child(modSelectorDropdown.positioning(Positioning.absolute(button.x(), button.y() + button.height())));
+				});
+				
+				rootComponent.child(modSelectorButton.positioning(Positioning.absolute(10, 10)));
 				
 				buildModNavigationBar(bookIds.getFirst());
 				

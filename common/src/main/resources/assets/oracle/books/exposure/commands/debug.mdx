@@ -1,0 +1,10 @@
+---
+title: Debug Command
+---
+
+### Contains several commands that can help with testing or debugging.
+
+`/exposure debug expose_rgb` - makes 3 B&W exposures with **red**, **green** and **blue** filters. Uses camera settings if player holds a [Camera](../content/camera) in hand.\
+`/exposure debug chromatic_from_last_three_exposures` - creates an exposure using chromatic process (combining rgb channels into one image). Uses last 3 exposures from history of the executing player, that are not chromatics themselves.\
+`/exposure debug develop_film_in_hand [keep_original]` - develops a [Film](../content/attachments/film) in player's hand.\
+`/exposure debug clear_rendering_cache` - Clears cached images. Probably only be useful to me.

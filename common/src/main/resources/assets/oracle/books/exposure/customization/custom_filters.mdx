@@ -1,0 +1,30 @@
+---
+title: Custom Filters
+---
+
+To create a custom filter or modify existing one, create a json file and place it in the following path of your datapack:
+`data/<pack>/exposure/filter/<filter>.json`\
+To attach filter to a camera, you need to add the item to `#exposure:filters` tag.\
+If you want a filter to use a custom shader, you'll need to create a resourcepack as well.
+
+[Example Datapack](https://github.com/mortuusars/Exposure/tree/1.21.1/example_datapack/data/example/exposure/filter)
+
+Contents of json file have several properties:
+- `predicate`: ItemPredicate, same as in advancements. Used to define valid items for this filter.
+- `shader`: ResourceLocation of a shader.
+- `attachment_texture`: ResourceLocation of a custom texture for showing in Attachments menu. *(optional)*
+- `attachment_tint`: String representation of a hex color. RRGGBB. Used to tint `attachment_texture`. (optional)*
+
+Example of a spider eye filter:
+```json
+{
+  "predicate": {
+    "items": "minecraft:spider_eye"
+  },
+  "shader": "minecraft:shaders/post/spider.json",
+  "attachment_texture": "example:textures/gui/filter/spider_eye.png",
+  "attachment_tint": "FFBBAA"
+}
+```
+
+*Note: `attachments_texture` in above example points to a texture added by [Example Resourcepack](https://github.com/mortuusars/Exposure/blob/1.21.1/example_resourcepack/assets/example/textures/gui/filter/spider_eye.png)*

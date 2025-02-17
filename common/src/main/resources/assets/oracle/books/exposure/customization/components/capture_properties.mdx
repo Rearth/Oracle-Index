@@ -1,0 +1,28 @@
+---
+title: "Capture Properties"
+---
+
+Controls creation of exposures.\
+Used in `/exposure load` and `/exposure expose` commands.
+
+### Structure:
+|Property|Type or Possible Values|Description|Default|
+|-|-|-|-|
+| id | String | Points to the .dat file in `<world>/data/exposures`. | **-required-** |
+| film_type | `color` or `black_and_white` | Changes how image would processed | `color` |
+| color_palette | Resource | Palette of the image | exposure:map_colors_plus |
+| frame_size | Int | Width and Height of an image | Controlled by exposure-server config. Default: 320 |
+| crop_factor | Float | How much an image would be cropped. Camera uses 0.875 | 1.0 |
+| shutter_speed | String | Affects brightness of the image | 1/60 |
+| fov_override | Float | Sets the fov to this value | - |
+| flash | `true` or `false` | Spawns flash particles | false |
+| projection | [Projection Info](#ProjectionInfo) | Image loading properties | - |
+| single_channel | `red`, `green` or `blue` | If `film_type` is `black_and_white`, image will consist of data from single channel | - |
+
+All of the properties are optional, except `id`.
+
+### Projection Info:
+|Property|Type or Possible Values|Description|Default|
+|-|-|-|-|
+| path | String | File path or URL | **-required-** |
+| mode | `dithered` or `clean` | Controls whether the image would be dithered | dithered |

@@ -1,0 +1,30 @@
+{
+  "show.mdx": {
+    "name": "Show",
+    "icon": "ScanSearch"
+  },
+  "expose.mdx": {
+    "name": "Expose",
+    "icon": "Aperture"
+  },
+  "load.mdx": {
+    "name": "Load",
+    "icon": "HardDriveDownload"
+  },
+  "export.mdx": {
+    "name": "Export",
+    "icon": "ArrowRightFromLine"
+  },
+  "palette.mdx": {
+    "name": "Palette",
+    "icon": "Palette"
+  },
+  "shader.mdx": {
+    "name": "Shader",
+    "icon": "Blinds"
+  },
+  "debug.mdx": {
+    "name": "Debug",
+    "icon": "Bug"
+  }
+}

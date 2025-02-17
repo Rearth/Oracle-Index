@@ -3,6 +3,7 @@ package rearth.oracle.util;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.Component;
+import io.wispforest.owo.ui.core.Sizing;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.text.ClickEvent;
@@ -24,7 +25,7 @@ import java.util.regex.Pattern;
 // a very basic and primitive (and hacky) ghetto markdown to owo lib parser
 public class MarkdownParser {
 		
-		private static final String[] removedLines = new String[] {"<center>", "</center>"};
+		private static final String[] removedLines = new String[] {"<center", "</center", "<div", "</div", "<span", "</span"};
 		
 		public static List<Component> parseMarkdownToOwoComponents(String markdown, String bookId, Predicate<String> linkHandler) {
 				var components = new ArrayList<Component>();
@@ -33,7 +34,7 @@ public class MarkdownParser {
 				var contentWithoutFrontmatter = removeFrontmatter(markdown);
 				
 				var title = frontMatter.getOrDefault("title", "Title not found in Frontmatter");
-				var titleLabel = new ScalableLabelComponent(Text.literal(title).formatted(Formatting.BOLD), linkHandler);
+				var titleLabel = new ScalableLabelComponent(Text.literal(title), linkHandler);
 				titleLabel.scale = 2.2f;
 				titleLabel.color(new Color(0.6f, 0.6f, 1f));
 				
@@ -54,9 +55,11 @@ public class MarkdownParser {
 								
 								// Handle specific HTML tags
 								if ("Callout".equalsIgnoreCase(tagName)) {
-										// components.add(parseCallout(tagContent, bookId, linkHandler));
+										// components.add(parseCallout(tagContent, bookId, linkHandler));   // todo
 								} else if ("ModAsset".equalsIgnoreCase(tagName)) {
-										components.add(parseImageParagraph(paragraph, bookId));
+										components.add(parseImageParagraph(paragraph, bookId, true));
+								} else if ("Asset".equalsIgnoreCase(tagName)) {
+										components.add(parseImageParagraph(paragraph, bookId, false));
 								} else {
 										// do nothing, other html tags are not supported (yet)
 								}
@@ -120,17 +123,23 @@ public class MarkdownParser {
 				for (var s : lines) {
 						var line = s.trim();
 						
-						var isSkipped = Arrays.stream(removedLines).anyMatch(line::equalsIgnoreCase);
+						var isSkipped = Arrays.stream(removedLines).anyMatch(line::startsWith);
 						if (isSkipped) continue;
 						
 						var isHeading = line.startsWith("#");
 						var isListing = line.matches("[0-9]\\.\\s.+");
 						var isUnorderedList = line.matches("-\\s.+");
+						var isWeirdList = line.matches("•\\s.+");
 						
-						if (isHeading || isListing || isUnorderedList) {
+						if (isHeading || isListing || isUnorderedList || isWeirdList) {
 								paragraphList.add(currentParagraph.toString());
 								currentParagraph = new StringBuilder();
-								currentParagraph.append(line);
+								
+								if (isHeading) {    // heading get their own paragraph, lists not
+										paragraphList.add(line);
+								} else {
+										currentParagraph.append(line);
+								}
 								continue;
 						}
 						
@@ -139,7 +148,7 @@ public class MarkdownParser {
 								paragraphList.add(currentParagraph.toString());
 								currentParagraph = new StringBuilder();
 						} else {
-								currentParagraph.append(line);
+								currentParagraph.append(line).append(" ");
 						}
 				}
 				
@@ -149,18 +158,24 @@ public class MarkdownParser {
 				return paragraphList;
 		}
 		
-		private static Component parseImageParagraph(String paragraphString, String bookId) {
+		private static Component parseImageParagraph(String paragraphString, String bookId, boolean modAsset) {
+				
+				var tagName = modAsset ? "ModAsset" : "Asset";
 				
 				var doc = Jsoup.parseBodyFragment(paragraphString);
-				var element = doc.selectFirst("ModAsset");
+				var element = doc.selectFirst(tagName);
 				
 				if (element != null) {
 						var location = element.attr("location");
-						var width = element.attr("width");
+						var widthSource = element.attr("width");
+						var width = convertWidthStringToFloat(widthSource);
+						if (width <= 0) width = 0.5f;   // default to 50% width
 						
 						var imageModId = location.split(":")[0];
 						var imageModPath = location.split(":")[1];
 						var searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/item/" + bookId + "/" + imageModPath + ".png");
+						if (!modAsset)
+								searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + bookId + "/" + imageModPath + ".png");
 						
 						var resource = MinecraftClient.getInstance().getResourceManager().getResource(searchPath);
 						if (resource.isEmpty()) {
@@ -169,7 +184,9 @@ public class MarkdownParser {
 						
 						try {
 								var image = NativeImage.read(resource.get().getInputStream());
-								return Components.texture(searchPath, 0, 0, image.getWidth(), image.getHeight(), image.getWidth(), image.getHeight());
+								var result = Components.texture(searchPath, 0, 0, image.getWidth(), image.getHeight(), image.getWidth(), image.getHeight());
+								result.verticalSizing(Sizing.fixed((int) (width * 100)));   // width is set as a way to get the desired width in the layout methods
+								return result;
 						} catch (IOException e) {
 								return Components.label(Text.literal("Image couldn't be read: " + location + "\n" + e.getMessage().formatted(Formatting.RED)));
 						}
@@ -268,6 +285,37 @@ public class MarkdownParser {
 						return headingMatcher.group(1).length();
 				}
 				return 0; // Not a heading
+		}
+		
+		public static float convertWidthStringToFloat(String input) {
+				if (input == null || input.isEmpty()) {
+						return 0.0f; // Or handle null/empty input as needed, maybe throw an exception
+				}
+				
+				var trimmedInput = input.trim(); // Remove leading/trailing whitespace
+				
+				if (trimmedInput.endsWith("%")) {
+						try {
+								var percentageString = trimmedInput.substring(0, trimmedInput.length() - 1); // Remove the "%"
+								var percentage = Integer.parseInt(percentageString);
+								return percentage / 100.0f; // Normalize to 0.0f - 1.0f range
+						} catch (NumberFormatException e) {
+								System.err.println("Error parsing percentage value: " + input);
+								return 0.0f; // Or handle parsing errors as needed
+						}
+				} else if (trimmedInput.startsWith("{") && trimmedInput.endsWith("}")) {
+						try {
+								var numberString = trimmedInput.substring(1, trimmedInput.length() - 1); // Remove "{" and "}"
+								var number = Integer.parseInt(numberString);
+								return number / 1024.0f; // Normalize to 0.0f - 1.0f range
+						} catch (NumberFormatException e) {
+								System.err.println("Error parsing braced number value: " + input);
+								return 0.0f; // Or handle parsing errors as needed
+						}
+				} else {
+						System.err.println("Invalid input format: " + input);
+						return 0.0f; // Or handle invalid formats as needed
+				}
 		}
 		
 }

@@ -1,0 +1,36 @@
+---
+title: Custom Lenses
+---
+
+To create a custom lens or modify existing one, create a json file and place it in the following path of your datapack:
+`data/<pack>/exposure/lens/<lens>.json`\
+To attach lens to a camera, you need to add the item to `#exposure:lenses` tag.
+
+[Example Datapack](https://github.com/mortuusars/Exposure/tree/1.21.1/example_datapack/data/example/exposure/lens)
+
+### Json file has two properties:
+- `predicate`: ItemPredicate, same as in advancements. Used to define valid items for this lens.
+- `focal_range`: FocalRange, min-max values for this lens. Allowed range 10-300.
+
+Example of a wide-angle lens:
+```json
+{
+  "predicate": {
+    "items": "minecraft:glass"
+  },
+  "focal_range": {
+    "min": 10,
+    "max": 18
+  }
+}
+```
+
+Example of a prime lens:
+```json
+{
+  "predicate": {
+    "items": "minecraft:glass"
+  },
+  "focal_range": 14
+}
+```

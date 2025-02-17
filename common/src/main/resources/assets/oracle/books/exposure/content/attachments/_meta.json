@@ -1,0 +1,18 @@
+{
+  "film.mdx": {
+    "name": "Film",
+    "icon": "Film"
+  },
+  "flash.mdx": {
+    "name": "Flash",
+    "icon": "Zap"
+  },
+  "lens.mdx": {
+    "name": "Lens",
+    "icon": "Telescope"
+  },
+  "filter.mdx": {
+    "name": "Filter",
+    "icon": "Blend"
+  }
+}

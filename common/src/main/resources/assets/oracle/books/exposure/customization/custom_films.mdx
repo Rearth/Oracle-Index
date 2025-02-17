@@ -1,0 +1,22 @@
+---
+title: Custom Films
+---
+
+With commands you can configure films by specifying some components:
+- `/give @s exposure:color_film[exposure:film_frame_size=512]` - sets frame size to 512 pixels. Default: 320(configurable) Max: 2048.
+- `/give @s exposure:color_film[exposure:film_frame_count=32]` - sets max frame count to 32.
+- `/give @s exposure:color_film[exposure:film_color_palette="exposure:map_colors"]` - sets [Color Palette](custom_color_palettes).
+
+<div name='WARNING' style={{ display: 'inline-block', margin: '2px' }}>
+    <div style={{ display: 'flex', alignItems: 'top', backgroundColor: '#282621', borderRadius: '6px', padding: '8px 12px' }}>
+      <TriangleAlertIcon style={{ color: '#f5aa35', marginRight: '8px' }} width={20} />
+      <span style={{ color: '#f5aa35', fontSize: '15px' }}>Larger values of *film_frame_size* can cause lag and stutters.<br/>Larger values of *film_frame_count* can cause disconnects from server and/or other issues. 32 will probably be fine, 64 maybe. But I haven't tested it. Use at your own risk.</span>
+    </div>
+</div><br/>
+
+<div name='INFO' style={{ display: 'inline-block', margin: '2px' }}>
+    <div style={{ display: 'flex', alignItems: 'top', backgroundColor: '#21252b', borderRadius: '6px', padding: '8px 12px' }}>
+      <InfoIcon style={{ color: '#63b3eb', marginRight: '8px' }} width={20} />
+      <span style={{ color: '#63b3eb', fontSize: '15px' }}>Using datapacks or KubeJS/CraftTweaker, custom film can be added to the game with a recipe, quest reward or in a loot table.</span>
+    </div>
+</div><br/>

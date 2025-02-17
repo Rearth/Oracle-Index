@@ -1,0 +1,22 @@
+{
+  "camera_predicate.mdx": {
+    "name": "Camera Predicate",
+    "icon": "Camera"
+  },
+  "shutter_speed_predicate.mdx": {
+    "name": "Shutter Speed Predicate",
+    "icon": "Aperture"
+  },
+  "frame_predicate.mdx": {
+    "name": "Frame Predicate",
+    "icon": "GalleryHorizontal"
+  },
+  "entity_in_frame_predicate.mdx": {
+    "name": "Entity In Frame Predicate",
+    "icon": "IdCard"
+  },
+  "extra_data_predicate.mdx": {
+    "name": "Extra Data Predicate",
+    "icon": "Tag"
+  }
+}
