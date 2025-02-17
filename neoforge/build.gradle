@@ -1,0 +1,70 @@
+plugins {
+    id 'com.github.johnrengelman.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentNeoForge.extendsFrom common
+
+    // Files in this configuration will be bundled into your mod using the Shadow plugin.
+    // Don't use the `shadow` configuration from the plugin itself as it's meant for excluding files.
+    shadowBundle {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+repositories {
+    maven {
+        name = 'NeoForged'
+        url = 'https://maven.neoforged.net/releases'
+    }
+}
+
+dependencies {
+    neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
+
+    // Architectury API. This is optional, and you can comment it out if you don't need it.
+    modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
+
+    // owo lib
+    modImplementation "io.wispforest:owo-lib-neoforge:0.12.15-beta.9+1.21"
+    forgeRuntimeLibrary(include(api("io.wispforest:endec:0.1.8")))
+    forgeRuntimeLibrary(include(api("io.wispforest.endec:netty:0.1.4")))
+    forgeRuntimeLibrary(include(api("io.wispforest.endec:gson:0.1.5")))
+    forgeRuntimeLibrary(include(api("io.wispforest.endec:jankson:0.1.5")))
+    forgeRuntimeLibrary(include(api("blue.endless:jankson:1.2.2")))
+
+    implementation "org.jsoup:jsoup:1.17.2"
+    include "org.jsoup:jsoup:1.17.2"
+}
+
+processResources {
+    inputs.property 'version', project.version
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand version: project.version
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    inputFile.set shadowJar.archiveFile
+}

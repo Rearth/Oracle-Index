@@ -1,0 +1,49 @@
+# gradle
+
+*/.gradle/
+.gradle/
+build/
+*/build
+out/
+classes/
+
+# eclipse
+
+*.launch
+
+# idea
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# vscode
+
+.settings/
+.vscode/
+bin/
+.classpath
+.project
+*/.cache
+common/src/main/generated/.cache/
+
+# macos
+
+*.DS_Store
+
+# fabric
+
+run/
+*/run/
+
+# java
+
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+
+# krita
+*.kra
+*.png~
