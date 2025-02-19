@@ -48,8 +48,7 @@ dependencies {
     forgeRuntimeLibrary(include(api("io.wispforest.endec:jankson:0.1.5")))
     forgeRuntimeLibrary(include(api("blue.endless:jankson:1.2.2")))
 
-    implementation "org.jsoup:jsoup:1.17.2"
-    include "org.jsoup:jsoup:1.17.2"
+    forgeRuntimeLibrary(include(api("org.jsoup:jsoup:1.17.2")))
 }
 
 processResources {

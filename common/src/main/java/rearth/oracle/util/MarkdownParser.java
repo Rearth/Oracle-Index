@@ -34,7 +34,7 @@ public class MarkdownParser {
 				var contentWithoutFrontmatter = removeFrontmatter(markdown);
 				
 				var title = frontMatter.getOrDefault("title", "Title not found in Frontmatter");
-				var titleLabel = new ScalableLabelComponent(Text.literal(title), linkHandler);
+				var titleLabel = new ScalableLabelComponent(Text.literal(title).setStyle(Style.EMPTY.withFont(Identifier.of(Oracle.MOD_ID, "wiki_bold"))), linkHandler);
 				titleLabel.scale = 2.2f;
 				titleLabel.color(new Color(0.6f, 0.6f, 1f));
 				

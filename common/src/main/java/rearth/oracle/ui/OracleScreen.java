@@ -11,6 +11,7 @@ import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -28,6 +29,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
 		private FlowLayout navigationBar;
 		private FlowLayout contentContainer;
+		private Identifier activeEntry;
 		
 		@Override
 		protected @NotNull OwoUIAdapter<FlowLayout> createAdapter() {
@@ -36,8 +38,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
 		@Override
 		protected void build(FlowLayout rootComponent) {
-				rootComponent.surface(Surface.blur(8f, 48f));
-				rootComponent.child(Components.box(Sizing.fill(), Sizing.fill()).color(new Color(0.1f, 0.1f, 0.15f, 0.7f)).fill(true).zIndex(-1).positioning(Positioning.absolute(0, 0)));
+				rootComponent.surface(Surface.blur(4f, 48f));
+				rootComponent.child(Components.box(Sizing.fill(), Sizing.fill()).color(new Color(0.1f, 0.1f, 0.15f, 0.9f)).fill(true).zIndex(-1).positioning(Positioning.absolute(0, 0)));
 				
 				navigationBar = Containers.verticalFlow(Sizing.content(3), Sizing.content(3));
 				rootComponent.child(navigationBar);
@@ -125,20 +127,23 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 					              .toList();
 				
 				var modSelectorDropdown = Components.dropdown(Sizing.content(3));
-				for (var bookId : bookIds) {
-						modSelectorDropdown.button(Text.translatable(bookId), elem -> {
-								modSelectorDropdown.remove();
-								buildModNavigationBar(bookId);
-						});
-				}
 				
-				var modSelectorButton = Components.button(Text.of("Dropdown"), button -> {
+				var modSelectorButton = Components.button(Text.of(bookIds.getFirst()), button -> {
 						if (modSelectorDropdown.hasParent()) {
 								modSelectorDropdown.remove();
 								return;
 						}
 						rootComponent.child(modSelectorDropdown.positioning(Positioning.absolute(button.x(), button.y() + button.height())));
 				});
+				
+				for (var bookId : bookIds) {
+						modSelectorDropdown.button(Text.translatable(bookId), elem -> {
+								activeEntry = null;
+								modSelectorDropdown.remove();
+								buildModNavigationBar(bookId);
+								modSelectorButton.setMessage(Text.of(bookId));
+						});
+				}
 				
 				rootComponent.child(modSelectorButton.positioning(Positioning.absolute(10, 10)));
 				
@@ -165,6 +170,16 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				try {
 						var metaFile = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 						var entries = parseJson(metaFile);
+						
+						if (activeEntry == null) {
+								var firstEntry = entries.stream().filter(elem -> !elem.directory).findFirst();
+								if (firstEntry.isPresent()) {
+										var firstEntryPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/" + firstEntry.get().id());
+										loadContentContainer(firstEntryPath, bookId);
+										activeEntry = firstEntryPath;
+								}
+						}
+						
 						for (var entry : entries) {
 								if (entry.directory) {
 										var directoryContainer = Containers.collapsible(Sizing.content(1), Sizing.content(1), Text.translatable(entry.name()), false);
