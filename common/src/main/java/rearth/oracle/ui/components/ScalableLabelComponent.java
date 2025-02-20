@@ -36,7 +36,12 @@ public class ScalableLabelComponent extends LabelComponent {
 		
 		@Override
 		protected int determineVerticalContentSize(Sizing sizing) {
-				return (int) (super.determineVerticalContentSize(sizing) * scale);
+				return (int) (super.determineVerticalContentSize(sizing) * scale + 0.5);
+		}
+		
+		@Override
+		protected int determineHorizontalContentSize(Sizing sizing) {
+				return (int) (super.determineHorizontalContentSize(sizing) * scale + 0.5);
 		}
 		
 		@Override

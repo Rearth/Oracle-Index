@@ -3,21 +3,25 @@ package rearth.oracle.ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.mojang.blaze3d.systems.RenderSystem;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
+import io.wispforest.owo.ui.component.ButtonComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.LabelComponent;
 import io.wispforest.owo.ui.component.TextureComponent;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
+import io.wispforest.owo.ui.util.NinePatchTexture;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
+import rearth.oracle.ui.components.ColoredCollapsibleContainer;
+import rearth.oracle.ui.components.ScalableLabelComponent;
 import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
@@ -29,7 +33,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
 		private FlowLayout navigationBar;
 		private FlowLayout contentContainer;
-		private Identifier activeEntry;
+		private static Identifier activeEntry;
+		private static String activeBook;
 		
 		@Override
 		protected @NotNull OwoUIAdapter<FlowLayout> createAdapter() {
@@ -40,21 +45,31 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		protected void build(FlowLayout rootComponent) {
 				rootComponent.surface(Surface.blur(4f, 48f));
 				rootComponent.child(Components.box(Sizing.fill(), Sizing.fill()).color(new Color(0.1f, 0.1f, 0.15f, 0.9f)).fill(true).zIndex(-1).positioning(Positioning.absolute(0, 0)));
+				rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
+				rootComponent.verticalAlignment(VerticalAlignment.CENTER);
 				
-				navigationBar = Containers.verticalFlow(Sizing.content(3), Sizing.content(3));
-				rootComponent.child(navigationBar);
+				var leftOffset = Math.max(15, this.width / 17);
+				
+				var leftPanel = Containers.verticalFlow(Sizing.content(), Sizing.fill());
+				leftPanel.horizontalAlignment(HorizontalAlignment.CENTER);
+				leftPanel.positioning(Positioning.relative(0, 0));
+				leftPanel.margins(Insets.of(0, 0, leftOffset, leftOffset));
+				
+				navigationBar = Containers.verticalFlow(Sizing.content(), Sizing.content(3));
+				navigationBar.surface(MarkdownParser.ORACLE_PANEL_DARK);
+				navigationBar.padding(Insets.of(9, 5, 5, 5));
+				rootComponent.child(leftPanel);
 				
 				contentContainer = Containers.verticalFlow(Sizing.fill(), Sizing.content(3));
 				contentContainer.horizontalSizing(Sizing.fill());
 				contentContainer.horizontalAlignment(HorizontalAlignment.CENTER);
 				
-				var container = Containers.verticalScroll(Sizing.fill(60), Sizing.fill(80), contentContainer);
+				var container = Containers.verticalScroll(Sizing.fill(40), Sizing.fill(90), contentContainer);
 				
 				rootComponent.child(container);
-				rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
-				rootComponent.verticalAlignment(VerticalAlignment.CENTER);
 				
-				buildModNavigation(rootComponent);
+				buildModNavigation(leftPanel);
+				leftPanel.child(navigationBar);
 				
 		}
 		
@@ -62,6 +77,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				
 				System.out.println("Loading content for " + filePath);
 				contentContainer.clearChildren();
+				activeEntry = filePath;
 				
 				var resourceManager = MinecraftClient.getInstance().getResourceManager();
 				var resourceCandidate = resourceManager.getResource(filePath);
@@ -112,12 +128,13 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 								textureComponent.sizing(Sizing.fixed((int) usedWidth), Sizing.fixed((int) height));
 						}
 						
-						paragraph.margins(Insets.of(4, 1, 0, 0));
+						if (paragraph.margins().get().equals(Insets.of(0)))
+								paragraph.margins(Insets.of(4, 1, 0, 0));
 						contentContainer.child(paragraph);
 				}
 		}
 		
-		private void buildModNavigation(FlowLayout rootComponent) {
+		private void buildModNavigation(FlowLayout buttonContainer) {
 				
 				// collect all book ids
 				var bookIds = OracleClient.RESOURCE_ENTRIES.stream()
@@ -128,12 +145,39 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				
 				var modSelectorDropdown = Components.dropdown(Sizing.content(3));
 				
-				var modSelectorButton = Components.button(Text.of(bookIds.getFirst()), button -> {
+				if (activeBook == null)
+						activeBook = bookIds.getFirst();
+				
+				if (activeEntry != null) {
+						try {
+								loadContentContainer(activeEntry, activeBook);
+						} catch (IOException e) {
+								throw new RuntimeException(e);
+						}
+				}
+				
+				var bookTitleLabel = new ScalableLabelComponent(Text.literal(activeBook).formatted(Formatting.DARK_GRAY), text -> false);
+				bookTitleLabel.scale = 1.5f;
+				var bookTitleWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+				bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
+				bookTitleWrapper.padding(Insets.of(8));
+				bookTitleWrapper.margins(Insets.of(40, -7, 0, 0));
+				bookTitleWrapper.child(bookTitleLabel);
+				buttonContainer.child(bookTitleWrapper.zIndex(3));
+				
+				bookTitleWrapper.mouseEnter().subscribe(() -> {
+						bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER);
+				});
+				bookTitleWrapper.mouseLeave().subscribe(() -> {
+						bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
+				});
+				bookTitleWrapper.mouseDown().subscribe((a, b, c) -> {
 						if (modSelectorDropdown.hasParent()) {
 								modSelectorDropdown.remove();
-								return;
+								return true;
 						}
-						rootComponent.child(modSelectorDropdown.positioning(Positioning.absolute(button.x(), button.y() + button.height())));
+						buttonContainer.child(modSelectorDropdown.positioning(Positioning.absolute(bookTitleWrapper.x() + bookTitleWrapper.width(), bookTitleWrapper.y())));
+						return true;
 				});
 				
 				for (var bookId : bookIds) {
@@ -141,13 +185,12 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 								activeEntry = null;
 								modSelectorDropdown.remove();
 								buildModNavigationBar(bookId);
-								modSelectorButton.setMessage(Text.of(bookId));
+								bookTitleLabel.text(Text.literal(bookId).formatted(Formatting.BLACK));
+								activeBook = bookId;
 						});
 				}
 				
-				rootComponent.child(modSelectorButton.positioning(Positioning.absolute(10, 10)));
-				
-				buildModNavigationBar(bookIds.getFirst());
+				buildModNavigationBar(activeBook);
 				
 		}
 		
@@ -180,15 +223,34 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 								}
 						}
 						
+						var levelContainers = new ArrayList<ColoredCollapsibleContainer>();
+						
 						for (var entry : entries) {
 								if (entry.directory) {
-										var directoryContainer = Containers.collapsible(Sizing.content(1), Sizing.content(1), Text.translatable(entry.name()), false);
+										var directoryContainer = new ColoredCollapsibleContainer(
+											Sizing.content(1),
+											Sizing.content(1),
+											Text.translatable(entry.name()).formatted(Formatting.WHITE), false);
 										buildNavigationEntriesForModPath(bookId, path + "/" + entry.id(), directoryContainer);
 										directoryContainer.margins(Insets.of(0, 0, 8, 0));
 										container.child(directoryContainer);
+										
+										// collapse all other containers
+										directoryContainer.mouseDown().subscribe((a, b, c) -> {
+												for (var elem : levelContainers) {
+														if (elem == directoryContainer) continue;
+														if (elem.expanded()) {
+																elem.toggleExpansion();
+														}
+												}
+												return false;
+										});
+										
+										levelContainers.add(directoryContainer);
+										
 								} else {
 										final var labelPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/" + entry.id());
-										final var labelText = Text.translatable(entry.name);
+										final var labelText = Text.translatable(entry.name).formatted(Formatting.WHITE);
 										final var label = Components.label(labelText.formatted(Formatting.UNDERLINE));
 										
 										label.mouseEnter().subscribe(() -> {

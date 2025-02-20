@@ -33,6 +33,11 @@ subprojects {
             name = "Sinytra"
             url "https://maven.su5ed.dev/releases"
         }
+
+        maven {
+            name = 'CurseMaven'
+            url "https://beta.cursemaven.com"
+        }
     }
 
     dependencies {

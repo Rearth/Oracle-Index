@@ -1,11 +1,13 @@
 package rearth.oracle.util;
 
 import io.wispforest.owo.ui.component.Components;
-import io.wispforest.owo.ui.core.Color;
-import io.wispforest.owo.ui.core.Component;
-import io.wispforest.owo.ui.core.Sizing;
+import io.wispforest.owo.ui.container.Containers;
+import io.wispforest.owo.ui.core.*;
+import io.wispforest.owo.ui.util.NinePatchTexture;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -27,18 +29,54 @@ public class MarkdownParser {
 		
 		private static final String[] removedLines = new String[] {"<center", "</center", "<div", "</div", "<span", "</span"};
 		
+		public static Surface ORACLE_PANEL = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel"), context, component);
+		public static Surface ORACLE_PANEL_HOVER = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_hover"), context, component);
+		public static Surface ORACLE_PANEL_PRESSED = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_pressed"), context, component);
+		public static Surface ORACLE_PANEL_DARK = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_dark"), context, component);
+		
 		public static List<Component> parseMarkdownToOwoComponents(String markdown, String bookId, Predicate<String> linkHandler) {
 				var components = new ArrayList<Component>();
 				
 				var frontMatter = parseFrontmatter(markdown);
 				var contentWithoutFrontmatter = removeFrontmatter(markdown);
 				
-				var title = frontMatter.getOrDefault("title", "Title not found in Frontmatter");
-				var titleLabel = new ScalableLabelComponent(Text.literal(title).setStyle(Style.EMPTY.withFont(Identifier.of(Oracle.MOD_ID, "wiki_bold"))), linkHandler);
-				titleLabel.scale = 2.2f;
-				titleLabel.color(new Color(0.6f, 0.6f, 1f));
+				var combinedPanel = Containers.horizontalFlow(Sizing.fill(), Sizing.content());
+				combinedPanel.margins(Insets.of(2, 10, 0, 0));
 				
-				components.add(titleLabel);
+				var titlePanel = Containers.horizontalFlow(Sizing.content(0), Sizing.content(0));
+				titlePanel.padding(Insets.of(10, 10, 10 ,10));
+				titlePanel.surface(ORACLE_PANEL);
+				combinedPanel.child(titlePanel.positioning(Positioning.absolute(48 + 6, 7)));
+				
+				var title = frontMatter.getOrDefault("title", "Title not found in Frontmatter");
+				var iconId = frontMatter.getOrDefault("icon", "");
+				if (!iconId.isEmpty()) {
+						// try find item
+						if (Registries.ITEM.containsId(Identifier.of(iconId))) {
+								var itemDisplay = new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
+								var itemComponent = Components.item(itemDisplay);
+								itemComponent.sizing(Sizing.fixed(48));
+								
+								var itemPanel = Containers.horizontalFlow(Sizing.content(0), Sizing.content(0));
+								itemPanel.padding(Insets.of(6, 6, 6, 6));
+								itemPanel.surface(ORACLE_PANEL);
+								itemPanel.child(itemComponent);
+								combinedPanel.child(itemPanel);
+						} else {
+								titlePanel.positioning(Positioning.layout());
+						}
+				} else {
+						titlePanel.positioning(Positioning.layout());
+				}
+				var titleLabel = new ScalableLabelComponent(Text.literal(title).formatted(Formatting.DARK_GRAY), linkHandler);
+				titleLabel.scale = 2f;
+				titlePanel.child(titleLabel);
+				
+				var spacedPanel = Containers.horizontalFlow(Sizing.fill(), Sizing.content());
+				spacedPanel.child(Containers.horizontalFlow(Sizing.fill(15), Sizing.fixed(15)));
+				spacedPanel.child(combinedPanel);
+				
+				components.add(spacedPanel);
 				
 				var paragraphs = splitIntoParagraphs(contentWithoutFrontmatter);
 				var htmlTagPattern = Pattern.compile("<([a-zA-Z0-9]+)(?:\\s[^>]*)?>"); // Regex to find opening HTML tags
@@ -307,7 +345,7 @@ public class MarkdownParser {
 						try {
 								var numberString = trimmedInput.substring(1, trimmedInput.length() - 1); // Remove "{" and "}"
 								var number = Integer.parseInt(numberString);
-								return number / 1024.0f; // Normalize to 0.0f - 1.0f range
+								return number / 1500.0f; // Normalize to 0.0f - 1.0f range
 						} catch (NumberFormatException e) {
 								System.err.println("Error parsing braced number value: " + input);
 								return 0.0f; // Or handle parsing errors as needed
