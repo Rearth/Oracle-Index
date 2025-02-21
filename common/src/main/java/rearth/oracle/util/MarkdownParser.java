@@ -75,6 +75,7 @@ public class MarkdownParser {
 				var spacedPanel = Containers.horizontalFlow(Sizing.fill(), Sizing.content());
 				spacedPanel.child(Containers.horizontalFlow(Sizing.fill(15), Sizing.fixed(15)));
 				spacedPanel.child(combinedPanel);
+				spacedPanel.margins(Insets.of(15, 5, 2, 2));
 				
 				components.add(spacedPanel);
 				

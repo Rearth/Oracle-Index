@@ -1,5 +1,6 @@
 package rearth.oracle;
 
+import dev.architectury.event.events.client.ClientLifecycleEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.minecraft.client.MinecraftClient;
@@ -25,9 +26,13 @@ public final class OracleClient {
         ClientTickEvent.CLIENT_POST.register(client -> {
             if (ORACLE_WIKI.wasPressed()) {
                 Oracle.LOGGER.info("Opening Oracle Wiki...");
-                findAllResourceEntries();
                 client.setScreen(new OracleScreen());
             }
+        });
+        
+        ClientLifecycleEvent.CLIENT_STARTED.register(client -> {
+            Oracle.LOGGER.info("Indexing entry items...");
+            findAllResourceEntries();
         });
         
     }

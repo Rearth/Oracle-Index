@@ -11,6 +11,7 @@ import io.wispforest.owo.ui.component.LabelComponent;
 import io.wispforest.owo.ui.component.TextureComponent;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
+import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
 import io.wispforest.owo.ui.util.NinePatchTexture;
 import net.minecraft.client.MinecraftClient;
@@ -33,8 +34,17 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
 		private FlowLayout navigationBar;
 		private FlowLayout contentContainer;
+		private FlowLayout rootComponent;
+		private FlowLayout leftPanel;
+		private ScrollContainer<FlowLayout> outerContainerContainer;
+		
+		private boolean needsLayout = false;
+		
 		private static Identifier activeEntry;
 		private static String activeBook;
+		
+		private static final int thinContentWidth = 60; // in %
+		private static final int wideContentWidth = 45; // in %
 		
 		@Override
 		protected @NotNull OwoUIAdapter<FlowLayout> createAdapter() {
@@ -45,15 +55,12 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		protected void build(FlowLayout rootComponent) {
 				rootComponent.surface(Surface.blur(4f, 48f));
 				rootComponent.child(Components.box(Sizing.fill(), Sizing.fill()).color(new Color(0.1f, 0.1f, 0.15f, 0.9f)).fill(true).zIndex(-1).positioning(Positioning.absolute(0, 0)));
-				rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
+				rootComponent.horizontalAlignment(HorizontalAlignment.LEFT);
 				rootComponent.verticalAlignment(VerticalAlignment.CENTER);
+				this.rootComponent = rootComponent;
 				
-				var leftOffset = Math.max(15, this.width / 17);
-				
-				var leftPanel = Containers.verticalFlow(Sizing.content(), Sizing.fill());
+				leftPanel = Containers.verticalFlow(Sizing.content(), Sizing.fill());
 				leftPanel.horizontalAlignment(HorizontalAlignment.CENTER);
-				leftPanel.positioning(Positioning.relative(0, 0));
-				leftPanel.margins(Insets.of(0, 0, leftOffset, leftOffset));
 				
 				navigationBar = Containers.verticalFlow(Sizing.content(), Sizing.content(3));
 				navigationBar.surface(MarkdownParser.ORACLE_PANEL_DARK);
@@ -63,13 +70,51 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				contentContainer = Containers.verticalFlow(Sizing.fill(), Sizing.content(3));
 				contentContainer.horizontalSizing(Sizing.fill());
 				contentContainer.horizontalAlignment(HorizontalAlignment.CENTER);
+				contentContainer.margins(Insets.of(2, 2, 4, 4));
 				
-				var container = Containers.verticalScroll(Sizing.fill(40), Sizing.fill(90), contentContainer);
+				outerContainerContainer = Containers.verticalScroll(Sizing.fill(wideContentWidth), Sizing.fill(), contentContainer);
+				var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(), navigationBar);
 				
-				rootComponent.child(container);
+				rootComponent.child(outerContainerContainer);
 				
 				buildModNavigation(leftPanel);
-				leftPanel.child(navigationBar);
+				leftPanel.child(outerNavigationBarContainer);
+				
+		}
+		
+		@Override
+		protected void init() {
+				super.init();
+				
+				updateLayout();
+		}
+		
+		private void updateLayout() {
+				var leftOffset = Math.max(15, this.width / 17);
+				
+				// "responsive" layout
+				if (this.width >= 650) {
+						rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
+						leftPanel.positioning(Positioning.relative(0, 0));
+						leftPanel.margins(Insets.of(0, 0, leftOffset, leftOffset));
+						outerContainerContainer.horizontalSizing(Sizing.fill(wideContentWidth));
+				} else {
+						rootComponent.horizontalAlignment(HorizontalAlignment.LEFT);
+						leftPanel.positioning(Positioning.layout());
+						leftPanel.margins(Insets.of(0, 0, 10, 5));
+						var leftPanelSize = leftPanel.width();
+						outerContainerContainer.horizontalSizing(Sizing.fixed(this.width - leftPanelSize - 15));
+				}
+		}
+		
+		@Override
+		public void tick() {
+				super.tick();
+				
+				if (needsLayout) {
+						needsLayout = false;
+						this.updateLayout();
+				}
 				
 		}
 		
@@ -156,12 +201,17 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 						}
 				}
 				
-				var bookTitleLabel = new ScalableLabelComponent(Text.literal(activeBook).formatted(Formatting.DARK_GRAY), text -> false);
+				var topMargins = 40;
+				if (this.height < 350) {
+						topMargins = 5;
+				}
+				
+				var bookTitleLabel = new ScalableLabelComponent(Text.literal(activeBook + " >").formatted(Formatting.DARK_GRAY), text -> false);
 				bookTitleLabel.scale = 1.5f;
 				var bookTitleWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
 				bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
 				bookTitleWrapper.padding(Insets.of(8));
-				bookTitleWrapper.margins(Insets.of(40, -7, 0, 0));
+				bookTitleWrapper.margins(Insets.of(topMargins, -7, 0, 0));
 				bookTitleWrapper.child(bookTitleLabel);
 				buttonContainer.child(bookTitleWrapper.zIndex(3));
 				
@@ -176,7 +226,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 								modSelectorDropdown.remove();
 								return true;
 						}
-						buttonContainer.child(modSelectorDropdown.positioning(Positioning.absolute(bookTitleWrapper.x() + bookTitleWrapper.width(), bookTitleWrapper.y())));
+						rootComponent.child(modSelectorDropdown.positioning(Positioning.absolute(bookTitleWrapper.x() + bookTitleWrapper.width(), bookTitleWrapper.y())));
 						return true;
 				});
 				
@@ -185,7 +235,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 								activeEntry = null;
 								modSelectorDropdown.remove();
 								buildModNavigationBar(bookId);
-								bookTitleLabel.text(Text.literal(bookId).formatted(Formatting.BLACK));
+								bookTitleLabel.text(Text.literal(bookId + " >").formatted(Formatting.DARK_GRAY));
 								activeBook = bookId;
 						});
 				}
@@ -243,6 +293,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 																elem.toggleExpansion();
 														}
 												}
+												this.needsLayout = true;
 												return false;
 										});
 										
