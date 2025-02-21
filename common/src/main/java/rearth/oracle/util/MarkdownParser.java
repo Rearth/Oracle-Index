@@ -179,15 +179,16 @@ public class MarkdownParser {
 						var isListing = line.matches("[0-9]\\.\\s.+");
 						var isUnorderedList = line.matches("-\\s.+");
 						var isWeirdList = line.matches("•\\s.+");
+						var isHtml = line.matches("<[a-zA-Z]+");
 						
-						if (isHeading || isListing || isUnorderedList || isWeirdList) {
+						if (isHeading || isListing || isUnorderedList || isWeirdList || isHtml) {
 								paragraphList.add(currentParagraph.toString());
 								currentParagraph = new StringBuilder();
 								
-								if (isHeading) {    // heading get their own paragraph, lists not
+								if (isHeading) {    // headings get their own paragraph, lists/other components not
 										paragraphList.add(line);
 								} else {
-										currentParagraph.append(line);
+										currentParagraph.append(line).append(" ");
 								}
 								continue;
 						}
