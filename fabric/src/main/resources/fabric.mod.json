@@ -23,7 +23,7 @@
     ]
   },
   "mixins": [
-    "oracle_wiki.mixins.json"
+    "oracle_index.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.16.10",
