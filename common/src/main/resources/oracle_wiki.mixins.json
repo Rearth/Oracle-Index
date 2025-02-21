@@ -1,9 +1,12 @@
 {
   "required": true,
-  "package": "rearth.oracle.mixins",
+  "package": "rearth.oracle.mixin",
   "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8",
   "client": [
+    "TooltipMixin",
+    "CreativeTooltipMixin",
+    "DrawContextMixin"
   ],
   "mixins": [
   ],

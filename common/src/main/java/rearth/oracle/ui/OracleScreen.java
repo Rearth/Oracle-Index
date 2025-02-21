@@ -3,9 +3,7 @@ package rearth.oracle.ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import com.mojang.blaze3d.systems.RenderSystem;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
-import io.wispforest.owo.ui.component.ButtonComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.LabelComponent;
 import io.wispforest.owo.ui.component.TextureComponent;
@@ -13,7 +11,6 @@ import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
-import io.wispforest.owo.ui.util.NinePatchTexture;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -40,11 +37,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
 		private boolean needsLayout = false;
 		
-		private static Identifier activeEntry;
-		private static String activeBook;
+		public static Identifier activeEntry;
+		public static String activeBook;
 		
-		private static final int thinContentWidth = 60; // in %
-		private static final int wideContentWidth = 45; // in %
+		private static final int wideContentWidth = 50; // in %
 		
 		@Override
 		protected @NotNull OwoUIAdapter<FlowLayout> createAdapter() {
@@ -90,17 +86,19 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		}
 		
 		private void updateLayout() {
-				var leftOffset = Math.max(15, this.width / 17);
+				var leftOffset = Math.max(15, this.width / 20);
 				
 				// "responsive" layout
 				if (this.width >= 650) {
 						rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
 						leftPanel.positioning(Positioning.relative(0, 0));
 						leftPanel.margins(Insets.of(0, 0, leftOffset, leftOffset));
+						outerContainerContainer.positioning(Positioning.relative(60, 50));
 						outerContainerContainer.horizontalSizing(Sizing.fill(wideContentWidth));
 				} else {
 						rootComponent.horizontalAlignment(HorizontalAlignment.LEFT);
 						leftPanel.positioning(Positioning.layout());
+						outerContainerContainer.positioning(Positioning.layout());
 						leftPanel.margins(Insets.of(0, 0, 10, 5));
 						var leftPanelSize = leftPanel.width();
 						outerContainerContainer.horizontalSizing(Sizing.fixed(this.width - leftPanelSize - 15));
@@ -182,13 +180,12 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		private void buildModNavigation(FlowLayout buttonContainer) {
 				
 				// collect all book ids
-				var bookIds = OracleClient.RESOURCE_ENTRIES.stream()
-					              .map(OracleClient.ResourceEntry::bookId)
-					              .distinct()
+				var bookIds = OracleClient.LOADED_BOOKS.stream()
 					              .sorted()
 					              .toList();
 				
 				var modSelectorDropdown = Components.dropdown(Sizing.content(3));
+				modSelectorDropdown.zIndex(5);
 				
 				if (activeBook == null)
 						activeBook = bookIds.getFirst();
