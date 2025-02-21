@@ -21,7 +21,7 @@ import java.util.Set;
 
 public final class OracleClient {
     
-    public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_wiki.open", GLFW.GLFW_KEY_H, "key.categories.misc");
+    public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_index.open", GLFW.GLFW_KEY_H, "key.categories.misc");
     
     public static final Set<String> LOADED_BOOKS = new HashSet<>();
     public static final HashMap<Identifier, BookItemLink> ITEM_LINKS = new HashMap<>();

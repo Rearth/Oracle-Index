@@ -4,30 +4,30 @@ loaderVersion = "[4,)"
 license = "Insert License Here"
 
 [[mods]]
-modId = "oracle_wiki"
+modId = "oracle_index"
 version = "${version}"
-displayName = "Oracle Wiki"
+displayName = "Oracle Index"
 authors = "Me!"
 description = '''
 This is an example description! Tell everyone what your mod is about!
 '''
 #logoFile = ""
 
-[[dependencies.oracle_wiki]]
+[[dependencies.oracle_index]]
 modId = "neoforge"
 type = "required"
 versionRange = "[21.1,)"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.oracle_wiki]]
+[[dependencies.oracle_index]]
 modId = "minecraft"
 type = "required"
 versionRange = "[1.21.1,)"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.oracle_wiki]]
+[[dependencies.oracle_index]]
 modId = "architectury"
 type = "required"
 versionRange = "[13.0.8,)"
@@ -35,4 +35,4 @@ ordering = "AFTER"
 side = "BOTH"
 
 [[mixins]]
-config = "oracle_wiki.mixins.json"
+config = "oracle_index.mixins.json"

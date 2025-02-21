@@ -1,5 +1,5 @@
 {
-  "texture": "oracle_wiki:textures/gui/bedrock_panel_pressed.png",
+  "texture": "oracle_index:textures/gui/bedrock_panel_dark.png",
   "texture_width": 16,
   "texture_height": 16,
   "repeat": false,
