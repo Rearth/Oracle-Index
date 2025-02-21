@@ -221,6 +221,15 @@ public class MarkdownParser {
 						var width = convertWidthStringToFloat(widthSource);
 						if (width <= 0) width = 0.5f;   // default to 50% width
 						
+						var itemIdCandidate = Identifier.of(location);
+						if (Registries.ITEM.containsId(itemIdCandidate)) {
+								if (width == 0.5f) width = 0.1f;    // make items smaller
+								var imageComponent = Components.item(new ItemStack(Registries.ITEM.get(itemIdCandidate)));
+								imageComponent.setTooltipFromStack(true);
+								imageComponent.verticalSizing(Sizing.fixed((int) (width * 100)));   // width is set as a way to get the desired width in the layout methods
+								return imageComponent;
+						}
+						
 						var imageModId = location.split(":")[0];
 						var imageModPath = location.split(":")[1];
 						var searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/item/" + bookId + "/" + imageModPath + ".png");

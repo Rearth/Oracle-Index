@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.Components;
+import io.wispforest.owo.ui.component.ItemComponent;
 import io.wispforest.owo.ui.component.LabelComponent;
 import io.wispforest.owo.ui.component.TextureComponent;
 import io.wispforest.owo.ui.container.Containers;
@@ -171,6 +172,14 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 								var height = usedWidth / ratio;
 								
 								textureComponent.sizing(Sizing.fixed((int) usedWidth), Sizing.fixed((int) height));
+						} else if (paragraph instanceof ItemComponent itemComponent) {
+								var ratio = 1f;
+								var targetSize = itemComponent.verticalSizing().get().value / 100f;
+								var maxWidth = this.width * 0.6f;
+								var usedWidth = maxWidth * targetSize * 0.8f;
+								var height = usedWidth / ratio;
+								
+								itemComponent.sizing(Sizing.fixed((int) usedWidth), Sizing.fixed((int) height));
 						}
 						
 						if (paragraph.margins().get().equals(Insets.of(0)))
