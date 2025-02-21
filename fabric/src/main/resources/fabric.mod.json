@@ -3,13 +3,12 @@
   "id": "oracle_index",
   "version": "${version}",
   "name": "Oracle Index",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "description": "Multiplatform Wiki / Documentation mod for content from moddedmc.org",
   "authors": [
-    "Me!"
+    "Me! - Rearth"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "sources": "https://github.com/Rearth/Oracle-Index"
   },
   "license": "CC0-1.0",
   "icon": "assets/oracle_index/icon.png",
@@ -31,8 +30,5 @@
     "java": ">=21",
     "architectury": ">=13.0.8",
     "fabric-api": "*"
-  },
-  "suggests": {
-    "another-mod": "*"
   }
 }

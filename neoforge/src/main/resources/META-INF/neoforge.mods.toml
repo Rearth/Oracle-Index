@@ -1,15 +1,15 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
 #issueTrackerURL = ""
-license = "Insert License Here"
+license = "CC0"
 
 [[mods]]
 modId = "oracle_index"
 version = "${version}"
 displayName = "Oracle Index"
-authors = "Me!"
+authors = "Me! - Rearth"
 description = '''
-This is an example description! Tell everyone what your mod is about!
+Multiplatform Wiki / Documentation mod for content from moddedmc.org
 '''
 #logoFile = ""
 
