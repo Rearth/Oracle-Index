@@ -33,7 +33,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		private FlowLayout contentContainer;
 		private FlowLayout rootComponent;
 		private FlowLayout leftPanel;
-		private ScrollContainer<FlowLayout> outerContainerContainer;
+		private ScrollContainer<FlowLayout> outerContentContainer;
 		
 		private boolean needsLayout = false;
 		
@@ -68,12 +68,12 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				contentContainer.horizontalAlignment(HorizontalAlignment.CENTER);
 				contentContainer.margins(Insets.of(2, 2, 4, 4));
 				
-				outerContainerContainer = Containers.verticalScroll(Sizing.fill(wideContentWidth), Sizing.fill(), contentContainer);
-				var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(), navigationBar);
-				
-				rootComponent.child(outerContainerContainer);
+				outerContentContainer = Containers.verticalScroll(Sizing.fill(wideContentWidth), Sizing.fill(), contentContainer);
+				rootComponent.child(outerContentContainer);
 				
 				buildModNavigation(leftPanel);
+				
+				var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(), navigationBar);
 				leftPanel.child(outerNavigationBarContainer);
 				
 		}
@@ -93,15 +93,15 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 						rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
 						leftPanel.positioning(Positioning.relative(0, 0));
 						leftPanel.margins(Insets.of(0, 0, leftOffset, leftOffset));
-						outerContainerContainer.positioning(Positioning.relative(60, 50));
-						outerContainerContainer.horizontalSizing(Sizing.fill(wideContentWidth));
+						outerContentContainer.positioning(Positioning.relative(60, 50));
+						outerContentContainer.horizontalSizing(Sizing.fill(wideContentWidth));
 				} else {
 						rootComponent.horizontalAlignment(HorizontalAlignment.LEFT);
 						leftPanel.positioning(Positioning.layout());
-						outerContainerContainer.positioning(Positioning.layout());
+						outerContentContainer.positioning(Positioning.layout());
 						leftPanel.margins(Insets.of(0, 0, 10, 5));
 						var leftPanelSize = leftPanel.width();
-						outerContainerContainer.horizontalSizing(Sizing.fixed(this.width - leftPanelSize - 15));
+						outerContentContainer.horizontalSizing(Sizing.fixed(this.width - leftPanelSize - 15));
 				}
 		}
 		
@@ -302,10 +302,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 										final var label = Components.label(labelText.formatted(Formatting.UNDERLINE));
 										
 										label.mouseEnter().subscribe(() -> {
-												label.color(new Color(0.9f, 0.9f, 0.95f));
+												label.text(labelText.copy().formatted(Formatting.GRAY));
 										});
 										label.mouseLeave().subscribe(() -> {
-												label.color(Color.WHITE);
+												label.text(labelText.copy());
 										});
 										
 										label.mouseDown().subscribe((a, b, c) -> {

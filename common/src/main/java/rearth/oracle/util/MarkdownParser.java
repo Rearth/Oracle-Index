@@ -1,6 +1,7 @@
 package rearth.oracle.util;
 
 import io.wispforest.owo.ui.component.Components;
+import io.wispforest.owo.ui.component.LabelComponent;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.core.*;
 import io.wispforest.owo.ui.util.NinePatchTexture;
@@ -12,9 +13,9 @@ import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
-import net.minecraft.util.Colors;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import rearth.oracle.Oracle;
 import rearth.oracle.ui.components.ScalableLabelComponent;
@@ -27,7 +28,7 @@ import java.util.regex.Pattern;
 // a very basic and primitive (and hacky) ghetto markdown to owo lib parser
 public class MarkdownParser {
 		
-		private static final String[] removedLines = new String[] {"<center", "</center", "<div", "</div", "<span", "</span"};
+		private static final String[] removedLines = new String[] {"<center", "</center", "<div", "</div", "<span", "</span", "---"};
 		
 		public static Surface ORACLE_PANEL = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel"), context, component);
 		public static Surface ORACLE_PANEL_HOVER = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_hover"), context, component);
@@ -90,11 +91,10 @@ public class MarkdownParser {
 						
 						if (matcher.lookingAt()) { // Check if paragraph starts with an HTML tag
 								var tagName = matcher.group(1); // Extract the tag name
-								var tagContent = trimmedParagraph.substring(matcher.end()).trim(); // Content after the opening tag, e.g. the "variant=info" of a 'callout'
 								
 								// Handle specific HTML tags
 								if ("Callout".equalsIgnoreCase(tagName)) {
-										// components.add(parseCallout(tagContent, bookId, linkHandler));   // todo
+										components.add(parseCalloutParagraph(paragraph, linkHandler));
 								} else if ("ModAsset".equalsIgnoreCase(tagName)) {
 										components.add(parseImageParagraph(paragraph, bookId, true));
 								} else if ("Asset".equalsIgnoreCase(tagName)) {
@@ -235,7 +235,41 @@ public class MarkdownParser {
 				}
 		}
 		
-		private static Component parseParagraphToLabel(String paragraphString, Predicate<String> linkHandler) {
+		private static Component parseCalloutParagraph(String paragraphString, Predicate<String> linkHandler) {
+				
+				var doc = Jsoup.parseBodyFragment(paragraphString);
+				var element = doc.selectFirst("Callout");
+				
+				if (element == null) return Components.label(Text.literal("Invalid Callout"));
+				
+				var calloutText = element.text();
+				var calloutVariant = element.attr("variant");
+				
+				var contentLabel = parseParagraphToLabel(calloutText, linkHandler);
+				contentLabel.horizontalSizing(Sizing.fill(70));
+				contentLabel.horizontalTextAlignment(HorizontalAlignment.CENTER);
+				contentLabel.color(Color.ofRgb(5592405));
+				var titleLabel = Components.label(Text.literal(StringUtils.capitalize((calloutVariant))));
+				
+				var contentContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+				contentContainer.padding(Insets.of(6, 8, 8, 8));
+				contentContainer.margins(Insets.of(15, 0, 10, 0));
+				contentContainer.surface(ORACLE_PANEL);
+				contentContainer.child(contentLabel);
+				var titleContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+				titleContainer.padding(Insets.of(6, 5, 8, 6));
+				titleContainer.positioning(Positioning.absolute(0, 0));
+				titleContainer.surface(ORACLE_PANEL_PRESSED);
+				titleContainer.child(titleLabel);
+				
+				var combinedContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+				combinedContainer.child(contentContainer);
+				combinedContainer.child(titleContainer);
+				
+				return combinedContainer;
+		}
+		
+		private static LabelComponent parseParagraphToLabel(String paragraphString, Predicate<String> linkHandler) {
 				var paragraphText = Text.empty();
 				var index = 0;
 				var processedParagraphString = paragraphString;
