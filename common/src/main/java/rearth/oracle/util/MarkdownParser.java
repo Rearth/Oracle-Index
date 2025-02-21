@@ -3,6 +3,7 @@ package rearth.oracle.util;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.LabelComponent;
 import io.wispforest.owo.ui.container.Containers;
+import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import io.wispforest.owo.ui.util.NinePatchTexture;
 import net.minecraft.client.MinecraftClient;
@@ -30,6 +31,8 @@ public class MarkdownParser {
 		
 		private static final String[] removedLines = new String[] {"<center", "</center", "<div", "</div", "<span", "</span", "---"};
 		
+		public static final Identifier ITEM_SLOT = Identifier.of(Oracle.MOD_ID, "textures/item_cell.png");
+		
 		public static Surface ORACLE_PANEL = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel"), context, component);
 		public static Surface ORACLE_PANEL_HOVER = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_hover"), context, component);
 		public static Surface ORACLE_PANEL_PRESSED = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_pressed"), context, component);
@@ -41,6 +44,44 @@ public class MarkdownParser {
 				var frontMatter = parseFrontmatter(markdown);
 				var contentWithoutFrontmatter = removeFrontmatter(markdown);
 				
+				var spacedPanel = getTitlePanel(linkHandler, frontMatter);
+				
+				components.add(spacedPanel);
+				
+				var paragraphs = splitIntoParagraphs(contentWithoutFrontmatter);
+				var htmlTagPattern = Pattern.compile("<([a-zA-Z0-9]+)(?:\\s[^>]*)?>"); // Regex to find opening HTML tags
+				
+				for (var paragraph : paragraphs) {
+						var trimmedParagraph = paragraph.trim();
+						if (trimmedParagraph.isEmpty()) continue;
+						
+						var matcher = htmlTagPattern.matcher(trimmedParagraph);
+						
+						if (matcher.lookingAt()) { // Check if paragraph starts with an HTML tag
+								var tagName = matcher.group(1); // Extract the tag name
+								
+								// Handle specific HTML tags
+								if ("Callout".equalsIgnoreCase(tagName)) {
+										components.add(parseCalloutParagraph(paragraph, linkHandler));
+								} else if ("ModAsset".equalsIgnoreCase(tagName)) {
+										components.add(parseImageParagraph(paragraph, bookId, true));
+								} else if ("Asset".equalsIgnoreCase(tagName)) {
+										components.add(parseImageParagraph(paragraph, bookId, false));
+								} else if ("CraftingRecipe".equalsIgnoreCase(tagName)) {
+										components.add(parseRecipeParagraph(paragraph));
+								} else {
+										// do nothing, other html tags are not supported (yet)
+								}
+						} else {
+								// if not html, call normal paragraph method
+								components.add(parseParagraphToLabel(trimmedParagraph, linkHandler));
+						}
+				}
+				
+				return components;
+		}
+		
+		private static FlowLayout getTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter) {
 				var combinedPanel = Containers.horizontalFlow(Sizing.fill(), Sizing.content());
 				combinedPanel.margins(Insets.of(2, 10, 0, 0));
 				
@@ -77,38 +118,7 @@ public class MarkdownParser {
 				spacedPanel.child(Containers.horizontalFlow(Sizing.fill(15), Sizing.fixed(15)));
 				spacedPanel.child(combinedPanel);
 				spacedPanel.margins(Insets.of(15, 5, 2, 2));
-				
-				components.add(spacedPanel);
-				
-				var paragraphs = splitIntoParagraphs(contentWithoutFrontmatter);
-				var htmlTagPattern = Pattern.compile("<([a-zA-Z0-9]+)(?:\\s[^>]*)?>"); // Regex to find opening HTML tags
-				
-				for (var paragraph : paragraphs) {
-						var trimmedParagraph = paragraph.trim();
-						if (trimmedParagraph.isEmpty()) continue;
-						
-						var matcher = htmlTagPattern.matcher(trimmedParagraph);
-						
-						if (matcher.lookingAt()) { // Check if paragraph starts with an HTML tag
-								var tagName = matcher.group(1); // Extract the tag name
-								
-								// Handle specific HTML tags
-								if ("Callout".equalsIgnoreCase(tagName)) {
-										components.add(parseCalloutParagraph(paragraph, linkHandler));
-								} else if ("ModAsset".equalsIgnoreCase(tagName)) {
-										components.add(parseImageParagraph(paragraph, bookId, true));
-								} else if ("Asset".equalsIgnoreCase(tagName)) {
-										components.add(parseImageParagraph(paragraph, bookId, false));
-								} else {
-										// do nothing, other html tags are not supported (yet)
-								}
-						} else {
-								// if not html, call normal paragraph method
-								components.add(parseParagraphToLabel(trimmedParagraph, linkHandler));
-						}
-				}
-				
-				return components;
+				return spacedPanel;
 		}
 		
 		public static Map<String, String> parseFrontmatter(String markdownContent) {
@@ -267,6 +277,101 @@ public class MarkdownParser {
 				combinedContainer.child(titleContainer);
 				
 				return combinedContainer;
+		}
+		
+		private static Component parseRecipeParagraph(String paragraph) {
+				
+				var doc = Jsoup.parseBodyFragment(paragraph.replace("{[", "\"{[").replace("]}", "]}\""));
+				var element = doc.selectFirst("CraftingRecipe");
+				
+				if (element == null) return Components.label(Text.literal("Invalid recipe, unable to parse html"));
+				
+				var recipeInputs = element.attr("slots");
+				var recipeResult = element.attr("result");
+				var recipeResultCount = element.attr("count").replace("{", "").replace("}", "");
+				int resultCount = 1;
+				try {
+						resultCount = Integer.parseInt(recipeResultCount);
+				} catch (NumberFormatException ignored) {}
+				
+				var recipeInputItems = extractRecipeInputs(recipeInputs);
+				if (recipeInputItems.size() != 9) return Components.label(Text.literal("Invalid recipe, unable to parse 9 ingredients"));
+				
+				var panel = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+				panel.surface(ORACLE_PANEL);
+				panel.horizontalAlignment(HorizontalAlignment.CENTER);
+				panel.verticalAlignment(VerticalAlignment.CENTER);
+				
+				var inputGrid = Containers.grid(Sizing.content(), Sizing.content(), 3, 3);
+				inputGrid.padding(Insets.of(3));
+				inputGrid.margins(Insets.of(3));
+				var backgroundGrid = Containers.grid(Sizing.content(), Sizing.content(), 3, 3);
+				backgroundGrid.padding(Insets.of(3));
+				backgroundGrid.margins(Insets.of(3));
+				backgroundGrid.positioning(Positioning.relative(0, 0));
+				for (int i = 0; i < recipeInputItems.size(); i++) {
+						var input = recipeInputItems.get(i);
+						var id = Identifier.of(input);
+						var itemstack = new ItemStack(Registries.ITEM.get(id));
+						var itemComponent = Components.item(itemstack);
+						itemComponent.setTooltipFromStack(true);
+						
+						var row = i % 3;
+						var column = i / 3;
+						
+						backgroundGrid.child(getItemFrame(), column, row);
+						inputGrid.child(itemComponent, column, row);
+				}
+				
+				var arrow = Components.texture(Identifier.of(Oracle.MOD_ID, "textures/arrow_empty.png"), 0, 0, 29, 16, 29, 16);
+				arrow.margins(Insets.of(5));
+				var result = Components.item(new ItemStack(Registries.ITEM.get(Identifier.of(recipeResult)), resultCount));
+				result.setTooltipFromStack(true);
+				result.margins(Insets.of(5));
+				
+				var resultFrame = getItemFrame().positioning(Positioning.relative(100, 50));
+				resultFrame.margins(Insets.of(5));
+				
+				panel.child(backgroundGrid);
+				panel.child(inputGrid);
+				panel.child(arrow);
+				panel.child(result);
+				panel.child(resultFrame);
+				
+				return panel;
+				
+				
+		}
+		
+		public static List<String> extractRecipeInputs(String input) {
+				List<String> resultList = new ArrayList<>();
+				
+				var trimmedInput = input.trim();
+				if (trimmedInput.startsWith("{[") && trimmedInput.endsWith("]}")) {
+						trimmedInput = trimmedInput.substring(2, trimmedInput.length() - 2).trim();
+				} else {
+						System.err.println("Input string does not have the expected format.");
+						return resultList; // Or throw an exception if you prefer
+				}
+				
+				var elements = trimmedInput.split(",");
+				
+				for (var element : elements) {
+						var trimmedElement = element.trim();
+						
+						// Remove single quotes if present
+						if (trimmedElement.startsWith("'") && trimmedElement.endsWith("'")) {
+								trimmedElement = trimmedElement.substring(1, trimmedElement.length() - 1);
+						}
+						
+						resultList.add(trimmedElement);
+				}
+				
+				return resultList;
+		}
+		
+		public static Component getItemFrame() {
+				return Components.texture(ITEM_SLOT, 0, 0, 16, 16, 16, 16).sizing(Sizing.fixed(16));
 		}
 		
 		private static LabelComponent parseParagraphToLabel(String paragraphString, Predicate<String> linkHandler) {

@@ -36,7 +36,6 @@ public final class OracleClient {
         
         ClientTickEvent.CLIENT_POST.register(client -> {
             if (ORACLE_WIKI.wasPressed()) {
-                findAllResourceEntries();   // todo delete this, not actually needed
                 Oracle.LOGGER.info("Opening Oracle Wiki...");
                 client.setScreen(new OracleScreen());
             }

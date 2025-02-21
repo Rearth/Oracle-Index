@@ -67,6 +67,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				contentContainer.horizontalSizing(Sizing.fill());
 				contentContainer.horizontalAlignment(HorizontalAlignment.CENTER);
 				contentContainer.margins(Insets.of(2, 2, 4, 4));
+				contentContainer.padding(Insets.of(20, 25, 0, 0));
 				
 				outerContentContainer = Containers.verticalScroll(Sizing.fill(wideContentWidth), Sizing.fill(), contentContainer);
 				rootComponent.child(outerContentContainer);
@@ -86,13 +87,13 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		}
 		
 		private void updateLayout() {
-				var leftOffset = Math.max(15, this.width / 20);
+				var leftOffset = Math.max(15, this.width / 17);
 				
 				// "responsive" layout
 				if (this.width >= 650) {
 						rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
 						leftPanel.positioning(Positioning.relative(0, 0));
-						leftPanel.margins(Insets.of(0, 0, leftOffset, leftOffset));
+						leftPanel.margins(Insets.of(0, 0, leftOffset, leftOffset / 2));
 						outerContentContainer.positioning(Positioning.relative(60, 50));
 						outerContentContainer.horizontalSizing(Sizing.fill(wideContentWidth));
 				} else {
