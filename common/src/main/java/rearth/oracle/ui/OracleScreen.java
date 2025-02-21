@@ -11,6 +11,7 @@ import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -233,7 +234,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 								activeEntry = null;
 								modSelectorDropdown.remove();
 								buildModNavigationBar(bookId);
-								bookTitleLabel.text(Text.literal(bookId + " >").formatted(Formatting.DARK_GRAY));
+								bookTitleLabel.text(Text.translatable(bookId).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY));
 								activeBook = bookId;
 						});
 				}
