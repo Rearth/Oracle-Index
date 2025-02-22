@@ -7,7 +7,7 @@
 <h3 align="center">Oracle-Index</h3>
 
 <div align="center">
-  A minecraft fabric / neoforge documentation viewer mod, intended to be used with wikis alongside moddedmc.wiki
+  A minecraft fabric / neoforge client-side documentation viewer mod, intended to be used with wikis alongside moddedmc.wiki
   <br/>
   <br/>
   <a href="https://moddedmc.org/en/mod/Oracle_Index/docs"><strong>Explore the docs»</strong></a>
