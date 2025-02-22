@@ -122,7 +122,6 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
 		private void loadContentContainer(Identifier filePath, String bookId) throws IOException {
 				
-				System.out.println("Loading content for " + filePath);
 				contentContainer.clearChildren();
 				activeEntry = filePath;
 				

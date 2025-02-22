@@ -174,7 +174,7 @@ public class MarkdownParser {
 						var line = s.trim();
 						
 						var isSkipped = Arrays.stream(removedLines).anyMatch(line::startsWith);
-						if (isSkipped) continue;
+						if (isSkipped && !inCodeBlock) continue;
 						
 						var newCodeBlock = line.startsWith("```");
 						
@@ -482,11 +482,11 @@ public class MarkdownParser {
 				}
 				
 				if (headingLevel > 0)
-						paragraphText.formatted(Formatting.BOLD);
+						paragraphText = paragraphText.formatted(Formatting.GRAY);
 				
 				var label = new ScalableLabelComponent(paragraphText, linkHandler);
 				if (headingLevel > 0) {
-						label.scale = 2f - headingLevel * 0.2f;
+						label.scale = 1.5f - headingLevel * 0.1f;
 				}
 				label.lineHeight(10);
 				

@@ -8,8 +8,8 @@ This page is aimed at developers that want their wiki to be accessible via the o
 1. Create your wiki directory / content layout as normal, following the instructions of moddedmc.wiki
 2. Make sure you have _meta.json files with entries for **all** your content. The oracle index uses the meta.json files to build the
 navigation bar.
-3. Copy the entire wiki to your mods resources folder. The correct path is: "resources/assets/oracle_index/books/your-mod-id/". To automatically do this, see [auto gradle sync](../developer/gradle_task.mdx)
-4. The oracle index will automatically load your mods resources
+3. Copy the entire wiki to your mods resources folder. The correct path is: "resources/assets/oracle_index/books/your-mod-id/". To automatically do this, see [auto gradle sync](../developer/gradle_task)
+4. The oracle index will automatically load your mods resources.
 
 The resulting directory tree should look like this:
 
@@ -39,6 +39,16 @@ title: Generators
 icon: oritech:basic_generator_block
 related_items: [oritech:basic_generator_block, oritech:bio_generator_block, oritech:lava_generator_block, oritech:fuel_generator_block, oritech:big_solar_panel_block]
 ---
+Here would be your content.
 ```
 
-Here would be your content.
+## Custom Book / Opening the Screens
+Oracle Index does not come with a guide book by default. However, in your mod, you can very easily just add a new book item, and open the desired screen when the book is used.
+You could also open the book via other mechanisms, such as a button in another screen.
+
+Call the following code on the client side:
+```
+OracleScreen.activeBook = "oracle-index";   // your book name
+OracleScreen.activeEntry = "oracle_index:books/oracle-index/user_guide.mdx";    // your modId + filepath
+MinecraftClient.getInstance().setScreen(new OracleScreen());
+```
