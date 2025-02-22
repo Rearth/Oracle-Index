@@ -1,7 +1,7 @@
 <br/>
 <p align="center">
   <a href="https://github.com/rearth/Oracle-Index">
-    <img src="https://github.com/Rearth/Oritech/assets/10100603/d459b3fa-ef6f-4675-99d7-c44a78a3cf71" alt="Logo" width="80" height="80">
+    <img src="https://github.com/user-attachments/assets/eaeb76b2-3597-4128-96aa-bec9ba02c5c9" alt="Logo" width="80" height="80">
   </a>
 
 <h3 align="center">Oracle-Index</h3>
@@ -22,19 +22,17 @@
 
 ![Downloads](https://img.shields.io/github/downloads/rearth/Oracle-Index/total) ![Stargazers](https://img.shields.io/github/stars/rearth/Oracle-Index?style=social) ![Issues](https://img.shields.io/github/issues/rearth/Oracle-Index) ![License](https://img.shields.io/github/license/rearth/Oracle-Index) ![Discord](https://img.shields.io/discord/1233448016128512082)
 
-
-
 </div>
 
 ---
 <p align="center">
-  <img src="https://github.com/Rearth/Oritech/assets/10100603/bb99651d-d9af-48e2-9b00-6fb980517e0a" />
+  <img src="https://github.com/user-attachments/assets/6ec59a62-f68a-4a61-908b-cfc4480503b9" />
 </p>
 <p align="center">
-  <img src="https://github.com/Rearth/Oritech/assets/10100603/be0fd041-40fc-40c3-a273-976140e89e90" />
+  <img src="https://github.com/user-attachments/assets/e2649e0e-4827-46df-8309-adbafe2d1730" />
 </p>
 <p align="center">
-  <img src="https://github.com/Rearth/Oritech/assets/10100603/b76bf232-74e7-4a17-8166-89d1c80f738e" />
+  <img src="https://github.com/user-attachments/assets/615fca18-fd3a-4537-b980-d08f4ae0fd60" />
 </p>
 
 ---
@@ -53,6 +51,7 @@ Features:
 - Smooth scrolling, modern minecraft-y design elements
 - Compatibility for documentations created for moddedmc.wiki
 - Cross-Linking between pages and items
+- Responsive layouts
 
 ## Built With
 
