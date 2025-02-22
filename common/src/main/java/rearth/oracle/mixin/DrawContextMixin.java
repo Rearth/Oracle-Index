@@ -63,6 +63,7 @@ public class DrawContextMixin {
 						OracleClient.openEntryProgress += (float) Delta.compute(OracleClient.openEntryProgress, 1.25, MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration() * .125f);
 						var progressSteps = 40;
 						var progress = (int) (OracleClient.openEntryProgress * progressSteps);
+						progress = Math.clamp(progress, 0, 40);
 						var missingSteps = progressSteps - progress;
 						var progressText = "[" + "|".repeat(progress) + ".".repeat(missingSteps) + "]";
 						var altTooltip = TooltipComponent.of(Text.translatable(progressText).asOrderedText());

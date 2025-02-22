@@ -1,0 +1,60 @@
+---
+title: Enderyczny Laser
+icon: oritech:laser_arm_block
+---
+
+<center>
+<ModAsset location="oritech:area/enderic_laser" width={512} />
+</center>
+
+Enderyczny laser wykorzystuje ogromne ilości energii do wystrzelenia promienia lasera w określonym kierunku. W większości przypadków prowadzi to do zniszczenia bloku. Zniszczone bloki trafiają do ekwipunku. Bloki, które nie mieszczą się w ekwipunku, zostaną utracone, więc warto używać [rurki transportowej](../logistics/item_transport) do kontynuowania zbierania przedmiotów.
+
+---
+
+**Kontrola**
+
+Aby ustawić kierunek celu lasera, wybierz cel za pomocą przedmiotu [wyznaczacz celu](../tools/target_designator). Następnie przytrzymaj shift + kliknij prawym przyciskiem myszy na **dolny** blok lasera, aby przypisać cel. Laser będzie kontynuował strzelanie w kierunku celu, dopóki będzie coś do zniszczenia.
+
+*Pamiętaj, że ustawiasz tylko kierunek celu. Oznacza to, że laser będzie niszczył bloki przed i za celem.* Sygnał redstone wyłącza laser.
+
+Maksymalny zasięg to 64.
+
+---
+
+**Zbieranie Fluxitu**
+
+Ogromna energia lasera enderycznego powoduje, że dorosłe klastry ametystu zamieniają się w fluxit po zniszczeniu.
+
+<center>
+<ModAsset location="oritech:area/laser_fluxite" width={512} />
+</center>
+
+Laser również przyspiesza wzrost ametystów, gdy celuje w same pąki ametystu.
+
+---
+
+**Przesył Energetyczny**
+
+Kiedy enderyczny laser celuje w blok, który może przechowywać energię (np. jakakolwiek maszyna), napełnia on magazyn energii maszyny. Laser ignoruje wszelkie limity wejść i wyjść i może napełnić magazyn energii maszyn, które normalnie nie akceptują energii z kabli bezpośrednio.
+
+---
+
+**Dodatek Łowcy Maszyn**
+
+Po wyposażeniu lasera enderycznego w dodatek łowcy maszyn, laser celuje w moby zamiast bloków. Aktualizacje dodatków nadal działają podczas polowania na moby: dodatek do plonów zwiększa ilość lootów, dodatkowe dodatki łowcy zwiększają zasięg skanowania celu, dodatki przyspieszające zwiększają obrażenia (zmniejszając efektywność energetyczną), a filtr plonów unika zabijania młodych zwierząt.
+
+Jeśli nosisz [zbroję exo](../tools/exo_armor), enderyczny laser naładuje ją za Ciebie.
+
+**Celowanie w Łowcę**
+
+Użyj [wyznaczacza celu](../tools/target_designator) na enderycznym laserze, aby zmienić tryby celowania. Domyślny tryb to atakowanie tylko potworów, ale można go również ustawić na atakowanie zwierząt lub nawet wędrujących handlarzy. Bądź ostrożny z jego używaniem i ustawieniami celowania, ponieważ możesz przypadkowo skrzywdzić byty, które nie chcesz.
+
+---
+
+**Więcej Szczegółów**
+
+Promień lasera celuje w każdy blok, ale przechodzi przez szkło (i nie-wyhodowane ametysty). Dodatki do kopalni zwiększają szerokość wykopywanego obszaru.
+
+Sam laser ma tylko jedno miejsce na dodatek na dole. Dodatki wpływają tylko na szybkość i efektywność niszczenia bloków; przesył energii może korzystać tylko z ulepszeń prędkości.
+
+Blok celowania zatrzyma laser, uniemożliwiając dalszy postęp, ale pozostanie nienaruszony.

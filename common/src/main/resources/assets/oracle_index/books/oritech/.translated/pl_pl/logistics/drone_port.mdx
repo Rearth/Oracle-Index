@@ -1,0 +1,18 @@
+---  
+title: Port dronów  
+icon: oritech:drone_port_block  
+---  
+
+<center>  
+<ModAsset location="oritech:drone_port_block" width={256} />  
+</center>  
+
+Port dronów pozwala na transport przedmiotów na duże odległości za pomocą latających dronów. Wymaga zbudowania i zasilenia portu dronów zarówno w miejscu startu, jak i lądowania.  
+
+Po zbudowaniu, przypisz port docelowy za pomocą przedmiotu o nazwie "znacznik celu". Połącz go z docelowym portem dronów, klikając prawym przyciskiem myszy z wciśniętym klawiszem Shift na docelowy port. Następnie, w porcie, z którego chcesz wysyłać przedmioty, otwórz interfejs użytkownika i umieść znacznik celu w specjalnym slocie na przedmioty.  
+
+Port docelowy musi znajdować się w odległości co najmniej 50 bloków, a obszar, w którym się znajduje, musi być załadowany do pamięci.  
+
+Port dronów może wysyłać przedmioty tylko do jednego konkretnego portu docelowego, ale port może odbierać przedmioty z wielu portów. Jednak każdy dron potrzebuje kilku sekund na lądowanie, więc jeśli przedmioty docierają zbyt często, jeden port odbiorczy może być przeciążony, gdy jest celem wielu portów.  
+
+Czas dostawy przedmiotów jest stały, niezależnie od odległości, jaką dron musi pokonać. Jednak zużycie energii rośnie wraz z odległością. W obliczeniach zużycia energii wykorzystywany jest pierwiastek kwadratowy z odległości.  

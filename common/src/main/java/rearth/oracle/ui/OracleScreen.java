@@ -3,6 +3,7 @@ package rearth.oracle.ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.mojang.blaze3d.systems.RenderSystem;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.ItemComponent;
@@ -214,7 +215,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 						topMargins = 5;
 				}
 				
-				var bookTitleLabel = new ScalableLabelComponent(Text.literal(activeBook + " >").formatted(Formatting.DARK_GRAY), text -> false);
+				var bookTitleLabel = new ScalableLabelComponent(Text.translatable(Oracle.MOD_ID + ".title." + activeBook).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY), text -> false);
 				bookTitleLabel.scale = 1.5f;
 				var bookTitleWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
 				bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
@@ -239,11 +240,11 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				});
 				
 				for (var bookId : bookIds) {
-						modSelectorDropdown.button(Text.translatable(bookId), elem -> {
+						modSelectorDropdown.button(Text.translatable(Oracle.MOD_ID + ".title." + bookId), elem -> {
 								activeEntry = null;
 								modSelectorDropdown.remove();
 								buildModNavigationBar(bookId);
-								bookTitleLabel.text(Text.translatable(bookId).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY));
+								bookTitleLabel.text(Text.translatable(Oracle.MOD_ID + ".title." + bookId).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY));
 								activeBook = bookId;
 						});
 				}

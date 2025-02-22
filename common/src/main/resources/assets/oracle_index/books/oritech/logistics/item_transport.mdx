@@ -1,6 +1,7 @@
 ---
 title: Item Transportation
 icon: oritech:item_filter_block
+related_items: [oritech:item_filter_block, oritech:item_pipe]
 ---
 
 Oritech includes item transport pipes and item filter blocks to meet your item logistics needs. Item pipes connect to each other and all neighboring inventories.
@@ -13,10 +14,12 @@ Extraction will only be enabled if the pipe is connected to a block that support
 
 Extracted items will be placed into the **closest** available inventory further down the network.
 
-The maximum transfer range is 256 blocks. Any network longer than that needs to be split.
+<Callout variant="warning">
+    Pipes will always extract from the first non-empty slot in an inventory.
+    If the item cannot be placed into an inventory within the pipe network, it will block the pipe from extracting from that inventory.
+</Callout>
 
-Pipes will always extract from the first non-empty slot in an inventory.
-If the item cannot be placed into an inventory within the pipe network, it will block the pipe from extracting from that inventory.
+The maximum transfer range is 256 blocks. Any network longer than that needs to be split.
 
 <center>
 <ModAsset location="oritech:area/item_pipes" width={512} />

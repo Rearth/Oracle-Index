@@ -1,0 +1,103 @@
+---
+title: Akcelerator Cząsteczek
+icon: oritech:area/accelerator_ring_area
+---
+
+Akcelerator cząsteczek służy do, jak możesz się domyślić, przyspieszania cząsteczek. Cząsteczka zaczyna się w bloku akceleratora cząsteczek, gdzie można włożyć dowolny przedmiot, który ma służyć jako cząsteczka. Za kontrolerem należy umieścić prosty pierścień prowadzący, skierowany na bok, z wizualizacjami odpowiednio wyrównanymi.
+
+<center>
+<ModAsset location="oritech:area/accelerator_ring_area" width={500} />
+</center>
+
+Po włożeniu cząsteczka podróżuje wzdłuż trasy określonej przez pierścienie prowadzące. Można je kliknąć prawym przyciskiem myszy, aby dodać zakręt o 45 stopni po jednej stronie. Kolejny pierścień prowadzący musi znajdować się na ścieżce cząsteczki, zgodnie z wytyczoną trasą. W zależności od prędkości, dopuszczalna odległość między blokami prowadzącymi wzrasta.
+
+Maksymalna odległość oblicza się według następującego wzoru:
+
+> clamp(sqrt(prędkość), 2, 10)
+
+Oznacza to, że przy wyższych prędkościach odległość między blokami prowadzącymi może być większa.
+
+---
+
+**Włączniki Redstone**
+
+Gdy sygnał redstone jest zastosowany do bloku prowadzącego, który nie jest prosty, staje się on blokiem włączającym. Kiedy jest włączony, prowadzi cząsteczki prosto; kiedy jest wyłączony, prowadzi je w pierwotnym zakrzywionym kierunku. Cząsteczka może również wejść z 'drugiej' strony, wizualizowanej przez mniejszą czerwoną rurkę szklaną, podążając ścieżką białej rurki i wchodząc z obu rurek – czerwonej i białej.
+
+<center>
+<ModAsset location="oritech:area/accelerator_switch_area" width={500} />
+</center>
+
+Przy wyższych prędkościach cząsteczka nie może skręcać w ostrych zakrętach. Jeśli ostatni pełny zakręt o 90 stopni jest zbyt blisko, cząsteczka opuści wytyczoną trasę i wystrzeli w świat. Jeśli odległość między blokami prowadzącymi będzie zbyt duża lub nie znajdzie się następnego bloku prowadzącego, cząsteczka także opuści ścieżkę. Minimalna odległość między zakrętami oblicza się następująco:
+
+> sqrt(prędkość) / 3
+
+---
+
+**Interakcje**
+
+Byty trafione przez cząsteczkę otrzymują obrażenia zależne od prędkości cząsteczki. Kiedy cząsteczka opuści wytyczoną trasę, uszkadza byty na swojej drodze i niszczy bloki, aż do wyczerpania swojej energii. Kiedy dwie cząsteczki się zderzą (z różnych kontrolerów), mogą stworzyć nowe przedmioty.
+
+Przechodząc przez silnik akceleratora, cząsteczka przyspiesza o 1 m/s, wymagając zasilania silnika. Zapotrzebowanie na energię wzrasta wraz z prędkością. Zarówno silniki cząsteczek, jak i czujniki mogą być używane jako proste prowadnice.
+
+---
+
+**Tachiony**
+
+Kiedy cząsteczki zderzają się przy dużych prędkościach, emitują energetyczne tachiony. Im wyższa energia zderzenia, tym więcej energii zostaje uwolnione w postaci tachionów. Będą one latać dalej, a ich liczba będzie większa przy wyższych prędkościach.
+
+Kolektory tachionów mogą przechwycić te cząsteczki i przekształcić je w energię. Tachiony zawsze będą wydobywać się w losowych kierunkach z miejsca zderzenia. Otoczenie całego obszaru kolektorami zapewnia ich całkowite przechwycenie. Jeśli wszystkie tachiony zostaną zebrane, można uzyskać do 3 razy więcej energii niż zostało zużyte do przyspieszenia cząsteczek. Jednak w przypadku dużych zderzeń, szybko pojawi się wiele wysokiej energii tachionów, szybko wypełniając pojemność pojedynczego kolektora. Umieszczając kolektory dalej, tachiony będą rozprzestrzeniane na więcej kolektorów, aby nie napełniły się zbyt szybko.
+
+<center>
+<ModAsset location="oritech:area/tachyon_catcher" width={500} />
+</center>
+
+Odległość, jaką tachiony mogą osiągnąć, można obliczyć według wzoru:
+> (pow(energia_zderzenia, 0.5) / 2f + 1) / 3
+
+Oznacza to, że przy wyższych zderzeniach tachiony będą podróżować dalej od miejsca zderzenia.
+
+---
+
+**Czujniki Prędkości**
+
+Prędkość cząsteczki można zmierzyć za pomocą czujnika cząsteczek. Komparator może następnie dostarczyć sygnał redstone w zależności od prędkości cząsteczki. Poniższa tabela pokazuje wymaganą prędkość dla każdego poziomu sygnału redstone:
+
+1. 0  
+2. 10  
+3. 50  
+4. 75  
+5. 100  
+6. 150  
+7. 250  
+8. 500  
+9. 750  
+10. 1000  
+11. 2500  
+12. 5000  
+13. 7500  
+14. 10000  
+15. 15000  
+
+<center>
+<ModAsset location="oritech:area/accelerator_speed_area" width={600} />
+</center>
+
+---
+
+**Projekt Akceleratora**
+
+Akceleratory cząsteczek mogą być budowane na różne sposoby, w zależności od ich celu. Prosta linia silników może wystrzeliwać cząsteczki w jakimś kierunku, ale wyższe prędkości osiąga się bardziej efektywnie w układzie okrężnym. Bardzo duże pierścienie mogą być potrzebne do osiągnięcia niektórych elementów. Wolne cząsteczki wymagają bliskiego ustawienia pierścieni prowadzących, więc sensowne jest zaczynanie od małego pierścienia, a następnie przejście do większego przy pomocy redstone.
+
+W niektórych przypadkach konieczne mogą być wiele etapów pierścieni.
+
+---
+
+**Inkorporacje Wymiarowe**
+
+<Callout variant="warning">
+    Sekcja ta opiera się na notatkach od badaczy eksperymentalnych, i nie jest oficjalnie zatwierdzona przez *oritech inc*
+</Callout>
+
+Kiedy pewne elementy zderzają się z nadmierną energią, mogą rozerwać **dziurę w czasoprzestrzeni**, prowadząc do *małej inkorporacji wymiarowej*. Energia potrzebna do osiągnięcia tego jest ogromna, a niewiele wiadomo o tych inkorporacjach i ich wyzwalaczach. Badacze zauważyli, że zderzając ogniste ładunki z energią zderzenia powyżej 5000J wydaje się przybliżać Nether. Enderowe perły z energią powyżej 10000J wydają się powodować to samo dla wymiaru End.
+
+Krążą niepokojące plotki o nieodpowiedzialnych naukowcach próbujących bombardować te punkty inkorporacji prędkościami, które przekraczają znane limity, próbując tworzyć swoje własne osobliwości. Jednak nikt nie wrócił, aby podzielić się swoimi odkryciami, a ich losy pozostają owiane tajemnicą. Czujniki rejestrują tajemniczy strumień tachionów z miejsca eksperymentu.

@@ -176,7 +176,7 @@ public class MarkdownParser {
 						if (isSkipped) continue;
 						
 						var isHeading = line.startsWith("#");
-						var isListing = line.matches("[0-9]\\.\\s.+");
+						var isListing = line.matches("[0-9]+\\.\\s.+");
 						var isUnorderedList = line.matches("-\\s.+");
 						var isWeirdList = line.matches("•\\s.+");
 						var isHtml = line.matches("<[a-zA-Z]+");
@@ -232,9 +232,7 @@ public class MarkdownParser {
 						
 						var imageModId = location.split(":")[0];
 						var imageModPath = location.split(":")[1];
-						var searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/item/" + bookId + "/" + imageModPath + ".png");
-						if (!modAsset)
-								searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + bookId + "/" + imageModPath + ".png");
+						var searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + bookId + "/" + imageModPath + ".png");
 						
 						var resource = MinecraftClient.getInstance().getResourceManager().getResource(searchPath);
 						if (resource.isEmpty()) {
@@ -495,7 +493,7 @@ public class MarkdownParser {
 						try {
 								var numberString = trimmedInput.substring(1, trimmedInput.length() - 1); // Remove "{" and "}"
 								var number = Integer.parseInt(numberString);
-								return number / 1500.0f; // Normalize to 0.0f - 1.0f range
+								return number / 1000.0f; // Normalize to 0.0f - 1.0f range
 						} catch (NumberFormatException e) {
 								System.err.println("Error parsing braced number value: " + input);
 								return 0.0f; // Or handle parsing errors as needed

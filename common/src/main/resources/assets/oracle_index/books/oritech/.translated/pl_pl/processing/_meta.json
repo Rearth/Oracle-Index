@@ -1,0 +1,13 @@
+{
+  "machine_basics.mdx": "Podstawy Maszyn",
+  "multiblocks.mdx": "Multibloki",
+  "addons.mdx": "Dodatki",
+  "pulverizer.mdx": "Młynek",
+  "assembler.mdx": "Assember",
+  "centrifuge.mdx": "Centrifuga",
+  "foundry.mdx": "Huta",
+  "fragment_forge.mdx": "Kuźnia Fragmentów",
+  "atomic_forge.mdx": "Kuźnia Atomowa",
+  "generators.mdx": "Generatory",
+  "steam_engine.mdx": "Silnik Parowy"
+}

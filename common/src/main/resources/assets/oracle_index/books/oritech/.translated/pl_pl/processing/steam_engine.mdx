@@ -1,0 +1,30 @@
+---  
+title: Energia Parowa  
+icon: oritech:steam_boiler_addon  
+---  
+
+<center>  
+<ModAsset location="oritech:area/steam_power" width={1000} />  
+</center>  
+
+Wszystkie generatory (z wyjątkiem podstawowego generatora) mogą zostać ulepszone do produkcji pary poprzez dodanie dodatku kotła parowego.  
+Po jego dodaniu maszyna nie będzie już bezpośrednio produkować RF. Zamiast tego będzie wytwarzać parę w stosunku 2:1.  
+Do produkcji pary zużywana jest woda. Woda i para mogą być pompowane bezpośrednio do i z dodatku, ale nie bezpośrednio z maszyny.  
+
+Aby wykorzystać parę, można użyć silnika parowego do produkcji RF. Silnik przyjmuje parę jako wejście i zwraca wodę.  
+Jednak w procesie około 20% wody zostaje utracone, więc konieczne jest zapewnienie stałego dopływu wody dla generatorów.  
+
+<Callout variant="info">  
+Silniki parowe nie będą działać, jeśli ich zbiornik wody lub magazyn energii są całkowicie pełne.  
+Upewnij się, że woda ma gdzie odpływać. Dzięki zbiornikom, komparatorom i czerwonej kamieni możesz zbudować samowystarczalną pętlę.  
+</Callout>  
+
+Kilka silników parowych można połączyć w łańcuch. Będą one współdzielić magazyn energii, wodę  
+i zbiornik pary z pierwszego silnika w linii, działając wspólnie. Prędkość działania silnika parowego zależy od poziomu pary w zbiorniku.  
+Więcej pary oznacza większe ciśnienie, co pozwala na szybsze działanie.  
+Prędkość skaluje się liniowo w zależności od procentowego wypełnienia zbiornika parą, z maksymalnym mnożnikiem 10 przy pełnym zbiorniku.  
+
+Jednakże wydajność silnika zależy od jego prędkości. Wyższa wydajność oznacza więcej RF na jednostkę wytworzonej pary.  
+Najwyższa wydajność maszyny osiągana jest przy około 700% prędkości.  
+Każda wartość niższa lub wyższa od tego poziomu prowadzi do mniej optymalnego rezultatu.  
+Energia jest wyprowadzana z czerwonych gniazd maszyny. Porty płynów są oznaczone na niebiesko.  

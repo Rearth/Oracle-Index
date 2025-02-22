@@ -1,0 +1,37 @@
+---
+title: Transport przedmiotów 
+icon: oritech:item_filter_block
+---
+
+Oritech zawiera rury transportujące przedmioty i bloki filtrujące przedmioty, aby sprostać Twoim potrzebom w zakresie logistyki przedmiotów. Rury do przedmiotów łączą się ze sobą i wszystkimi sąsiednimi ekwipunkami.
+
+W przeciwieństwie do innych rur, rury do przedmiotów nie posiadają ekwipunku. Oznacza to, że inne bloki, takie jak leje, nie mogą same wkładać przedmiotów do sieci rur. Zamiast tego, rura do przedmiotów może być ustawiona na ekstrakcję z pobliskiego ekwipunku.
+Aby to zrobić, wystarczy kliknąć prawym przyciskiem myszy na blok rury połączony z czymś.
+Jeśli masz wiele ekwipunków podłączonych do tego samego bloku rury, zauważysz, że wszystkie połączenia przechodzą w tryb ekstrakcji.
+Jest to obecne ograniczenie rur Oritech. Jeśli ustawisz blok rury na ekstrakcję, będzie on próbował ekstrahować ze wszystkich bloków podłączonych do tego bloku rury.
+Aby faktycznie cokolwiek przetransportować, sieć rur musi składać się z co najmniej dwóch bloków.
+
+Wydobyte przedmioty zostaną umieszczone w najbliższym dostępnym ekwipunku w dalszej części sieci.
+
+Maksymalny zasięg transferu to 256 bloków. Każda sieć dłuższa niż ta musi zostać podzielona.
+
+Rury zawsze będą pobierać z pierwszego niepustego slotu w ekwipunku.
+Jeśli przedmiotu nie można umieścić w ekwipunku w sieci rur, zablokuje to rurze pobieranie z tego ekwipunku.
+
+<center>
+<ModAsset location="oritech:area/item_pipes" width={512} />
+</center>
+
+---
+
+**Filtry przedmiotów**
+
+Aby filtrować, które przedmioty gdzie trafiają, możesz użyć filtrów przedmiotów. Są to bloki, które możesz umieścić obok docelowego ekwipunku.
+Mają pięć stron wejściowych i zawsze wyprowadzają na stronę, w którą są zwrócone.
+Akceptują tylko przedmioty, które pasują do filtra ustawionego za pomocą interfejsu użytkownika i automatycznie wyprowadzają je do docelowego ekwipunku.
+
+Jednak nie będą one automatycznie pobierać przedmiotów z sąsiednich ekwipunków.
+
+<center>
+<ModAsset location="oritech:area/item_filters" width={512} />
+</center>

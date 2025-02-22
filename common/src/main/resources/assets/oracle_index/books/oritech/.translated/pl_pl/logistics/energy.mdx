@@ -1,0 +1,25 @@
+---  
+title: Energia  
+icon: oritech:energy_pipe  
+---  
+
+Oritech używa RF do zasilania wszystkich swoich maszyn, wykorzystując Reborn Energy API na Fabric lub FE na NeoForge.  
+To zapewnia kompatybilność ze wszystkimi modami korzystającymi z energii na Fabric i NeoForge.  
+
+Dostępny jest tylko jeden poziom kabli, zdolny do przesyłania do 10k RF/t. Jeśli to nie wystarczy, dostępne są również nadprzewodniki, zdolne do przesyłania 4M RF/t.  
+
+Generatory zawsze wytwarzają energię, a wszystkie inne maszyny pobierają energię ze wszystkich stron bez jej ponownego wyprowadzania.  
+Same kable przechowują do 10k RF przy każdym połączeniu z maszyną, jeśli nie mogą wyprowadzić energii.  
+
+Aby buforować i przechowywać energię, możesz użyć bloków magazynujących energię. Są one dostępne w dwóch rozmiarach i można je znacznie rozbudować za pomocą dodatków.  
+Bloki magazynujące energię pobierają energię ze wszystkich stron przez 🟢 zielony port i mogą ją wyprowadzać tylko przez pojedynczy 🔴 czerwony port. Sygnał redstone wyłączy całe wyjście energii.  
+
+<center>  
+<ModAsset location="oritech:small_storage_block" width={256} />  
+</center>  
+
+Energia może być również przesyłana bezprzewodowo za pomocą lasera enderycznego. Zobacz [laser enderyczny](../interaction/enderic_laser).  
+
+<center>  
+<ModAsset location="oritech:area/enderic_laser_energy" width={512} />  
+</center>  

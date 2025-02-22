@@ -1,0 +1,31 @@
+---
+title: Dodatki
+icon: oritech:machine_extender
+---
+
+Aby ulepszyć maszyny w Oritech, używane są dodatki. Są to bloki, które muszą być dołączone do samej maszyny lub podłączonego rozszerzacza maszyn.
+Dodatki mogą pełnić różne funkcje, takie jak zwiększanie prędkości, poprawa efektywności energetycznej, zapewnianie dostępu do określonych slotów ekwipunku i inne.
+
+Maszyny mogą akceptować dodatki tylko w określonych pozycjach. Aby je wyświetlić, sprawdź stronę interfejsu użytkownika "dodatki" lub poszukaj tych znaczników na maszynie:
+
+<center>
+<ModAsset location="oritech:area/addon_marker" width={300} />
+</center>
+
+Dodatki są aktywowane po kliknięciu prawym przyciskiem myszy na maszynę. Aby wskazać aktywację, różowe części dodatku zmieniają kolor na niebieski, gdy są używane.
+Aby zwiększyć dostępną liczbę slotów na dodatki, możesz użyć rozszerzaczy maszyn. Te konkretne dodatki nie wpływają bezpośrednio na maszynę, ale pozwalają na umieszczenie na nich dodatków, które następnie liczą się do maszyny, do której są podłączone.
+
+Maksymalna liczba warstw rozszerzaczy maszyn, których możesz użyć, zależy od jakości maszyny. Jeśli masz maszynę o jakości rdzenia 1, nie możesz użyć żadnego rozszerzacza. Każdy dodatkowy rozszerzacz, który przechodzi przez inny rozszerzacz, wymaga zwiększenia jakości rdzenia o 1.
+
+Jakość rdzenia nigdy nie liczy bezpośrednio liczby aktywnych rozszerzaczy maszyn. Zamiast tego liczy, przez ile rozszerzaczy musi przejść dodatek, aby być podłączonym do maszyny. Jeśli ta liczba jest większa niż jakość rdzenia, dodatek nie zostanie podłączony.
+Zobacz ten obrazek, aby zobaczyć małą demonstrację:
+
+<center>
+<ModAsset location="oritech:area/extenders" width={700} />
+</center>
+
+Jak wspomniano wcześniej, liczona jest tylko liczba rozszerzaczy między maszyną a dodatkiem. Oznacza to, że możesz rozgałęzić rozszerzacze i wszystko będzie działać:
+
+<center>
+<ModAsset location="oritech:area/addon_branching" width={700} />
+</center>

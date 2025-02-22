@@ -1,0 +1,17 @@
+---
+title: Ramy Maszyn
+icon: oritech:machine_frame_block
+---
+<center>
+<ModAsset location="oritech:area/machine_frame" width={512} />
+</center>
+
+*[Plater bloków](../interaction/block_placer)*, *[niszczyciel bloków](../interaction/block_destroyer)* i *[nawóz](../interaction/fertilizer)* działają na dźwigarze zbudowanym z ram maszyn. Rama maszyny wyznacza obszar, w którym maszyny działają. Musi być prostokątna i pusta w środku.
+
+Maszyny zawsze celują w bloki **poniżej** ramy.
+
+Na tej samej ramie maszyny może działać dowolna liczba maszyn. Aby to osiągnąć, wystarczy umieścić wiele maszyn na ramie. Maszyny będą iterować przez wszystkie bloki w obszarze ramy.
+
+Wszystkie maszyny działające na ramach maszyn mogą korzystać z większości dodatków.
+
+Dodatek przyspieszenia zwiększa zarówno prędkość ruchu, jak i prędkość pracy maszyn działających w ramie.
