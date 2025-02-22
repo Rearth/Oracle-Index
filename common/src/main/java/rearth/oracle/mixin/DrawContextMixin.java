@@ -73,7 +73,7 @@ public class DrawContextMixin {
 								// open screen
 								OracleScreen.activeBook = stackLink.bookId();
 								OracleScreen.activeEntry = stackLink.linkTarget();
-								MinecraftClient.getInstance().setScreen(new OracleScreen());
+								MinecraftClient.getInstance().setScreen(new OracleScreen(MinecraftClient.getInstance().currentScreen));
 						}
 						
 				} else {

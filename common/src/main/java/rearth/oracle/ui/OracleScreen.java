@@ -15,6 +15,7 @@ import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		
@@ -38,12 +40,27 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 		private FlowLayout leftPanel;
 		private ScrollContainer<FlowLayout> outerContentContainer;
 		
+		private final Screen parent;
+		
 		private boolean needsLayout = false;
 		
 		public static Identifier activeEntry;
 		public static String activeBook;
 		
 		private static final int wideContentWidth = 50; // in %
+		
+		public OracleScreen() {
+				this.parent = null;
+		}
+		
+		public OracleScreen(Screen parent) {
+				this.parent = parent;
+		}
+		
+		@Override
+		public void close() {
+				Objects.requireNonNull(client).setScreen(parent);
+		}
 		
 		@Override
 		protected @NotNull OwoUIAdapter<FlowLayout> createAdapter() {
