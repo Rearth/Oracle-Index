@@ -20,7 +20,7 @@
   <br/>
   <br/>
 
-![Downloads](https://img.shields.io/github/downloads/rearth/Oracle-Index/total) ![Stargazers](https://img.shields.io/github/stars/rearth/Oritech?style=social) ![Issues](https://img.shields.io/github/issues/rearth/Oritech) ![License](https://img.shields.io/github/license/rearth/Oritech) ![Discord](https://img.shields.io/discord/1233448016128512082)
+![Downloads](https://img.shields.io/github/downloads/rearth/Oracle-Index/total) ![Stargazers](https://img.shields.io/github/stars/rearth/Oracle-Index?style=social) ![Issues](https://img.shields.io/github/issues/rearth/Oracle-Index) ![License](https://img.shields.io/github/license/rearth/Oracle-Index) ![Discord](https://img.shields.io/discord/1233448016128512082)
 
 
 
