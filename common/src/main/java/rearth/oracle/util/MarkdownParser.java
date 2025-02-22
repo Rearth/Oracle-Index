@@ -174,7 +174,8 @@ public class MarkdownParser {
 						var line = s.trim();
 						
 						var isSkipped = Arrays.stream(removedLines).anyMatch(line::startsWith);
-						if (isSkipped && !inCodeBlock) continue;
+						var isSkippedDiv = line.startsWith("<div onlineOnly=\"true\"");
+						if (isSkipped && !inCodeBlock && !isSkippedDiv) continue;
 						
 						var newCodeBlock = line.startsWith("```");
 						
@@ -220,8 +221,9 @@ public class MarkdownParser {
 						}
 				}
 				
-				if (!currentParagraph.isEmpty())
+				if (!currentParagraph.isEmpty() && !currentParagraph.toString().startsWith("<div onlineOnly=\"true\""))
 						paragraphList.add(currentParagraph.toString());
+				
 				
 				return paragraphList;
 		}

@@ -19,7 +19,7 @@ The resulting directory tree should look like this:
 
 There is no hot-reloading. Use the moddedmc.wiki live preview to create your wiki contents.
 
-## Limitations
+### Limitations
 The Oracle Index only includes a primitive markdown parser. This means that most html tags are not supported.
 Most markdown features, such as headings, bold, italic, links between pages, etc. are supported. Some moddedmc-specific html tags such as the "ModAsset", "Callout" or "CraftingRecipe" are
 supported. Non-supported html tags will be
@@ -30,7 +30,10 @@ If you want to use other html tags, feel free to open a PR.
 If a `<ModAsset>` image matches an existing ingame item, the actual ingame item (or blockitem) will be displayed instead. This means that you don't need to include the rendered textures of your items.
 All images are expected in the ".assets/modid/" folder, not the ".assets/item/modid" subfolder.
 
-## Item Links
+If you have something in a paragraph that you don't want to display inside the ingame wiki (e.g. a table or other not-supported element), you can wrap the paragraph in a div like this:
+"<div onlineOnly="true" >"
+
+### Item Links
 One extra feature added by the Oracle Index is the ability to link relevant items for a wiki page. To do so, a new parameter is added to the mdx frontmatter: "related_items", which contains an array
 of ingame item IDs. This can look as follows:
 ```
@@ -42,7 +45,7 @@ related_items: [oritech:basic_generator_block, oritech:bio_generator_block, orit
 Here would be your content.
 ```
 
-## Custom Book / Opening the Screens
+### Custom Book / Opening the Screens
 Oracle Index does not come with a guide book by default. However, in your mod, you can very easily just add a new book item, and open the desired screen when the book is used.
 You could also open the book via other mechanisms, such as a button in another screen.
 
