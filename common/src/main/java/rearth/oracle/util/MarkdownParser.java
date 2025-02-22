@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 // a very basic and primitive (and hacky) ghetto markdown to owo lib parser
 public class MarkdownParser {
 		
-		private static final String[] removedLines = new String[] {"<center", "</center", "<div", "</div", "<span", "</span", "---"};
+		private static final String[] removedLines = new String[]{"<center", "</center", "<div", "</div", "<span", "</span", "---"};
 		
 		public static final Identifier ITEM_SLOT = Identifier.of(Oracle.MOD_ID, "textures/item_cell.png");
 		
@@ -86,7 +86,7 @@ public class MarkdownParser {
 				combinedPanel.margins(Insets.of(2, 10, 0, 0));
 				
 				var titlePanel = Containers.horizontalFlow(Sizing.content(0), Sizing.content(0));
-				titlePanel.padding(Insets.of(10, 10, 10 ,10));
+				titlePanel.padding(Insets.of(10, 10, 10, 10));
 				titlePanel.surface(ORACLE_PANEL);
 				combinedPanel.child(titlePanel.positioning(Positioning.absolute(48 + 6, 7)));
 				
@@ -169,11 +169,22 @@ public class MarkdownParser {
 				var paragraphList = new ArrayList<String>();
 				
 				var currentParagraph = new StringBuilder();
+				var inCodeBlock = false;
 				for (var s : lines) {
 						var line = s.trim();
 						
 						var isSkipped = Arrays.stream(removedLines).anyMatch(line::startsWith);
 						if (isSkipped) continue;
+						
+						var newCodeBlock = line.startsWith("```");
+						
+						if (inCodeBlock && newCodeBlock) {
+								inCodeBlock = false;    // end existing code block
+						} else if (newCodeBlock) {
+								inCodeBlock = true; // begin code block, begin new paragraph
+								paragraphList.add(currentParagraph.toString());
+								currentParagraph = new StringBuilder();
+						}
 						
 						var isHeading = line.startsWith("#");
 						var isListing = line.matches("[0-9]+\\.\\s.+");
@@ -197,13 +208,20 @@ public class MarkdownParser {
 						if (isSeparator) {
 								paragraphList.add(currentParagraph.toString());
 								currentParagraph = new StringBuilder();
+						} else if (inCodeBlock) {
+								currentParagraph.append(line).append("\n");
 						} else {
 								currentParagraph.append(line).append(" ");
+						}
+						
+						var containsCodeBlock = line.contains("```");
+						if (!newCodeBlock && containsCodeBlock) {
+								inCodeBlock = false;
 						}
 				}
 				
 				if (!currentParagraph.isEmpty())
-					paragraphList.add(currentParagraph.toString());
+						paragraphList.add(currentParagraph.toString());
 				
 				return paragraphList;
 		}
@@ -265,8 +283,11 @@ public class MarkdownParser {
 				
 				var contentLabel = parseParagraphToLabel(calloutText, linkHandler);
 				contentLabel.horizontalSizing(Sizing.fill(70));
-				contentLabel.horizontalTextAlignment(HorizontalAlignment.CENTER);
-				contentLabel.color(Color.ofRgb(5592405));
+				
+				if (contentLabel instanceof LabelComponent labelComponent) {
+						labelComponent.horizontalTextAlignment(HorizontalAlignment.CENTER);
+						labelComponent.color(Color.ofRgb(5592405));
+				}
 				var titleLabel = Components.label(Text.literal(StringUtils.capitalize((calloutVariant))));
 				
 				var contentContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
@@ -300,10 +321,12 @@ public class MarkdownParser {
 				int resultCount = 1;
 				try {
 						resultCount = Integer.parseInt(recipeResultCount);
-				} catch (NumberFormatException ignored) {}
+				} catch (NumberFormatException ignored) {
+				}
 				
 				var recipeInputItems = extractRecipeInputs(recipeInputs);
-				if (recipeInputItems.size() != 9) return Components.label(Text.literal("Invalid recipe, unable to parse 9 ingredients"));
+				if (recipeInputItems.size() != 9)
+						return Components.label(Text.literal("Invalid recipe, unable to parse 9 ingredients"));
 				
 				var panel = Containers.horizontalFlow(Sizing.content(), Sizing.content());
 				panel.surface(ORACLE_PANEL);
@@ -382,14 +405,18 @@ public class MarkdownParser {
 				return Components.texture(ITEM_SLOT, 0, 0, 16, 16, 16, 16).sizing(Sizing.fixed(16));
 		}
 		
-		private static LabelComponent parseParagraphToLabel(String paragraphString, Predicate<String> linkHandler) {
+		private static Component parseParagraphToLabel(String paragraphString, Predicate<String> linkHandler) {
 				var paragraphText = Text.empty();
 				var index = 0;
 				var processedParagraphString = paragraphString;
 				
+				var isCodeBlock = paragraphString.startsWith("```");
+				if (isCodeBlock)
+						processedParagraphString = processedParagraphString.replace("```", "").trim();
+				
 				// process headings
 				var headingLevel = getHeadingLevel(paragraphString);
-				if (headingLevel > 0) {
+				if (headingLevel > 0 && !isCodeBlock) {
 						var headingPattern = Pattern.compile("^(#+)\\s*(.+)");
 						var headingMatcher = headingPattern.matcher(paragraphString);
 						if (headingMatcher.find()) {
@@ -401,14 +428,14 @@ public class MarkdownParser {
 						
 						// Check for links: [link text](url)
 						var linkMatcher = Pattern.compile("\\[([^]]+)]\\(([^)]+)\\)").matcher(processedParagraphString);
-						if (linkMatcher.find(index) && linkMatcher.start() == index) {
+						if (linkMatcher.find(index) && linkMatcher.start() == index && !isCodeBlock) {
 								var linkText = linkMatcher.group(1);
 								var url = linkMatcher.group(2);
 								
 								// Style for links: blue and underlined
 								var linkStyle = Style.EMPTY
-									                  .withUnderline(true)
-									                  .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url));
+									                .withUnderline(true)
+									                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url));
 								
 								paragraphText.append(Text.literal(linkText).setStyle(linkStyle));
 								index += linkMatcher.group(0).length();
@@ -417,7 +444,7 @@ public class MarkdownParser {
 						
 						// Check for bold text: **text** or __text__
 						var boldMatcher = Pattern.compile("\\*\\*([^*]+)\\*\\*|__([^_]+)__").matcher(processedParagraphString);
-						if (boldMatcher.find(index) && boldMatcher.start() == index) {
+						if (boldMatcher.find(index) && boldMatcher.start() == index && !isCodeBlock) {
 								var boldText = (boldMatcher.group(1) != null) ? boldMatcher.group(1) : boldMatcher.group(2);
 								paragraphText.append(Text.literal(boldText).setStyle(Style.EMPTY.withBold(true)));
 								index += boldMatcher.group(0).length();
@@ -426,7 +453,7 @@ public class MarkdownParser {
 						
 						// Check for italic text: *text* or _text_
 						var italicMatcher = Pattern.compile("\\*([^*]+)\\*|_([^_]+)_").matcher(processedParagraphString);
-						if (italicMatcher.find(index) && italicMatcher.start() == index) {
+						if (italicMatcher.find(index) && italicMatcher.start() == index && !isCodeBlock) {
 								var italicText = (italicMatcher.group(1) != null) ? italicMatcher.group(1) : italicMatcher.group(2);
 								paragraphText.append(Text.literal(italicText).setStyle(Style.EMPTY.withItalic(true)));
 								index += italicMatcher.group(0).length();
@@ -435,7 +462,7 @@ public class MarkdownParser {
 						
 						//Check for color (example: #FF0000 text #FFFFFF )
 						var colorMatcher = Pattern.compile("#([0-9A-Fa-f]{6})\\s*([^#]+?)\\s*#([0-9A-Fa-f]{6})").matcher(processedParagraphString);
-						if (colorMatcher.find(index) && colorMatcher.start() == index) {
+						if (colorMatcher.find(index) && colorMatcher.start() == index && !isCodeBlock) {
 								var color1 = colorMatcher.group(1);
 								var coloredText = colorMatcher.group(2);
 								
@@ -461,7 +488,17 @@ public class MarkdownParser {
 				if (headingLevel > 0) {
 						label.scale = 2f - headingLevel * 0.2f;
 				}
-				label.lineHeight(11);
+				label.lineHeight(10);
+				
+				if (isCodeBlock) {
+						var panel = Containers.horizontalFlow(Sizing.fill(100), Sizing.content());
+						panel.surface(ORACLE_PANEL_DARK);
+						panel.padding(Insets.of(6));
+						panel.child(label);
+						label.horizontalSizing(Sizing.fill(100));
+						return panel;
+				}
+				
 				return label;
 		}
 		

@@ -1,0 +1,8 @@
+{
+  "setup.mdx": {
+    "name": "Ingame Mod View Setup"
+  },
+  "gradle_task.mdx": {
+    "name": "(Optional) Automatic Gradle Wiki Sync"
+  }
+}

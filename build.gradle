@@ -2,6 +2,7 @@ plugins {
     id 'dev.architectury.loom' version '1.7-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+    id 'org.moddedmc.wiki.toolkit' version '0.2.7'
 }
 
 architectury {
@@ -11,6 +12,17 @@ architectury {
 allprojects {
     group = rootProject.maven_group
     version = rootProject.mod_version
+}
+
+wiki {
+    docs {
+        oracle_index {
+            // The path to the folder containing the documentation metadata file (sinytra-wiki.json)
+            root = file('docs')
+            exportedAssetNamespaces = ['oracle-index']
+            wikiAccessToken = System.getenv('WIKI_TOKEN')
+        }
+    }
 }
 
 subprojects {

@@ -1,0 +1,44 @@
+---
+title: "Ingame Mod View Setup"
+---
+
+This page is aimed at developers that want their wiki to be accessible via the oracle index mod.
+
+## Project Setup
+1. Create your wiki directory / content layout as normal, following the instructions of moddedmc.wiki
+2. Make sure you have _meta.json files with entries for **all** your content. The oracle index uses the meta.json files to build the
+navigation bar.
+3. Copy the entire wiki to your mods resources folder. The correct path is: "resources/assets/oracle_index/books/your-mod-id/". To automatically do this, see [auto gradle sync](../developer/gradle_task.mdx)
+4. The oracle index will automatically load your mods resources
+
+The resulting directory tree should look like this:
+
+<center>
+<ModAsset location="oracle-index:folder_layout" width={600} />
+</center>
+
+There is no hot-reloading. Use the moddedmc.wiki live preview to create your wiki contents.
+
+## Limitations
+The Oracle Index only includes a primitive markdown parser. This means that most html tags are not supported.
+Most markdown features, such as headings, bold, italic, links between pages, etc. are supported. Some moddedmc-specific html tags such as the "ModAsset", "Callout" or "CraftingRecipe" are
+supported. Non-supported html tags will be
+ignored, and will not be displayed at all.
+
+If you want to use other html tags, feel free to open a PR.
+
+If a `<ModAsset>` image matches an existing ingame item, the actual ingame item (or blockitem) will be displayed instead. This means that you don't need to include the rendered textures of your items.
+All images are expected in the ".assets/modid/" folder, not the ".assets/item/modid" subfolder.
+
+## Item Links
+One extra feature added by the Oracle Index is the ability to link relevant items for a wiki page. To do so, a new parameter is added to the mdx frontmatter: "related_items", which contains an array
+of ingame item IDs. This can look as follows:
+```
+---
+title: Generators
+icon: oritech:basic_generator_block
+related_items: [oritech:basic_generator_block, oritech:bio_generator_block, oritech:lava_generator_block, oritech:fuel_generator_block, oritech:big_solar_panel_block]
+---
+```
+
+Here would be your content.

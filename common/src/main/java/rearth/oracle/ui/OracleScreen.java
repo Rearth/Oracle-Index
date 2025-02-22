@@ -291,7 +291,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 											Sizing.content(1),
 											Text.translatable(entry.name()).formatted(Formatting.WHITE), false);
 										buildNavigationEntriesForModPath(bookId, path + "/" + entry.id(), directoryContainer);
-										directoryContainer.margins(Insets.of(0, 0, 8, 0));
+										directoryContainer.margins(Insets.of(0, 0, 0, 0));
 										container.child(directoryContainer);
 										
 										// collapse all other containers
@@ -330,7 +330,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 												}
 										});
 										
-										label.margins(Insets.of(3, 2, 1, 2));
+										label.margins(Insets.of(3, 2, 5, 2));
 										container.child(label);
 								}
 						}
