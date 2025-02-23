@@ -1,7 +1,6 @@
 {
   "id": "oracle-index",
   "platforms": {
-    "curseforge": "TODO",
-    "modrinth": "TODO"
+    "curseforge": "oracle-index"
   }
 }
