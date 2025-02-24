@@ -53,10 +53,9 @@ Features:
 - Cross-Linking between pages and items
 - Responsive layouts
 
-## Built With
-
-- Fabric API (or FFAPI)
+## Built With / Depends on:
 - Owo lib (for all the GUIs, config, and much more)
+- Architectury
 
 ## Roadmap
 
