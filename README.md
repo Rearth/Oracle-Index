@@ -10,7 +10,7 @@
   A minecraft fabric / neoforge client-side documentation viewer mod, intended to be used with wikis alongside moddedmc.wiki
   <br/>
   <br/>
-  <a href="https://moddedmc.wiki/en/project/oritech/docs"><strong>Explore the docs»</strong></a>
+  <a href="https://moddedmc.wiki/en/project/oracle-index/docs"><strong>Explore the docs»</strong></a>
   <br/>
   <br/>
   <a href="https://github.com/rearth/Oracle_Index/issues">Report Bug</a>
