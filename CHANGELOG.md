@@ -1,0 +1,1 @@
+- Fix tooltips being drawn for the wrong items in some screens

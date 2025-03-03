@@ -41,6 +41,8 @@ public class DrawContextMixin {
 				
 				if (!OracleClient.ITEM_LINKS.containsKey(stackId)) return;
 				
+				OracleClient.tooltipStack = null;
+				
 				var separator = new BaseOwoTooltipComponent<>(() -> {
 						var container =  Containers.horizontalFlow(Sizing.content(), Sizing.content());
 						var box = Components.box(Sizing.fixed(100), Sizing.fixed(1));
