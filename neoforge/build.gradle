@@ -67,3 +67,37 @@ shadowJar {
 remapJar {
     inputFile.set shadowJar.archiveFile
 }
+
+publishMods {
+    file = remapJar.archiveFile
+    changelog = file("../CHANGELOG.md").getText()
+    type = BETA
+    modLoaders.add("neoforge")
+
+    modrinth {
+        accessToken = providers.environmentVariable("MODRINTH_API_KEY")
+        projectId = "J8MMsNrL"
+        minecraftVersions.add("1.21.1")
+
+        requires("owo-lib")
+        requires("architectury-api")
+
+        announcementTitle = "Neoforge Version on Modrinth"
+    }
+
+    curseforge {
+        accessToken = providers.environmentVariable("CURSEFORGE_API_KEY")
+        projectId = "1206582"
+        minecraftVersions.add("1.21.1")
+
+        requires("owo-lib")
+        requires("architectury-api")
+
+        javaVersions.add(JavaVersion.VERSION_21)
+        clientRequired = true
+        serverRequired = false
+
+        projectSlug = "oritech"
+        announcementTitle = "Neoforge Version on CurseForge"
+    }
+}

@@ -1,1 +1,3 @@
-- Fix tooltips being drawn for the wrong items in some screens
+- Add API Method to open the oracle screen (with options for specific pages)
+- Fix navigation panel scroll area overflowing
+- Minor layout improvements for some resolutions
