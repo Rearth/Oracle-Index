@@ -94,7 +94,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				
 				buildModNavigation(leftPanel);
 				
-				var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(), navigationBar);
+				var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(80), navigationBar);
 				leftPanel.child(outerNavigationBarContainer);
 				
 		}
@@ -238,7 +238,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
 				bookTitleWrapper.padding(Insets.of(8));
 				bookTitleWrapper.margins(Insets.of(topMargins, -7, 0, 0));
 				bookTitleWrapper.child(bookTitleLabel);
-				buttonContainer.child(bookTitleWrapper.zIndex(3));
+				buttonContainer.child(bookTitleWrapper.zIndex(5));
 				
 				bookTitleWrapper.mouseEnter().subscribe(() -> {
 						bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER);
