@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.util.MarkdownParser;
@@ -51,6 +52,26 @@ public final class OracleClient {
             openEntryProgress += Delta.compute(openEntryProgress, 0, 0.13f);
         });
         
+    }
+    
+    /**
+     * Opens the Oracle Screen, potentially setting the active book and entry.
+     *
+     * @param bookId  The ID of the book to activate. If null, the last active book remains active.
+     * @param entryId The Identifier of the entry to activate. If null, the currently active entry remains active. Example format: {@code oracle_index:books/oritech/interaction/enderic_laser.mdx}
+     * @param parent  The parent screen. This is the screen that will be returned to when the wiki is closed. Usually just {@code MinecraftClient.getInstance().currentScreen} works here.
+     *
+     * @warning If {@code entryId} is set, {@code bookId} should generally also be set to ensure the correct book is active.
+     *          Otherwise, the behavior depends on the currently active book, and could lead to unexpected results. Only omit
+     *          {@code bookId} if you are certain that the correct book is already active.
+     */
+    public static void openScreen(@Nullable String bookId, @Nullable Identifier entryId, @Nullable Screen parent) {
+        if (bookId != null)
+            OracleScreen.activeBook = bookId;
+        if (entryId != null)
+            OracleScreen.activeEntry = entryId;
+        
+        MinecraftClient.getInstance().setScreen(new OracleScreen(parent));
     }
     
     private static void findAllResourceEntries() {

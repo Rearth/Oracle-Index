@@ -73,9 +73,7 @@ public class DrawContextMixin {
 						
 						if (OracleClient.openEntryProgress > 0.95f) {
 								// open screen
-								OracleScreen.activeBook = stackLink.bookId();
-								OracleScreen.activeEntry = stackLink.linkTarget();
-								MinecraftClient.getInstance().setScreen(new OracleScreen(MinecraftClient.getInstance().currentScreen));
+								OracleClient.openScreen(stackLink.bookId(), stackLink.linkTarget(), MinecraftClient.getInstance().currentScreen);
 						}
 						
 				} else {
