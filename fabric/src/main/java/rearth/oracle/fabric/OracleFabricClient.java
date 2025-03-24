@@ -24,8 +24,8 @@ public final class OracleFabricClient implements ClientModInitializer {
             // url in the file
             //TODO verify this works
             String url;
-            if(mod.getMetadata().getContact().get("source").isPresent()){
-                url = mod.getMetadata().getContact().get("source").get();
+            if(mod.getMetadata().getContact().get("sources").isPresent()){
+                url = mod.getMetadata().getContact().get("sources").get();
             }else{
                 url = "-";
             }

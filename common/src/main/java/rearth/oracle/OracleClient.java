@@ -13,6 +13,7 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.JGitInternalException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
@@ -97,12 +98,11 @@ public final class OracleClient {
     }
 
     /**Downloads the repository from github, from the given url*/
-    //TODO this doesn not work
     private static boolean pullFromWeb(String url){
         if(url.equals("-")){
+            Oracle.LOGGER.info("--------------false");
             return false;
         }
-        Oracle.LOGGER.warn("================= hi");
         Oracle.LOGGER.info("trying to download from: " + url);
         try {
             //TODO add a check for the already downloaded things. Or maybe this does it on its own?
@@ -114,6 +114,7 @@ public final class OracleClient {
                     .setURI(url)
                     .setDirectory(new File(mainFolder+"/"+Oracle.MOD_ID+"/books/"))
                     .call();
+            git.fetch().call();
             //TODO should probably eliminate everything from here that isn't docs, and everything not made up of mdx and json files
             return true;
 
@@ -121,6 +122,10 @@ public final class OracleClient {
         } catch (GitAPIException e) {
             Oracle.LOGGER.error("BIG ERRORR GIT HUB API THINGY");
             throw new RuntimeException(e);
+        } catch (JGitInternalException e){
+            //means it already exists
+            Oracle.LOGGER.info("---------Already downloaded!!!!!!");
+            return true;
         }
     }
 
@@ -155,6 +160,7 @@ public final class OracleClient {
             if(!LOADED_BOOKS.contains(id)){
                 try {
                     if(queryWikiExists(id)){
+
                         if(pullFromWeb(loadedModIds_Urls.get(id))){
                             //TODO remove
                             Oracle.LOGGER.info("DEBUG: Hey we arrived here! Cool! There should be the files downloaded somewhere!");
