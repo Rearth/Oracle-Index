@@ -8,22 +8,28 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.item.ItemStack;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.util.MarkdownParser;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public final class OracleClient {
     
     public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_index.open", GLFW.GLFW_KEY_H, "key.categories.misc");
-    
+
+    /**Already loaded wikis*/
     public static final Set<String> LOADED_BOOKS = new HashSet<>();
     public static final HashMap<Identifier, BookItemLink> ITEM_LINKS = new HashMap<>();
     
@@ -73,39 +79,129 @@ public final class OracleClient {
         
         MinecraftClient.getInstance().setScreen(new OracleScreen(parent));
     }
-    
+
+    private static final HashMap<String, String> loadedModIds_Urls = new HashMap<>();
+
+    private static String mainFolder = "";
+
+    /**Called in the loader specific settings.
+     * These is a map of the laoded mods and their git repo link
+     */
+    public static void setModIdAndUrls(HashMap<String, String> ids_urls){
+        loadedModIds_Urls.putAll(ids_urls);
+    }
+
+    /**Sets where the repos will be downloaded*/
+    public static void setMainFolder(String folder){
+        mainFolder = folder;
+    }
+
+    /**Downloads the repository from github, from the given url*/
+    //TODO this doesn not work
+    private static boolean pullFromWeb(String url){
+        if(url.equals("-")){
+            return false;
+        }
+        Oracle.LOGGER.warn("================= hi");
+        Oracle.LOGGER.info("trying to download from: " + url);
+        try {
+            //TODO add a check for the already downloaded things. Or maybe this does it on its own?
+            // Like it updates only the stuff that actually got updated?
+            //TODO also maybe this is kidna risky since it just downloads everything in a git repo.
+
+            Oracle.LOGGER.info(">>>>>>>>>>>>>>>Downloading the repo thigy at url: " + url);
+            Git git = Git.cloneRepository()
+                    .setURI(url)
+                    .setDirectory(new File(mainFolder+"/"+Oracle.MOD_ID+"/books/"))
+                    .call();
+            //TODO should probably eliminate everything from here that isn't docs, and everything not made up of mdx and json files
+            return true;
+
+            //TODO remove everything that isn't "docs"
+        } catch (GitAPIException e) {
+            Oracle.LOGGER.error("BIG ERRORR GIT HUB API THINGY");
+            throw new RuntimeException(e);
+        }
+    }
+
     private static void findAllResourceEntries() {
-        var resourceManager = MinecraftClient.getInstance().getResourceManager();
-        var resources = resourceManager.findResources("books", path -> path.getPath().endsWith(".mdx"));
-        
+        ResourceManager resourceManager = MinecraftClient.getInstance().getResourceManager();
+        Map<Identifier, Resource> resources = resourceManager.findResources("books", path -> path.getPath().endsWith(".mdx"));
+
         LOADED_BOOKS.clear();
-        
-        for (var resourceId : resources.keySet()) {
-            var purePath = resourceId.getPath().replaceFirst("books/", "");
-            var segments = purePath.split("/");
-            var modId = segments[0];        // e.g. "oritech"
-            var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
-            var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
-            var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
-		        
-		        try {
-				        var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                var fileComponents = MarkdownParser.parseFrontmatter(fileContent);
-                if (fileComponents.containsKey("related_items")) {
-                    var baseString = fileComponents.get("related_items").replace("[", "").replace("]", "");
-                    var itemStrings = baseString.split(", ");
-                    for (var itemString : itemStrings) {
-                        var itemId = Identifier.of(itemString);
-                        var linkData = new BookItemLink(resourceId, fileComponents.getOrDefault("title", "missing"), modId);
-                        ITEM_LINKS.put(itemId, linkData);
-                    }
-                }
-		        } catch (IOException e) {
+
+        for (Identifier resourceId : resources.keySet()) {
+            String purePath = resourceId.getPath().replaceFirst("books/", "");
+            @NotNull String[] segments = purePath.split("/");
+            @NotNull String modId = segments[0];        // e.g. "oritech"
+            String entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
+            @NotNull String entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
+            String entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
+
+            try {
+                String fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                readFiles(fileContent, resourceId, modId);
+
+            } catch (IOException e) {
                 Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
-				        throw new RuntimeException(e);
-		        }
-		        
-		        LOADED_BOOKS.add(modId);
+                throw new RuntimeException(e);
+            }
+
+
+            LOADED_BOOKS.add(modId);
+        }
+
+        for(String id : loadedModIds_Urls.keySet()){
+            if(!LOADED_BOOKS.contains(id)){
+                try {
+                    if(queryWikiExists(id)){
+                        if(pullFromWeb(loadedModIds_Urls.get(id))){
+                            //TODO remove
+                            Oracle.LOGGER.info("DEBUG: Hey we arrived here! Cool! There should be the files downloaded somewhere!");
+                        }else{
+                            //TODO remove
+                            Oracle.LOGGER.info("DEBUG: message error!");
+
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } catch (URISyntaxException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    /**Sends an HTTP request to the wiki page of the mod. It checks the
+     * url of moddedwiki + the modid of the mod, so while setting up the wiki the
+     * slug and the modid must be the same.
+     *
+     * @return true if the http request is 200, aka it's ok, aka the page exists, False otherwise. */
+    //TODO remove: Note, this works! yay
+    public static boolean queryWikiExists(String id) throws IOException, URISyntaxException {
+        //TODO add a check for having internet  connection maybe?
+        URL url = new URI("https://moddedmc.wiki/en/project/"+id+"/docs").toURL();
+        HttpURLConnection huc = (HttpURLConnection) url.openConnection();
+        huc.setInstanceFollowRedirects(false);
+        huc.setRequestMethod("HEAD");
+
+        int responseCode = huc.getResponseCode();
+        return responseCode == HttpURLConnection.HTTP_OK;
+    }
+
+    /**Reads the file inputeed as an argument*/
+    public static void readFiles(String fileContent, Identifier resourceId, String modId){
+        Map<String, String> fileComponents = MarkdownParser.parseFrontmatter(fileContent);
+        if (fileComponents.containsKey("related_items")) {
+            String baseString = fileComponents.get("related_items").replace("[", "").replace("]", "");
+            @NotNull String[] itemStrings = baseString.split(", ");
+            for (String itemString : itemStrings) {
+                Identifier itemId = Identifier.of(itemString);
+                //TODO need to find a way to modify this thing here
+                BookItemLink linkData = new BookItemLink(resourceId, fileComponents.getOrDefault("title", "missing"), modId);
+                ITEM_LINKS.put(itemId, linkData);
+            }
         }
     }
     
