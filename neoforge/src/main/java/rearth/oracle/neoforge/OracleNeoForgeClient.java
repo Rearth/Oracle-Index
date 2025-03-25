@@ -15,7 +15,7 @@ public final class OracleNeoForgeClient {
     public OracleNeoForgeClient() {
         // Run our common setup.
         OracleClient.init();
-        OracleClient.setMainFolder(FMLConfig.defaultConfigPath());
+        OracleClient.setMainDownloadsFolder(FMLConfig.defaultConfigPath());
         HashMap<String, String> ids_urls = new HashMap<>();
 
         ModList.get().getMods().forEach( mod -> {
