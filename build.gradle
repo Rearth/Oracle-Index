@@ -52,6 +52,7 @@ subprojects {
             name = 'CurseMaven'
             url "https://beta.cursemaven.com"
         }
+        mavenCentral()
     }
 
     dependencies {
@@ -60,6 +61,7 @@ subprojects {
             it.mappings("net.fabricmc:yarn:$rootProject.yarn_mappings:v2")
             it.mappings("dev.architectury:yarn-mappings-patch-neoforge:$rootProject.yarn_mappings_patch_neoforge_version")
         }
+        include implementation("org.eclipse.jgit:org.eclipse.jgit:6.10.0.202406032230-r")
     }
 
     java {
