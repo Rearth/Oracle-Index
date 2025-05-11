@@ -1,3 +1,1 @@
-- Add API Method to open the oracle screen (with options for specific pages)
-- Fix navigation panel scroll area overflowing
-- Minor layout improvements for some resolutions
+- Fix item stack tooltips not being included in all screen (such as JEI)
