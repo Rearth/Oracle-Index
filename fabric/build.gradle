@@ -48,6 +48,7 @@ dependencies {
     modRuntimeOnly "curse.maven:athena-841890:5629396"
     modRuntimeOnly "curse.maven:geckolib-388172:5605709"
     modRuntimeOnly "curse.maven:emi-580555:6205505"
+    // modRuntimeOnly "curse.maven:jei-238222:6516055"
 }
 
 processResources {
