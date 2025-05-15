@@ -57,6 +57,11 @@ dependencies {
     modRuntimeOnly "curse.maven:geckolib-388172:5605709"
     modRuntimeOnly "curse.maven:emi-580555:6205505"
     // modRuntimeOnly "curse.maven:jei-238222:6516055"
+
+    // simply swords for more oracle lib usage
+    modImplementation "curse.maven:simply-swords-659887:6383325"
+    modImplementation "curse.maven:fzzy-config-1005914:6405201"
+    modImplementation("net.fabricmc:fabric-language-kotlin:1.13.3+kotlin.2.1.21")
 }
 
 processResources {

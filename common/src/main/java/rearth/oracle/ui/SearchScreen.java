@@ -1,6 +1,7 @@
 package rearth.oracle.ui;
 
 import io.wispforest.owo.ui.base.BaseOwoScreen;
+import io.wispforest.owo.ui.base.BaseParentComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.TextBoxComponent;
 import io.wispforest.owo.ui.container.Containers;
@@ -101,7 +102,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
             }
         } else {
             waitFrames++;
-            var dots = (waitFrames / 60) % 3 + 1;
+            var dots = (waitFrames) % 3 + 1;
             searchBar.setEditable(false);
             searchBar.setText("Indexing" + ".".repeat(dots));
         }
@@ -161,8 +162,11 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
             
             // process first non-empty paragraph
             for (var text : result.texts()) {
-                if (text.startsWith("---") || text.startsWith("</")) continue;
                 var paragraphs = MarkdownParser.parseMarkdownToOwoComponents(text, result.id().getNamespace(), string -> false);
+                
+                if (paragraphs.getFirst() instanceof BaseParentComponent parentComponent)
+                    paragraphs.addAll(parentComponent.children());
+                
                 var hadContent = false;
                 for (var paragraph : paragraphs) {
                     // load only text paragraphs, skip all other kinds
