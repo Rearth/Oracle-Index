@@ -1,6 +1,7 @@
 package rearth.oracle;
 
 import dev.architectury.event.events.client.ClientLifecycleEvent;
+import dev.architectury.event.events.client.ClientRawInputEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import io.wispforest.owo.ui.util.Delta;
@@ -23,7 +24,8 @@ import java.util.Set;
 
 public final class OracleClient {
     
-    public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_index.open", GLFW.GLFW_KEY_H, "key.categories.misc");
+    public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_index.open", GLFW.GLFW_KEY_H, "key.categories.oracle");
+    public static final KeyBinding ORACLE_SEARCH = new KeyBinding("key.oracle_index.search", -1, "key.categories.oracle");
     
     public static final Set<String> LOADED_BOOKS = new HashSet<>();
     public static final HashMap<Identifier, BookItemLink> ITEM_LINKS = new HashMap<>();
@@ -37,18 +39,24 @@ public final class OracleClient {
         Oracle.LOGGER.info("Hello from the Oracle Wiki Client!");
         
         KeyMappingRegistry.register(ORACLE_WIKI);
+        KeyMappingRegistry.register(ORACLE_SEARCH);
         
         ClientTickEvent.CLIENT_POST.register(client -> {
             if (ORACLE_WIKI.wasPressed()) {
                 
                 if (Screen.hasControlDown()) {
                     Oracle.LOGGER.info("Opening Oracle Search...");
-                    client.setScreen(new SearchScreen());
+                    client.setScreen(new SearchScreen(client.currentScreen));
                     return;
                 }
                 
                 Oracle.LOGGER.info("Opening Oracle Wiki...");
                 client.setScreen(new OracleScreen(client.currentScreen));
+            }
+            
+            if (ORACLE_SEARCH.wasPressed()) {
+                Oracle.LOGGER.info("Opening Oracle Search...");
+                client.setScreen(new SearchScreen(client.currentScreen));
             }
         });
         

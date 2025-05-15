@@ -9,6 +9,7 @@ import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
@@ -24,17 +25,24 @@ import rearth.oracle.util.MarkdownParser;
 
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     
     private FlowLayout resultsPanel;
+    private int waitFrames = 0;
+    
+    private final Screen parent;
     
     // Regular expression: allows digits, whitespace, and math operators
     private static final String MATH_EXPR_REGEX = "^[\\d\\s+\\-*/%().]+$";
     private TextBoxComponent searchBar;
     
-    private int waitFrames = 0;
+    
+    public SearchScreen(Screen parent) {
+        this.parent = parent;
+    }
     
     @Override
     protected @NotNull OwoUIAdapter<FlowLayout> createAdapter() {
@@ -75,7 +83,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         
         mainContainer.child(searchPanel);
         
-        resultsPanel = Containers.verticalFlow(Sizing.fill(), Sizing.content(3));
+        resultsPanel = Containers.verticalFlow(Sizing.expand(), Sizing.content(3));
         
         var outerContainer = Containers.verticalScroll(Sizing.fill(), Sizing.fill(80), resultsPanel);
         mainContainer.child(outerContainer);
@@ -105,11 +113,14 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
             var dots = (waitFrames) % 3 + 1;
             searchBar.setEditable(false);
             searchBar.setText("Indexing" + ".".repeat(dots));
+            searchBar.setSuggestion("");
         }
     }
     
     @SuppressWarnings("OptionalIsPresent")
     private void onSearchTyped(String query) {
+        
+        if (query.startsWith("Indexing")) return;
         
         var usedPlaceholder = Text.translatable("oracle_index.searchbar.placeholder").formatted(Formatting.GRAY, Formatting.ITALIC).getString();
         if (!query.isEmpty()) usedPlaceholder = "";
@@ -150,8 +161,9 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
                 resultTitlePanel.child(itemComponent);
             }
             
-            var score = (int) (result.bestScore() * 100);
-            var titleText = Text.literal(result.title() + " (" + score + "%)");
+            // var score = (int) (result.bestScore() * 100);
+            // var titleText = Text.literal(result.title() + " (" + score + "%)");  // variant with score in title
+            var titleText = Text.literal(result.title());
             var title = Components.label(titleText.formatted(Formatting.BOLD));
             resultTitlePanel.child(title);
             
@@ -237,5 +249,8 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         
     }
     
-    
+    @Override
+    public void close() {
+        Objects.requireNonNull(client).setScreen(parent);
+    }
 }

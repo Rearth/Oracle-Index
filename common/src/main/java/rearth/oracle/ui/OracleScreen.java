@@ -15,6 +15,8 @@ import io.wispforest.owo.ui.core.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -98,6 +100,28 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(80), navigationBar);
         leftPanel.child(outerNavigationBarContainer);
         
+        // search icon
+        var searchContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        searchContainer.surface(MarkdownParser.ORACLE_PANEL);
+        searchContainer.margins(Insets.of(6, 6, 6, 6));
+        searchContainer.padding(Insets.of(4, 6, 4, 4));
+        searchContainer.positioning(Positioning.relative(99, 99));
+        
+        searchContainer.mouseDown().subscribe(((mouseX, mouseY, button) -> {
+            MinecraftClient.getInstance().setScreen(new SearchScreen(this));
+            return true;
+        }));
+        
+        searchContainer.mouseEnter().subscribe(() -> searchContainer.surface(MarkdownParser.ORACLE_PANEL_HOVER));
+        searchContainer.mouseLeave().subscribe(() -> searchContainer.surface(MarkdownParser.ORACLE_PANEL));
+        
+        var searchIcon = Components.item(new ItemStack(Items.SPYGLASS));
+        searchIcon.sizing(Sizing.fixed(24));
+        searchIcon.tooltip(Text.translatable("tooltip.oracle_index.open_search", OracleClient.ORACLE_WIKI.getBoundKeyLocalizedText(), OracleClient.ORACLE_SEARCH.getBoundKeyLocalizedText()));
+        
+        searchContainer.child(searchIcon);
+        
+        rootComponent.child(searchContainer);
     }
     
     @Override
@@ -109,8 +133,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     
     private void updateLayout() {
         var leftOffset = Math.max(15, this.width / 20);
-        var leftPanelSize = navigationBar.width();
-        var leftPanelEnd = navigationBar.x() + navigationBar.width();
+        var leftPanelSize = leftPanel.width();
+        var leftPanelEnd = leftPanel.x() + leftPanel.width();
         var innerPanelWideLeft = this.width * 0.5f - this.width * wideContentWidth / 100f / 2f;
         
         var wideEnough = this.width >= 650;
@@ -140,6 +164,11 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         if (needsLayout) {
             needsLayout = false;
             this.updateLayout();
+        }
+        
+        if (Screen.hasControlDown()) {
+            Oracle.LOGGER.info("Opening Oracle Search...");
+            Objects.requireNonNull(client).setScreen(new SearchScreen(this));
         }
     }
     
