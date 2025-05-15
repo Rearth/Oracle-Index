@@ -42,8 +42,16 @@ dependencies {
     implementation "org.jsoup:jsoup:1.17.2"
     include "org.jsoup:jsoup:1.17.2"
 
+    implementation 'dev.langchain4j:langchain4j:1.0.0'
+    include 'dev.langchain4j:langchain4j:1.0.0'
+    implementation 'dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5'
+    include 'dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5'
+
+    implementation 'net.objecthunter:exp4j:0.4.8'
+    include 'net.objecthunter:exp4j:0.4.8'
+
     modRuntimeOnly "teamreborn:energy:4.1.0"
-    // modRuntimeOnly "curse.maven:oritech-1030830:6199167"
+    modImplementation "curse.maven:oritech-1030830:6520539" // oritech 0.15.5
     modRuntimeOnly "curse.maven:architectury-api-419699:5786326"
     modRuntimeOnly "curse.maven:athena-841890:5629396"
     modRuntimeOnly "curse.maven:geckolib-388172:5605709"

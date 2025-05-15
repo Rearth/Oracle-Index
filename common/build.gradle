@@ -17,6 +17,11 @@ dependencies {
 
     implementation "org.jsoup:jsoup:1.17.2"
 
+    implementation 'dev.langchain4j:langchain4j:1.0.0'
+    implementation 'dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5'
+
+    implementation 'net.objecthunter:exp4j:0.4.8'
+
 }
 
 tasks.named('processResources') {

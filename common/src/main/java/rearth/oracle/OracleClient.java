@@ -12,6 +12,7 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.ui.OracleScreen;
+import rearth.oracle.ui.SearchScreen;
 import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
@@ -29,6 +30,8 @@ public final class OracleClient {
     
     public static ItemStack tooltipStack;
     public static float openEntryProgress = 0;
+    
+    private static SemanticSearch searchInstance;
 
     public static void init() {
         Oracle.LOGGER.info("Hello from the Oracle Wiki Client!");
@@ -37,8 +40,15 @@ public final class OracleClient {
         
         ClientTickEvent.CLIENT_POST.register(client -> {
             if (ORACLE_WIKI.wasPressed()) {
+                
+                if (Screen.hasControlDown()) {
+                    Oracle.LOGGER.info("Opening Oracle Search...");
+                    client.setScreen(new SearchScreen());
+                    return;
+                }
+                
                 Oracle.LOGGER.info("Opening Oracle Wiki...");
-                client.setScreen(new OracleScreen());
+                client.setScreen(new OracleScreen(client.currentScreen));
             }
         });
         
@@ -87,6 +97,8 @@ public final class OracleClient {
             var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
             var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
             var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
+            
+            if (entryDirectory.startsWith(".translated")) continue; // skip / don't support translations for now
 		        
 		        try {
 				        var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -100,6 +112,7 @@ public final class OracleClient {
                         ITEM_LINKS.put(itemId, linkData);
                     }
                 }
+                
 		        } catch (IOException e) {
                 Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
 				        throw new RuntimeException(e);
@@ -107,6 +120,12 @@ public final class OracleClient {
 		        
 		        LOADED_BOOKS.add(modId);
         }
+    }
+    
+    public static SemanticSearch getOrCreateSearch() {
+        if (searchInstance == null) searchInstance = new SemanticSearch();
+        
+        return searchInstance;
     }
     
     public record BookItemLink(Identifier linkTarget, String entryName, String bookId) {}
