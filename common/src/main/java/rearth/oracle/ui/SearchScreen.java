@@ -7,7 +7,6 @@ import io.wispforest.owo.ui.component.TextBoxComponent;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
@@ -110,7 +109,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
             }
         } else {
             waitFrames++;
-            var dots = (waitFrames) % 3 + 1;
+            var dots = (waitFrames / 5) % 3 + 1;
             searchBar.setEditable(false);
             searchBar.setText("Indexing" + ".".repeat(dots));
             searchBar.setSuggestion("");

@@ -1,5 +1,6 @@
 package rearth.oracle;
 
+import ai.djl.engine.Engine;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
@@ -14,7 +15,9 @@ import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +34,17 @@ public class SemanticSearch {
     public SemanticSearch() {
         
         embeddingStore = new InMemoryEmbeddingStore<>();
-        embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
+        
+        // workaround for weird neoforge different class loading issues?
+        var original = Thread.currentThread().getContextClassLoader();
+        try {
+            // Inject the class loader that actually has the DJL engine resources
+            Thread.currentThread().setContextClassLoader(Engine.class.getClassLoader());
+            embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
+        } finally {
+            // Restore the original loader to avoid side‑effects
+            Thread.currentThread().setContextClassLoader(original);
+        }
         
         ingestor = EmbeddingStoreIngestor.builder()
                      .embeddingStore(embeddingStore)
@@ -72,7 +85,7 @@ public class SemanticSearch {
         return PENDING_JOBS.get() <= 0;
     }
     
-    public long getEmbeddingTime () {
+    public long getEmbeddingTime() {
         return TOTAL_EMBEDDING_TIME.get();
     }
     

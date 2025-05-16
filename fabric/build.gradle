@@ -1,3 +1,7 @@
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+
 plugins {
     id 'com.github.johnrengelman.shadow'
 }
@@ -39,16 +43,22 @@ dependencies {
     // owo lib
     modImplementation "io.wispforest:owo-lib:0.12.11+1.21"
 
-    implementation "org.jsoup:jsoup:1.17.2"
-    include "org.jsoup:jsoup:1.17.2"
+    // included libs
+    // jsoup for html / markdown parsing
+    implementation(include(api('org.jsoup:jsoup:1.17.2')))
 
-    implementation 'dev.langchain4j:langchain4j:1.0.0'
-    include 'dev.langchain4j:langchain4j:1.0.0'
-    implementation 'dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5'
-    include 'dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5'
+    // langchain for in memory vector store and small embedding model
+    implementation(include(api("dev.langchain4j:langchain4j:1.0.0")))
+    implementation(include(api("dev.langchain4j:langchain4j-core:1.0.0")))
+    implementation(include(api("dev.langchain4j:langchain4j-embeddings:1.0.0-beta5")))
+    implementation(include(api("dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5")))
+    implementation(include(api("ai.djl:api:0.31.1")))
+    implementation(include(api("ai.djl.huggingface:tokenizers:0.31.1")))
+    implementation(include(api("org.apache.opennlp:opennlp-tools:2.5.4")))
+    implementation(include(api("com.microsoft.onnxruntime:onnxruntime:1.20.0")))
 
-    implementation 'net.objecthunter:exp4j:0.4.8'
-    include 'net.objecthunter:exp4j:0.4.8'
+    // exp4j for math expressions in search bar
+    implementation(include(api('net.objecthunter:exp4j:0.4.8')))
 
     modRuntimeOnly "teamreborn:energy:4.1.0"
     modImplementation "curse.maven:oritech-1030830:6520539" // oritech 0.15.5
@@ -76,6 +86,65 @@ shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = 'dev-shadow'
 }
+
+// because the stupid microsoft onnx package contains 50MB of unnecessary pdb files, we re-assemble the entire dist jar, and strip out those files
+task cleanRemappedJar {
+
+    doLast {
+        File original = remapJar.archiveFile.get().asFile
+        File temp = new File(original.parentFile, original.name + ".tmp")
+
+        // Open streams for reading the old jar and writing the new one
+        ZipInputStream zis = new ZipInputStream(new FileInputStream(original))
+        ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(temp))
+
+        ZipEntry entry
+        while ((entry = zis.nextEntry) != null) {
+            String name = entry.name
+
+            // Handle nested JARs in META-INF/jars/
+            if (name.startsWith("META-INF/jars/")) {
+                // Unzip the nested jar into memory, filter entries, and re-zip
+                ByteArrayOutputStream baos = new ByteArrayOutputStream()
+                ZipInputStream nestedIn  = new ZipInputStream(zis)
+                ZipOutputStream nestedOut = new ZipOutputStream(baos)
+
+                ZipEntry nestedEntry
+                while ((nestedEntry = nestedIn.nextEntry) != null) {
+                    String neName = nestedEntry.name
+                    if (!neName.endsWith(".pdb") && !neName.contains(".dSYM/")) {
+                        nestedOut.putNextEntry(new ZipEntry(neName))
+                        nestedIn.transferTo(nestedOut)
+                        nestedOut.closeEntry()
+                    }
+                }
+                nestedOut.close()
+                // Write the filtered nested-jar back into the outer jar
+                ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray())
+                zos.putNextEntry(new ZipEntry(name))
+                bais.transferTo(zos)
+                zos.closeEntry()
+
+                // Otherwise, skip any top-level .pdb or anything under .dSYM
+            } else if (!name.endsWith(".pdb") && !name.contains(".dSYM/")) {
+                zos.putNextEntry(new ZipEntry(name))
+                zis.transferTo(zos)
+                zos.closeEntry()
+            }
+            // else — we’ve hit a .pdb or .dSYM path, so we simply don’t copy it
+        }
+
+        // close everything
+        zis.close()
+        zos.close()
+
+        // Replace the original jar
+        original.delete()
+        temp.renameTo(original)
+    }
+}
+
+remapJar.finalizedBy(cleanRemappedJar)
 
 remapJar {
     inputFile.set shadowJar.archiveFile

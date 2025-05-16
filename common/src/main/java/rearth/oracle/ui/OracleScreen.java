@@ -121,7 +121,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         searchContainer.child(searchIcon);
         
-        rootComponent.child(searchContainer);
+        rootComponent.child(searchContainer.zIndex(5));
     }
     
     @Override
