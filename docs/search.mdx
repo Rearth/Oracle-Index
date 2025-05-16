@@ -1,0 +1,21 @@
+---
+title: Search
+---
+
+Oracle Index features a smart search functionality. To open the search view, either press [CTRL + ORACLE_HOTKEY], or the search hotkey (unbound by default). There's also a small search
+icon when viewing a wiki entry.
+
+<Callout variant="warning">
+    The search also supports math calculations / expressions!
+</Callout>
+
+When opening the search screen for the first time, it may take a few seconds to index the available pages before you can search. The search is a full-powered semantic
+search, powered by machine learning. This means you don't have to search with exact keywords, you can enter full sentences and relevant content will be shown, even
+if the words don't match exactly. Any relevant topics will be shown.
+
+## Technical Details
+Under the hood, Oracle Index generates embeddings for all pages, which are preprocessed into chunks. A small sentence transformer model (all-MiniLm-L6-V2-q) then generates embeddings
+for each chunk, and for the search query. The embedding vectors are stored in memory. The search query embedding vector is then compared to the embeddings of the wiki chunks.
+The closest N results are then displayed to the user.
+
+The library used for this is Langchain4j, which uses the DJL Framework. The embedding model is about 15mb in size.

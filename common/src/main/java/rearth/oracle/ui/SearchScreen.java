@@ -109,7 +109,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
             }
         } else {
             waitFrames++;
-            var dots = (waitFrames / 5) % 3 + 1;
+            var dots = (waitFrames / 2) % 3 + 1;
             searchBar.setEditable(false);
             searchBar.setText("Indexing" + ".".repeat(dots));
             searchBar.setSuggestion("");
