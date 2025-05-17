@@ -1,1 +1,3 @@
-- Fix item stack tooltips not being included in all screen (such as JEI)
+- Add semantic search feature / calculator.
+- Add search wiki entry
+- Fix layout with calculation issues
