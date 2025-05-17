@@ -34,6 +34,10 @@
 <p align="center">
   <img src="https://github.com/user-attachments/assets/615fca18-fd3a-4537-b980-d08f4ae0fd60" />
 </p>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3df07552-5d4a-43d7-8add-25cafc36a21b" />
+</p>
+
 
 ---
 
@@ -48,14 +52,21 @@ the users to directly open the relevant wiki pages from the items tooltip.
 Features:
 - Easy to view ingame documentation.
 - No custom books required, the Oracle Index can be opened through either a hotkey or from an item tooltip.
-- Smooth scrolling, modern minecraft-y design elements
-- Compatibility for documentations created for moddedmc.wiki
-- Cross-Linking between pages and items
-- Responsive layouts
+- Semantic Search search, with math expression parsing.
+- Smooth scrolling, modern minecraft-y design elements.
+- Compatibility for documentations created for moddedmc.wiki.
+- Cross-Linking between pages and items.
+- Responsive layouts.
 
 ## Built With / Depends on:
 - Owo lib (for all the GUIs, config, and much more)
 - Architectury
+
+## About the Search:
+- Langchain4j using all-MiniLm-L6-V2-q embedding model for search embedding vector generation.
+- The search query is transformed using the above sentance transformer embedding model. The resulting embedding vector is
+then compared to the embeddings generated for all the wiki entries. This model is around 16mb in size (+ a few MB for the runtime), but allows the search
+to understand full sentences and find similar content that match the meaning of the search, not just the keywords.
 
 ## Roadmap
 
