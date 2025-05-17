@@ -1,7 +1,6 @@
 package rearth.oracle;
 
 import dev.architectury.event.events.client.ClientLifecycleEvent;
-import dev.architectury.event.events.client.ClientRawInputEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import io.wispforest.owo.ui.util.Delta;

@@ -7,6 +7,7 @@ import io.wispforest.owo.ui.component.TextBoxComponent;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
@@ -98,8 +99,20 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        
-        var searchReady = OracleClient.getOrCreateSearch().isReady();
+        var searchReady = false;
+        try {
+            searchReady = OracleClient.getOrCreateSearch().isReady();
+        } catch (Throwable error) {
+            error.printStackTrace();
+            
+            MinecraftClient.getInstance().player.sendMessage(Text.literal("Sorry, Oracle Index Search is not available on your platform."));
+            MinecraftClient.getInstance().player.sendMessage(Text.literal("If you want this search feature, you can use the xplat jar available on the mods github."));
+            MinecraftClient.getInstance().player.sendMessage(Text.literal("https://github.com/Rearth/Oracle-Index - The jars are available in the 'releases' section."));
+            MinecraftClient.getInstance().player.sendMessage(Text.literal("This is not the default file due to jar size limitations."));
+            
+            this.close();
+            return;
+        }
         
         if (searchReady) {
             searchBar.setEditable(true);

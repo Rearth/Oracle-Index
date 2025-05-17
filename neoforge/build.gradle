@@ -105,7 +105,9 @@ task cleanRemappedJar {
                 ZipEntry nestedEntry
                 while ((nestedEntry = nestedIn.nextEntry) != null) {
                     String neName = nestedEntry.name
-                    if (!neName.endsWith(".pdb") && !neName.contains(".dSYM/")) {
+                    // skip pdb / macos debugger files
+                    // skip osx and linux native support
+                    if (!neName.endsWith(".pdb") && !neName.contains(".dSYM/") && !neName.contains("osx-") && !neName.contains("linux-")) {
                         nestedOut.putNextEntry(new ZipEntry(neName))
                         nestedIn.transferTo(nestedOut)
                         nestedOut.closeEntry()
@@ -119,7 +121,7 @@ task cleanRemappedJar {
                 zos.closeEntry()
 
                 // Otherwise, skip any top-level .pdb or anything under .dSYM
-            } else if (!name.endsWith(".pdb") && !name.contains(".dSYM/")) {
+            } else {
                 zos.putNextEntry(new ZipEntry(name))
                 zis.transferTo(zos)
                 zos.closeEntry()
@@ -137,7 +139,62 @@ task cleanRemappedJar {
     }
 }
 
+task xplatJar {
+
+    doLast {
+        File original = remapJar.archiveFile.get().asFile
+        File temp = new File(original.parentFile, original.name.replace(".jar", "-xplat.jar"))
+
+        // Open streams for reading the old jar and writing the new one
+        ZipInputStream zis = new ZipInputStream(new FileInputStream(original))
+        ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(temp))
+
+        ZipEntry entry
+        while ((entry = zis.nextEntry) != null) {
+            String name = entry.name
+
+            // Handle nested JARs in META-INF/jars/
+            if (name.startsWith("META-INF/jars/")) {
+                // Unzip the nested jar into memory, filter entries, and re-zip
+                ByteArrayOutputStream baos = new ByteArrayOutputStream()
+                ZipInputStream nestedIn  = new ZipInputStream(zis)
+                ZipOutputStream nestedOut = new ZipOutputStream(baos)
+
+                ZipEntry nestedEntry
+                while ((nestedEntry = nestedIn.nextEntry) != null) {
+                    String neName = nestedEntry.name
+                    // skip pdb / macos debugger files
+                    // skip osx and linux native support
+                    if (!neName.endsWith(".pdb") && !neName.contains(".dSYM/")) {
+                        nestedOut.putNextEntry(new ZipEntry(neName))
+                        nestedIn.transferTo(nestedOut)
+                        nestedOut.closeEntry()
+                    }
+                }
+                nestedOut.close()
+                // Write the filtered nested-jar back into the outer jar
+                ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray())
+                zos.putNextEntry(new ZipEntry(name))
+                bais.transferTo(zos)
+                zos.closeEntry()
+
+                // Otherwise, skip any top-level .pdb or anything under .dSYM
+            } else {
+                zos.putNextEntry(new ZipEntry(name))
+                zis.transferTo(zos)
+                zos.closeEntry()
+            }
+            // else — we’ve hit a .pdb or .dSYM path, so we simply don’t copy it
+        }
+
+        // close everything
+        zis.close()
+        zos.close()
+    }
+}
+
 remapJar.finalizedBy(cleanRemappedJar)
+remapJar.finalizedBy(xplatJar)
 
 remapJar {
     inputFile.set shadowJar.archiveFile
