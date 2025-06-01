@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
+import io.wispforest.owo.ui.base.BaseParentComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.ItemComponent;
 import io.wispforest.owo.ui.component.LabelComponent;
@@ -25,7 +26,9 @@ import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
 import rearth.oracle.ui.components.ColoredCollapsibleContainer;
 import rearth.oracle.ui.components.ScalableLabelComponent;
+import rearth.oracle.util.BookMetadata;
 import rearth.oracle.util.MarkdownParser;
+import rearth.oracle.util.Util;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -40,13 +43,14 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     private FlowLayout rootComponent;
     private FlowLayout leftPanel;
     private ScrollContainer<FlowLayout> outerContentContainer;
+    private BaseParentComponent langSelector;
     
     private final Screen parent;
     
     private boolean needsLayout = false;
     
     public static Identifier activeEntry;
-    public static String activeBook;
+    public static BookMetadata activeBook;
     
     private static final int wideContentWidth = 50; // in %
     
@@ -94,7 +98,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         outerContentContainer = Containers.verticalScroll(Sizing.fill(wideContentWidth), Sizing.fill(), contentContainer);
         outerContentContainer.allowOverflow(true);
         rootComponent.child(outerContentContainer);
-        
+
         buildModNavigation(leftPanel);
         
         var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(80), navigationBar);
@@ -155,6 +159,9 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             leftPanel.margins(Insets.of(0, 0, 10, 5));
             outerContentContainer.horizontalSizing(Sizing.fixed(this.width - leftPanelSize - 20));
         }
+
+        langSelector.positioning(Positioning.absolute(this.width - 120, 10))
+                .margins(Insets.top(10).withRight(5));
     }
     
     @Override
@@ -172,7 +179,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
     
-    private void loadContentContainer(Identifier filePath, String bookId) throws IOException {
+    private void loadContentContainer(Identifier filePath, BookMetadata bookMetadata) throws IOException {
         
         contentContainer.clearChildren();
         activeEntry = filePath;
@@ -181,31 +188,35 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         var resourceCandidate = resourceManager.getResource(filePath);
         
         if (resourceCandidate.isEmpty()) {
-            System.out.println("No content file found for " + filePath);
+            Oracle.LOGGER.warn("No content file found for {}", filePath);
             return;
         }
         
         var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, bookId, link -> {
+        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, bookMetadata.getBookId(), link -> {
             
             if (link.startsWith("http")) return false;
             
             var pathSegments = filePath.getPath().split("/");
-            var newPath = "";
+            StringBuilder newPathBuilder = new StringBuilder();
             
             // build path based on relative information
             var parentIteration = link.startsWith("../") ? 1 : 0;
             for (int i = 0; i < pathSegments.length - 1 - parentIteration; i++) {
-                newPath += pathSegments[i] + "/";
+                newPathBuilder.append(pathSegments[i]).append("/");
             }
             
-            newPath = newPath.split("#")[0];    // anchors are not supported, so we just remove them
-            newPath += link.replace("../", "") + ".mdx";    // add file ending
-            
+            newPathBuilder = new StringBuilder(newPathBuilder.toString().split("#")[0]);    // anchors are not supported, so we just remove them
+            newPathBuilder.append(link.replace("../", "")).append(".mdx");    // add file ending
+
+            var newPath = newPathBuilder.toString();
+
+            Oracle.LOGGER.info("Loading content file: " + newPath);
+
             var newId = Identifier.of(Oracle.MOD_ID, newPath);
             
             try {
-                loadContentContainer(newId, bookId);
+                loadContentContainer(newId, bookMetadata);
             } catch (IOException e) {
                 return false;
             }
@@ -241,9 +252,9 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     }
     
     private void buildModNavigation(FlowLayout buttonContainer) {
-        
-        // collect all book ids
-        var bookIds = OracleClient.LOADED_BOOKS.stream()
+
+        // collect all book metadata
+        var bookMetadataList = OracleClient.LOADED_BOOKS.values().stream()
                         .sorted()
                         .toList();
         
@@ -251,7 +262,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         modSelectorDropdown.zIndex(5);
         
         if (activeBook == null)
-            activeBook = bookIds.getFirst();
+            activeBook = bookMetadataList.getFirst();
         
         if (activeEntry != null) {
             try {
@@ -265,6 +276,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         if (this.height < 350) {
             topMargins = 5;
         }
+
+        buildLangSelector();
         
         var bookTitleLabel = new ScalableLabelComponent(Text.translatable(Oracle.MOD_ID + ".title." + activeBook).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY), text -> false);
         bookTitleLabel.scale = 1.5f;
@@ -275,12 +288,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         bookTitleWrapper.child(bookTitleLabel);
         buttonContainer.child(bookTitleWrapper.zIndex(5));
         
-        bookTitleWrapper.mouseEnter().subscribe(() -> {
-            bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER);
-        });
-        bookTitleWrapper.mouseLeave().subscribe(() -> {
-            bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
-        });
+        bookTitleWrapper.mouseEnter().subscribe(() -> bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER));
+        bookTitleWrapper.mouseLeave().subscribe(() -> bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL));
         bookTitleWrapper.mouseDown().subscribe((a, b, c) -> {
             if (modSelectorDropdown.hasParent()) {
                 modSelectorDropdown.remove();
@@ -290,33 +299,95 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             return true;
         });
         
-        for (var bookId : bookIds) {
+        for (var bookMetadata : bookMetadataList) {
+            var bookId = bookMetadata.getBookId();
             modSelectorDropdown.button(Text.translatable(Oracle.MOD_ID + ".title." + bookId), elem -> {
+                activeBook = bookMetadata;
                 activeEntry = null;
                 modSelectorDropdown.remove();
-                buildModNavigationBar(bookId);
+                rootComponent.removeChild(langSelector);
+                buildLangSelector();
+                buildModNavigationBar(bookMetadata);
                 bookTitleLabel.text(Text.translatable(Oracle.MOD_ID + ".title." + bookId).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY));
-                activeBook = bookId;
             });
         }
         
         buildModNavigationBar(activeBook);
         
     }
-    
-    private void buildModNavigationBar(String bookId) {
-        navigationBar.clearChildren();
-        buildNavigationEntriesForModPath(bookId, "", navigationBar);
+
+    private void buildLangSelector() {
+        var langLabel = Components.label(Text.translatable("oracle_index.label.lang"))
+                .color(Color.ofFormatting(Formatting.WHITE))
+                .margins(Insets.right(5));
+
+        var currentLangText = Components.label(
+                Util.getLanguageText(activeBook.getCurrentLanguage()).copy().formatted(Formatting.DARK_GRAY)
+        );
+
+        var currentLangTextWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        currentLangTextWrapper.surface(MarkdownParser.ORACLE_PANEL);
+        currentLangTextWrapper.mouseEnter().subscribe(() -> currentLangTextWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER));
+        currentLangTextWrapper.mouseLeave().subscribe(() -> currentLangTextWrapper.surface(MarkdownParser.ORACLE_PANEL));
+        currentLangTextWrapper.child(currentLangText.margins(Insets.of(3, 5, 3, 5)));
+
+        var langLabelWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        langLabelWrapper.child(langLabel);
+        langLabelWrapper.child(currentLangTextWrapper);
+
+        var langDropdown = Components.dropdown(Sizing.content());
+
+        // add supported languages
+        for (String lang : activeBook.getSupportedLanguages()) {
+            langDropdown.button(Util.getLanguageText(lang).copy().formatted(Formatting.WHITE), dropdownComponent -> {
+                activeBook.setCurrentLanguage(lang);
+                currentLangText.text(Util.getLanguageText(lang).copy().formatted(Formatting.DARK_GRAY));
+                langDropdown.remove();
+
+                // reload entries and content
+                if (activeEntry != null) {
+                    try {
+                        Oracle.LOGGER.info("Reloading content for " + activeEntry.getPath());
+                        activeEntry = Identifier.of(Oracle.MOD_ID, activeBook.convertPathToCurrentLanguage(activeEntry.getPath()));
+                        buildModNavigationBar(activeBook);
+                        loadContentContainer(activeEntry, activeBook);
+                    } catch (IOException e) {
+                        Oracle.LOGGER.error("Failed to reload content: " + e.getMessage());
+                    }
+                }
+            }).zIndex(10);
+        }
+
+        // show dropdown
+        langLabelWrapper.mouseDown().subscribe((mouseX, mouseY, button) -> {
+            if (langDropdown.hasParent()) {
+                langDropdown.remove();
+                return true;
+            }
+
+            langDropdown.positioning(Positioning.absolute(langLabelWrapper.x(), langLabelWrapper.y() + langLabelWrapper.height()));
+            rootComponent.child(langDropdown);
+            return true;
+        });
+
+        langSelector = langLabelWrapper
+                .positioning(Positioning.absolute(this.width - 120, 10))
+                .margins(Insets.top(10).withRight(5));
+        rootComponent.child(langSelector);
     }
     
-    private void buildNavigationEntriesForModPath(String bookId, String path, FlowLayout container) {
-        
+    private void buildModNavigationBar(BookMetadata bookMetadata) {
+        navigationBar.clearChildren();
+        buildNavigationEntriesForModPath(bookMetadata, "", navigationBar);
+    }
+    
+    private void buildNavigationEntriesForModPath(BookMetadata bookMetadata, String path, FlowLayout container) {
         var resourceManager = MinecraftClient.getInstance().getResourceManager();
-        var metaPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/_meta.json");
+        var metaPath = Identifier.of(Oracle.MOD_ID, bookMetadata.getEntryPath(path) + "/_meta.json");
         var resourceCandidate = resourceManager.getResource(metaPath);
         
         if (resourceCandidate.isEmpty()) {
-            System.out.println("No _meta.json found for " + bookId + " at " + metaPath);
+            System.out.println("No _meta.json found for " + bookMetadata.getBookId() + " at " + metaPath);
             return;
         }
         
@@ -327,8 +398,9 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             if (activeEntry == null) {
                 var firstEntry = entries.stream().filter(elem -> !elem.directory).findFirst();
                 if (firstEntry.isPresent()) {
-                    var firstEntryPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/" + firstEntry.get().id());
-                    loadContentContainer(firstEntryPath, bookId);
+                    // Oracle.LOGGER.info(bookMetadata.getEntryPath(path) + firstEntry.get().id());
+                    var firstEntryPath = Identifier.of(Oracle.MOD_ID, bookMetadata.getEntryPath(path) + "/" + firstEntry.get().id());
+                    loadContentContainer(firstEntryPath, bookMetadata);
                     activeEntry = firstEntryPath;
                 }
             }
@@ -341,7 +413,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                       Sizing.content(1),
                       Sizing.content(1),
                       Text.translatable(entry.name()).formatted(Formatting.WHITE), false);
-                    buildNavigationEntriesForModPath(bookId, path + "/" + entry.id(), directoryContainer);
+                    buildNavigationEntriesForModPath(bookMetadata, path + "/" + entry.id(), directoryContainer);
                     directoryContainer.margins(Insets.of(0, 0, 0, 0));
                     container.child(directoryContainer);
                     
@@ -360,23 +432,19 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                     levelContainers.add(directoryContainer);
                     
                 } else {
-                    final var labelPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/" + entry.id());
+                    final var labelPath = Identifier.of(Oracle.MOD_ID, bookMetadata.getEntryPath(path) + "/" + entry.id());
                     final var labelText = Text.translatable(entry.name).formatted(Formatting.WHITE);
                     final var label = Components.label(labelText.formatted(Formatting.UNDERLINE));
                     
-                    label.mouseEnter().subscribe(() -> {
-                        label.text(labelText.copy().formatted(Formatting.GRAY));
-                    });
-                    label.mouseLeave().subscribe(() -> {
-                        label.text(labelText.copy());
-                    });
+                    label.mouseEnter().subscribe(() -> label.text(labelText.copy().formatted(Formatting.GRAY)));
+                    label.mouseLeave().subscribe(() -> label.text(labelText.copy()));
                     
                     label.mouseDown().subscribe((a, b, c) -> {
                         try {
-                            loadContentContainer(labelPath, bookId);
+                            loadContentContainer(labelPath, bookMetadata);
                             return true;
                         } catch (IOException e) {
-                            Oracle.LOGGER.error(e.getMessage());
+                            Oracle.LOGGER.error(e.getMessage(), e);
                             return false;
                         }
                     });

@@ -1,0 +1,18 @@
+---
+title: 搜索
+---
+
+Oracle Index 具备智能搜索功能。要打开搜索界面，可以按下 [CTRL + ORACLE_HOTKEY]，或者使用默认未绑定的搜索快捷键。在查看维基条目时，界面上也会显示一个小的搜索图标。
+
+<Callout variant="warning">
+搜索功能还支持数学计算和表达式！
+</Callout>
+
+首次打开搜索界面时，可能需要几秒钟来对可用页面进行索引，之后才能进行搜索。这是一个功能强大的语义搜索，由机器学习驱动。这意味着你不需要用精确的关键词进行搜索，可以直接输入完整的句子，即使词语不完全匹配，系统也会展示相关的内容。任何相关主题都会被显示出来。
+
+## Technical Details
+Under the hood, Oracle Index generates embeddings for all pages, which are preprocessed into chunks. A small sentence transformer model (all-MiniLm-L6-V2-q) then generates embeddings
+for each chunk, and for the search query. The embedding vectors are stored in memory. The search query embedding vector is then compared to the embeddings of the wiki chunks.
+The closest N results are then displayed to the user.
+
+The library used for this is Langchain4j, which uses the DJL Framework. The embedding model is about 15mb in size.

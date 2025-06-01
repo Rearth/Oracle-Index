@@ -1,0 +1,14 @@
+{
+  "user_guide.mdx": {
+    "name": "\uD83D\uDCD7 User Guide",
+    "icon": null
+  },
+  "search.mdx": {
+    "name": "\uD83D\uDD0D User Guide",
+    "icon": null
+  },
+  "developer": {
+    "name": "⌨ Mod Dev Guide",
+    "icon": null
+  }
+}
