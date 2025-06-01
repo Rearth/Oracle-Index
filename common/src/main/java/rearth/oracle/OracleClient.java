@@ -13,12 +13,14 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.SearchScreen;
+import rearth.oracle.util.BookMetadata;
 import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public final class OracleClient {
@@ -26,7 +28,7 @@ public final class OracleClient {
     public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_index.open", GLFW.GLFW_KEY_H, "key.categories.oracle");
     public static final KeyBinding ORACLE_SEARCH = new KeyBinding("key.oracle_index.search", -1, "key.categories.oracle");
     
-    public static final Set<String> LOADED_BOOKS = new HashSet<>();
+    public static final HashMap<String, BookMetadata> LOADED_BOOKS = new HashMap<>();
     public static final HashMap<Identifier, BookItemLink> ITEM_LINKS = new HashMap<>();
     
     public static ItemStack tooltipStack;
@@ -84,7 +86,7 @@ public final class OracleClient {
      */
     public static void openScreen(@Nullable String bookId, @Nullable Identifier entryId, @Nullable Screen parent) {
         if (bookId != null)
-            OracleScreen.activeBook = bookId;
+            OracleScreen.activeBook = LOADED_BOOKS.get(bookId);
         if (entryId != null)
             OracleScreen.activeEntry = entryId;
         
@@ -96,19 +98,27 @@ public final class OracleClient {
         var resources = resourceManager.findResources("books", path -> path.getPath().endsWith(".mdx"));
         
         LOADED_BOOKS.clear();
+        var supportedLanguages = new HashSet<String>();
         
         for (var resourceId : resources.keySet()) {
+
             var purePath = resourceId.getPath().replaceFirst("books/", "");
             var segments = purePath.split("/");
             var modId = segments[0];        // e.g. "oritech"
             var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
             var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
             var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
-            
-            if (entryDirectory.startsWith(".translated")) continue; // skip / don't support translations for now
+
+
+            if (entryPath.startsWith(".translated")) {
+                var segments2 = entryDirectory.split("/");
+                if (segments2.length > 1) {
+                    supportedLanguages.add(segments2[1]);
+                } // e.g. ".translated/zh_cn/tools/wrench.mdx" will return "zh_cn"
+            }
 		        
-		        try {
-				        var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            try {
+                var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 var fileComponents = MarkdownParser.parseFrontmatter(fileContent);
                 if (fileComponents.containsKey("related_items")) {
                     var baseString = fileComponents.get("related_items").replace("[", "").replace("]", "");
@@ -120,12 +130,12 @@ public final class OracleClient {
                     }
                 }
                 
-		        } catch (IOException e) {
+            } catch (IOException e) {
                 Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
-				        throw new RuntimeException(e);
-		        }
-		        
-		        LOADED_BOOKS.add(modId);
+                throw new RuntimeException(e);
+            }
+
+            LOADED_BOOKS.put(modId, new BookMetadata(modId, supportedLanguages));
         }
     }
     
