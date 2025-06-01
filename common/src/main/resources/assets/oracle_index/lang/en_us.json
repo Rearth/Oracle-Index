@@ -7,5 +7,5 @@
   "oracle_index.searchbar.placeholder" : "Find or Calculate",
   "oracle_index.searchbar.tooltip" : "Smart search that supports full sentences and math expressions.",
   "tooltip.oracle_index.open_search": "Open Search. You can always open this by pressing [CTRL + %s] or [%s].",
-  "oracle_index.label.lang": "Language"
+  "oracle_index.label.lang": "Lang:"
 }

@@ -1,7 +1,6 @@
 package rearth.oracle.util;
 
 import org.jetbrains.annotations.NotNull;
-import rearth.oracle.Oracle;
 
 import java.util.HashSet;
 import java.util.Set;

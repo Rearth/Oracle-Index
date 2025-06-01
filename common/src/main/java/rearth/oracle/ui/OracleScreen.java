@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
+import io.wispforest.owo.ui.base.BaseParentComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.ItemComponent;
 import io.wispforest.owo.ui.component.LabelComponent;
@@ -27,6 +28,7 @@ import rearth.oracle.ui.components.ColoredCollapsibleContainer;
 import rearth.oracle.ui.components.ScalableLabelComponent;
 import rearth.oracle.util.BookMetadata;
 import rearth.oracle.util.MarkdownParser;
+import rearth.oracle.util.Util;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,6 +43,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     private FlowLayout rootComponent;
     private FlowLayout leftPanel;
     private ScrollContainer<FlowLayout> outerContentContainer;
+    private BaseParentComponent langSelector;
     
     private final Screen parent;
     
@@ -156,6 +159,9 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             leftPanel.margins(Insets.of(0, 0, 10, 5));
             outerContentContainer.horizontalSizing(Sizing.fixed(this.width - leftPanelSize - 20));
         }
+
+        langSelector.positioning(Positioning.absolute(this.width - 120, 10))
+                .margins(Insets.top(10).withRight(5));
     }
     
     @Override
@@ -271,7 +277,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             topMargins = 5;
         }
 
-        buildLangSelector(buttonContainer);
+        buildLangSelector();
         
         var bookTitleLabel = new ScalableLabelComponent(Text.translatable(Oracle.MOD_ID + ".title." + activeBook).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY), text -> false);
         bookTitleLabel.scale = 1.5f;
@@ -296,12 +302,13 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         for (var bookMetadata : bookMetadataList) {
             var bookId = bookMetadata.getBookId();
             modSelectorDropdown.button(Text.translatable(Oracle.MOD_ID + ".title." + bookId), elem -> {
+                activeBook = bookMetadata;
                 activeEntry = null;
                 modSelectorDropdown.remove();
+                rootComponent.removeChild(langSelector);
+                buildLangSelector();
                 buildModNavigationBar(bookMetadata);
                 bookTitleLabel.text(Text.translatable(Oracle.MOD_ID + ".title." + bookId).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY));
-                activeBook = bookMetadata;
-                buildLangSelector(buttonContainer);
             });
         }
         
@@ -309,40 +316,64 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
     }
 
-    private void buildLangSelector(FlowLayout buttonContainer) {
+    private void buildLangSelector() {
         var langLabel = Components.label(Text.translatable("oracle_index.label.lang"))
-                .color(Color.ofFormatting(Formatting.GRAY))
-                .margins(Insets.top(15).withRight(5));
+                .color(Color.ofFormatting(Formatting.WHITE))
+                .margins(Insets.right(5));
 
-        var langDropdown = Components.dropdown(Sizing.content())
-                .button(Text.literal(activeBook.getCurrentLanguage()), dropdownComponent -> {});
+        var currentLangText = Components.label(
+                Util.getLanguageText(activeBook.getCurrentLanguage()).copy().formatted(Formatting.DARK_GRAY)
+        );
 
+        var currentLangTextWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        currentLangTextWrapper.surface(MarkdownParser.ORACLE_PANEL);
+        currentLangTextWrapper.mouseEnter().subscribe(() -> currentLangTextWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER));
+        currentLangTextWrapper.mouseLeave().subscribe(() -> currentLangTextWrapper.surface(MarkdownParser.ORACLE_PANEL));
+        currentLangTextWrapper.child(currentLangText.margins(Insets.of(3, 5, 3, 5)));
+
+        var langLabelWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        langLabelWrapper.child(langLabel);
+        langLabelWrapper.child(currentLangTextWrapper);
+
+        var langDropdown = Components.dropdown(Sizing.content());
+
+        // add supported languages
         for (String lang : activeBook.getSupportedLanguages()) {
-            langDropdown.button(Text.literal(lang), dropdownComponent -> {
+            langDropdown.button(Util.getLanguageText(lang).copy().formatted(Formatting.WHITE), dropdownComponent -> {
                 activeBook.setCurrentLanguage(lang);
-                // reload content
-                buildModNavigation(buttonContainer);
+                currentLangText.text(Util.getLanguageText(lang).copy().formatted(Formatting.DARK_GRAY));
+                langDropdown.remove();
+
+                // reload entries and content
                 if (activeEntry != null) {
                     try {
                         Oracle.LOGGER.info("Reloading content for " + activeEntry.getPath());
                         activeEntry = Identifier.of(Oracle.MOD_ID, activeBook.convertPathToCurrentLanguage(activeEntry.getPath()));
-                        Oracle.LOGGER.info(activeEntry.getPath());
+                        buildModNavigationBar(activeBook);
                         loadContentContainer(activeEntry, activeBook);
                     } catch (IOException e) {
                         Oracle.LOGGER.error("Failed to reload content: " + e.getMessage());
                     }
                 }
-            });
+            }).zIndex(10);
         }
 
-        var langSelectorContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
-        langSelectorContainer
-                .child(langLabel)
-                .child(langDropdown)
-                .margins(Insets.bottom(10))
-                .padding(Insets.of(5));
+        // show dropdown
+        langLabelWrapper.mouseDown().subscribe((mouseX, mouseY, button) -> {
+            if (langDropdown.hasParent()) {
+                langDropdown.remove();
+                return true;
+            }
 
-        buttonContainer.child(langSelectorContainer);
+            langDropdown.positioning(Positioning.absolute(langLabelWrapper.x(), langLabelWrapper.y() + langLabelWrapper.height()));
+            rootComponent.child(langDropdown);
+            return true;
+        });
+
+        langSelector = langLabelWrapper
+                .positioning(Positioning.absolute(this.width - 120, 10))
+                .margins(Insets.top(10).withRight(5));
+        rootComponent.child(langSelector);
     }
     
     private void buildModNavigationBar(BookMetadata bookMetadata) {
