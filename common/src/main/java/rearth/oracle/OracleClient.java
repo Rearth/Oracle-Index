@@ -17,7 +17,10 @@ import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 
 public final class OracleClient {
     
@@ -31,7 +34,7 @@ public final class OracleClient {
     public static float openEntryProgress = 0;
     
     private static SemanticSearch searchInstance;
-
+    
     public static void init() {
         Oracle.LOGGER.info("Hello from the Oracle Wiki Client!");
         
@@ -75,10 +78,9 @@ public final class OracleClient {
      * @param bookId  The ID of the book to activate. If null, the last active book remains active.
      * @param entryId The Identifier of the entry to activate. If null, the currently active entry remains active. Example format: {@code oracle_index:books/oritech/interaction/enderic_laser.mdx}
      * @param parent  The parent screen. This is the screen that will be returned to when the wiki is closed. Usually just {@code MinecraftClient.getInstance().currentScreen} works here.
-     *
      * @warning If {@code entryId} is set, {@code bookId} should generally also be set to ensure the correct book is active.
-     *          Otherwise, the behavior depends on the currently active book, and could lead to unexpected results. Only omit
-     *          {@code bookId} if you are certain that the correct book is already active.
+     * Otherwise, the behavior depends on the currently active book, and could lead to unexpected results. Only omit
+     * {@code bookId} if you are certain that the correct book is already active.
      */
     public static void openScreen(@Nullable String bookId, @Nullable Identifier entryId, @Nullable Screen parent) {
         if (bookId != null)
@@ -104,9 +106,9 @@ public final class OracleClient {
             var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
             
             if (entryDirectory.startsWith(".translated")) continue; // skip / don't support translations for now
-		        
-		        try {
-				        var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            
+            try {
+                var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 var fileComponents = MarkdownParser.parseFrontmatter(fileContent);
                 if (fileComponents.containsKey("related_items")) {
                     var baseString = fileComponents.get("related_items").replace("[", "").replace("]", "");
@@ -118,16 +120,17 @@ public final class OracleClient {
                     }
                 }
                 
-		        } catch (IOException e) {
+            } catch (IOException e) {
                 Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
-				        throw new RuntimeException(e);
-		        }
-		        
-		        LOADED_BOOKS.add(modId);
+                throw new RuntimeException(e);
+            }
+            
+            LOADED_BOOKS.add(modId);
         }
     }
     
     public static SemanticSearch getOrCreateSearch() {
+        
         if (searchInstance == null) searchInstance = new SemanticSearch();
         
         return searchInstance;
@@ -154,6 +157,7 @@ public final class OracleClient {
         return Optional.empty();
     }
     
-    public record BookItemLink(Identifier linkTarget, String entryName, String bookId) {}
+    public record BookItemLink(Identifier linkTarget, String entryName, String bookId) {
+    }
     
 }

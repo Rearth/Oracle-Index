@@ -24,65 +24,66 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class SemanticSearch {
     
-    private final InMemoryEmbeddingStore<TextSegment> embeddingStore;
-    private final AllMiniLmL6V2QuantizedEmbeddingModel embeddingModel;
-    private final EmbeddingStoreIngestor ingestor;
+    private InMemoryEmbeddingStore<TextSegment> embeddingStore;
+    private AllMiniLmL6V2QuantizedEmbeddingModel embeddingModel;
+    private EmbeddingStoreIngestor ingestor;
     
     private final AtomicLong TOTAL_EMBEDDING_TIME = new AtomicLong(0);
     private final AtomicInteger PENDING_JOBS = new AtomicInteger(0);
     
     public SemanticSearch() {
         
-        embeddingStore = new InMemoryEmbeddingStore<>();
-        
-        // workaround for weird neoforge different class loading issues?
-        var original = Thread.currentThread().getContextClassLoader();
-        try {
-            // Inject the class loader that actually has the DJL engine resources
-            Thread.currentThread().setContextClassLoader(Engine.class.getClassLoader());
-            embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
-        } finally {
-            // Restore the original loader to avoid side‑effects
-            Thread.currentThread().setContextClassLoader(original);
-        }
-        
-        ingestor = EmbeddingStoreIngestor.builder()
-                     .embeddingStore(embeddingStore)
-                     .embeddingModel(embeddingModel)
-                     .documentSplitter(DocumentSplitters.recursive(500, 50))
-                     .build();
-        
-        // generate embeddings for all found entries
-        var resourceManager = MinecraftClient.getInstance().getResourceManager();
-        var resources = resourceManager.findResources("books", path -> path.getPath().endsWith(".mdx"));
-        
-        for (var resourceId : resources.keySet()) {
-            var purePath = resourceId.getPath().replaceFirst("books/", "");
-            var segments = purePath.split("/");
-            var modId = segments[0];        // e.g. "oritech"
-            var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
-            var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
-            var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
+        // do this in background to avoid freezing main
+        new Thread(() -> {
+            embeddingStore = new InMemoryEmbeddingStore<>();
             
-            if (entryDirectory.startsWith(".translated")) continue; // skip / don't support translations for now
-            
+            // workaround for weird neoforge different class loading issues?
+            var original = Thread.currentThread().getContextClassLoader();
             try {
-                var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                var fileComponents = MarkdownParser.parseFrontmatter(fileContent);
-                
-                // generate embeddings
-                this.queueEmbeddingsJob(modId, entryDirectory, entryFileName, fileComponents, fileContent);
-                
-            } catch (IOException e) {
-                Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
-                throw new RuntimeException(e);
+                // Inject the class loader that actually has the DJL engine resources
+                Thread.currentThread().setContextClassLoader(Engine.class.getClassLoader());
+                embeddingModel = new AllMiniLmL6V2QuantizedEmbeddingModel();
+            } finally {
+                // Restore the original loader to avoid side‑effects
+                Thread.currentThread().setContextClassLoader(original);
             }
-        }
-        
+            
+            ingestor = EmbeddingStoreIngestor.builder()
+                         .embeddingStore(embeddingStore)
+                         .embeddingModel(embeddingModel)
+                         .documentSplitter(DocumentSplitters.recursive(500, 50))
+                         .build();
+            // generate embeddings for all found entries
+            var resourceManager = MinecraftClient.getInstance().getResourceManager();
+            var resources = resourceManager.findResources("books", path -> path.getPath().endsWith(".mdx"));
+            
+            for (var resourceId : resources.keySet()) {
+                var purePath = resourceId.getPath().replaceFirst("books/", "");
+                var segments = purePath.split("/");
+                var modId = segments[0];        // e.g. "oritech"
+                var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
+                var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
+                var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
+                
+                if (entryDirectory.startsWith(".translated")) continue; // skip / don't support translations for now
+                
+                try {
+                    var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                    var fileComponents = MarkdownParser.parseFrontmatter(fileContent);
+                    
+                    // generate embeddings
+                    this.queueEmbeddingsJob(modId, entryDirectory, entryFileName, fileComponents, fileContent);
+                    
+                } catch (IOException e) {
+                    Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
     }
     
     public boolean isReady() {
-        return PENDING_JOBS.get() <= 0;
+        return PENDING_JOBS.get() <= 0 && TOTAL_EMBEDDING_TIME.get() > 10;
     }
     
     public long getEmbeddingTime() {
