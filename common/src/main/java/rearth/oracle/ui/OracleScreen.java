@@ -177,6 +177,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         contentContainer.clearChildren();
         activeEntry = filePath;
         
+        var translatedPath = OracleClient.getTranslatedPath(filePath, bookId);
+        if (translatedPath.isPresent())
+            filePath = translatedPath.get();
+        
         var resourceManager = MinecraftClient.getInstance().getResourceManager();
         var resourceCandidate = resourceManager.getResource(filePath);
         
@@ -186,11 +190,12 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         }
         
         var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        final var finalFilePath = filePath;
         var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, bookId, link -> {
             
             if (link.startsWith("http")) return false;
             
-            var pathSegments = filePath.getPath().split("/");
+            var pathSegments = finalFilePath.getPath().split("/");
             var newPath = "";
             
             // build path based on relative information
@@ -313,6 +318,12 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         var resourceManager = MinecraftClient.getInstance().getResourceManager();
         var metaPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/_meta.json");
+        
+        var translatedMetaPath = OracleClient.getTranslatedPath(metaPath, bookId);
+        if (translatedMetaPath.isPresent()) {
+            metaPath = translatedMetaPath.get();
+        }
+        
         var resourceCandidate = resourceManager.getResource(metaPath);
         
         if (resourceCandidate.isEmpty()) {

@@ -17,9 +17,7 @@ import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public final class OracleClient {
     
@@ -133,6 +131,27 @@ public final class OracleClient {
         if (searchInstance == null) searchInstance = new SemanticSearch();
         
         return searchInstance;
+    }
+    
+    public static String getActiveLangCode() {
+        return MinecraftClient.getInstance().getLanguageManager().getLanguage();
+    }
+    
+    public static Optional<Identifier> getTranslatedPath(Identifier identifier, String bookId) {
+        
+        var languageCode = OracleClient.getActiveLangCode();
+        var resourceManager = MinecraftClient.getInstance().getResourceManager();
+        
+        if (!languageCode.startsWith("en_")) {
+            var translatedPath = Identifier.of(identifier.getNamespace(), identifier.getPath().replace("books/" + bookId, "books/" + bookId + "/.translated/" + languageCode));
+            
+            if (resourceManager.getResource(translatedPath).isPresent()) {
+                return Optional.of(translatedPath);
+            }
+            
+        }
+        
+        return Optional.empty();
     }
     
     public record BookItemLink(Identifier linkTarget, String entryName, String bookId) {}

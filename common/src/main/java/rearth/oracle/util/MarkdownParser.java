@@ -126,14 +126,12 @@ public class MarkdownParser {
 						return frontmatter; // No frontmatter found
 				}
 				
-				var endDelimiterIndex = markdownContent.indexOf("---" + "\n", 3); // Start searching after the first ---
-				var endDelimiterIndexAlt = markdownContent.indexOf("---" + "\r\n", 3); // Start searching after the first ---
-				var usedDelimitedIndex = Math.max(endDelimiterIndex, endDelimiterIndexAlt);
-				if (usedDelimitedIndex == -1) {
+				var endDelimiterIndex = markdownContent.indexOf("---", 3); // Start searching after the first ---
+				if (endDelimiterIndex == -1) {
 						return frontmatter; // No closing delimiter found
 				}
 				
-				var frontmatterContent = markdownContent.substring(4, usedDelimitedIndex); // Exclude delimiters
+				var frontmatterContent = markdownContent.substring(4, endDelimiterIndex); // Exclude delimiters
 				var lines = frontmatterContent.lines().toList();
 				
 				for (var line : lines) {
@@ -152,14 +150,12 @@ public class MarkdownParser {
 						return markdownContent; // No frontmatter, return original
 				}
 				
-				var endDelimiterIndex = markdownContent.indexOf("---" + "\n", 3); // Start searching after the first ---
-				var endDelimiterIndexAlt = markdownContent.indexOf("---" + "\r\n", 3); // Start searching after the first ---
-				var usedDelimitedIndex = Math.max(endDelimiterIndex, endDelimiterIndexAlt);
-				if (usedDelimitedIndex == -1) {
+				var endDelimiterIndex = markdownContent.indexOf("---", 3); // Start searching after the first ---
+				if (endDelimiterIndex == -1) {
 						return markdownContent; // No closing delimiter, return original
 				}
 				
-				return markdownContent.substring(usedDelimitedIndex + 4); // +4 to also remove "---" and "\n"
+				return markdownContent.substring(endDelimiterIndex + 4); // +4 to also remove "---" and "\n"
 		}
 		
 		
