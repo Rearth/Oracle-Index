@@ -1,3 +1,1 @@
-- Allow display of translated wiki entries (for navigation and wiki pages)
-- Fix search screen freezing for a bit when first opening
-- Add russian translation (@SlavaVas)
+- Fix search crashing the game when displaying some results
