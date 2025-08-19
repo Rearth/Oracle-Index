@@ -155,7 +155,7 @@ public class MarkdownParser {
 						return markdownContent; // No closing delimiter, return original
 				}
 				
-				return markdownContent.substring(endDelimiterIndex + 4); // +4 to also remove "---" and "\n"
+				return markdownContent.substring(endDelimiterIndex + 3).trim(); // +4 to also remove "---" and "\n"
 		}
 		
 		
