@@ -255,7 +255,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
                 return Optional.empty();
             }
             
-        } catch (IllegalArgumentException ex) {
+        } catch (RuntimeException ex) {
             return Optional.empty();
         }
         
