@@ -23,6 +23,7 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
+import rearth.oracle.progress.OracleProgressAPI;
 import rearth.oracle.ui.components.ColoredCollapsibleContainer;
 import rearth.oracle.ui.components.ScalableLabelComponent;
 import rearth.oracle.util.MarkdownParser;
@@ -314,7 +315,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         buildNavigationEntriesForModPath(bookId, "", navigationBar);
     }
     
-    private void buildNavigationEntriesForModPath(String bookId, String path, FlowLayout container) {
+    // returns whether any children are unlocked (e.g. only false if all children are locked)
+    private boolean buildNavigationEntriesForModPath(String bookId, String path, FlowLayout container) {
         
         var resourceManager = MinecraftClient.getInstance().getResourceManager();
         var metaPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/_meta.json");
@@ -328,8 +330,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         if (resourceCandidate.isEmpty()) {
             System.out.println("No _meta.json found for " + bookId + " at " + metaPath);
-            return;
+            return false;
         }
+        
+        var anyUnlocked = false;
         
         try {
             var metaFile = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -352,9 +356,9 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                       Sizing.content(1),
                       Sizing.content(1),
                       Text.translatable(entry.name()).formatted(Formatting.WHITE), false);
-                    buildNavigationEntriesForModPath(bookId, path + "/" + entry.id(), directoryContainer);
+                    var anyChildrenUnlocked = buildNavigationEntriesForModPath(bookId, path + "/" + entry.id(), directoryContainer);
+                    if (anyChildrenUnlocked) anyUnlocked = true;
                     directoryContainer.margins(Insets.of(0, 0, 0, 0));
-                    container.child(directoryContainer);
                     
                     // collapse all other containers
                     directoryContainer.mouseDown().subscribe((a, b, c) -> {
@@ -368,29 +372,44 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                         return false;
                     });
                     
-                    levelContainers.add(directoryContainer);
+                    if (anyChildrenUnlocked) {
+                        container.child(directoryContainer);
+                        levelContainers.add(directoryContainer);
+                    }
+                    
                     
                 } else {
                     final var labelPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/" + entry.id());
                     final var labelText = Text.translatable(entry.name).formatted(Formatting.WHITE);
                     final var label = Components.label(labelText.formatted(Formatting.UNDERLINE));
                     
-                    label.mouseEnter().subscribe(() -> {
-                        label.text(labelText.copy().formatted(Formatting.GRAY));
-                    });
-                    label.mouseLeave().subscribe(() -> {
-                        label.text(labelText.copy());
-                    });
+                    var isUnlocked = true;
+                    if (OracleClient.UNLOCK_CRITERIONS.containsKey(labelPath.getPath())) {
+                        var unlockData = OracleClient.UNLOCK_CRITERIONS.get(labelPath.getPath());
+                        isUnlocked = OracleProgressAPI.IsUnlocked(bookId, labelPath.getPath(), unlockData.getLeft(), unlockData.getRight());
+                    }
                     
-                    label.mouseDown().subscribe((a, b, c) -> {
-                        try {
-                            loadContentContainer(labelPath, bookId);
-                            return true;
-                        } catch (IOException e) {
-                            Oracle.LOGGER.error(e.getMessage());
-                            return false;
-                        }
-                    });
+                    if (isUnlocked) {
+                        anyUnlocked = true;
+                        label.mouseEnter().subscribe(() -> {
+                            label.text(labelText.copy().formatted(Formatting.GRAY));
+                        });
+                        label.mouseLeave().subscribe(() -> {
+                            label.text(labelText.copy());
+                        });
+                        
+                        label.mouseDown().subscribe((a, b, c) -> {
+                            try {
+                                loadContentContainer(labelPath, bookId);
+                                return true;
+                            } catch (IOException e) {
+                                Oracle.LOGGER.error(e.getMessage());
+                                return false;
+                            }
+                        });
+                    } else {
+                        label.text(labelText.formatted(Formatting.OBFUSCATED));
+                    }
                     
                     label.margins(Insets.of(3, 2, 5, 2));
                     container.child(label);
@@ -399,6 +418,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        
+        return anyUnlocked;
     }
     
     private static List<MetaJsonEntry> parseJson(String jsonString) {

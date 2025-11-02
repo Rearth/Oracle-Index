@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
 import rearth.oracle.SemanticSearch;
+import rearth.oracle.progress.OracleProgressAPI;
 import rearth.oracle.ui.components.ScalableLabelComponent;
 import rearth.oracle.util.MarkdownParser;
 
@@ -158,6 +159,14 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         
         for (var result : results) {
             
+            var contentId = Identifier.of(Oracle.MOD_ID, String.format("books/%s/%s", result.id().getNamespace(), result.id().getPath()));
+            
+            // skip if result is locked
+            if (OracleClient.UNLOCK_CRITERIONS.containsKey(contentId.getPath())) {
+                var criterionData = OracleClient.UNLOCK_CRITERIONS.get(contentId.getPath());
+                if (!OracleProgressAPI.IsUnlocked(result.id().getNamespace(), result.id().getPath(), criterionData.getLeft(), criterionData.getRight())) continue;
+            }
+            
             var resultTitlePanel = Containers.horizontalFlow(Sizing.content(), Sizing.content());
             resultTitlePanel.surface(MarkdownParser.ORACLE_PANEL_DARK);
             resultTitlePanel.margins(Insets.of(2, 2, 1, 5));
@@ -227,12 +236,10 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
             });
             
             resultTitlePanel.mouseDown().subscribe(((mouseX, mouseY, button) -> {
-                var contentId = Identifier.of(Oracle.MOD_ID, String.format("books/%s/%s", result.id().getNamespace(), result.id().getPath()));
                 OracleClient.openScreen(result.id().getNamespace(), contentId, this);
                 return true;
             }));
             resultTextPanel.mouseDown().subscribe(((mouseX, mouseY, button) -> {
-                var contentId = Identifier.of(Oracle.MOD_ID, String.format("books/%s/%s", result.id().getNamespace(), result.id().getPath()));
                 OracleClient.openScreen(result.id().getNamespace(), contentId, this);
                 return true;
             }));

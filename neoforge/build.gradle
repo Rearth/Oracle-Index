@@ -11,6 +11,10 @@ architectury {
     neoForge()
 }
 
+loom {
+    accessWidenerPath.set(project(":common").loom.accessWidenerPath)
+}
+
 configurations {
     common {
         canBeResolved = true

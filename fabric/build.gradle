@@ -5,6 +5,9 @@ import java.util.zip.ZipOutputStream
 plugins {
     id 'com.github.johnrengelman.shadow'
 }
+loom {
+    accessWidenerPath.set(project(":common").loom.accessWidenerPath)
+}
 
 architectury {
     platformSetupLoomIde()

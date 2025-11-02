@@ -9,8 +9,10 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Pair;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import rearth.oracle.progress.AdvancementProgressValidator;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.SearchScreen;
 import rearth.oracle.util.MarkdownParser;
@@ -29,6 +31,7 @@ public final class OracleClient {
     
     public static final Set<String> LOADED_BOOKS = new HashSet<>();
     public static final HashMap<Identifier, BookItemLink> ITEM_LINKS = new HashMap<>();
+    public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
     
     public static ItemStack tooltipStack;
     public static float openEntryProgress = 0;
@@ -40,6 +43,8 @@ public final class OracleClient {
         
         KeyMappingRegistry.register(ORACLE_WIKI);
         KeyMappingRegistry.register(ORACLE_SEARCH);
+        
+        AdvancementProgressValidator.register();
         
         ClientTickEvent.CLIENT_POST.register(client -> {
             if (ORACLE_WIKI.wasPressed()) {
@@ -117,6 +122,15 @@ public final class OracleClient {
                         var itemId = Identifier.of(itemString);
                         var linkData = new BookItemLink(resourceId, fileComponents.getOrDefault("title", "missing"), modId);
                         ITEM_LINKS.put(itemId, linkData);
+                    }
+                }
+                if (fileComponents.containsKey("unlock")) {
+                    var unlockText = fileComponents.get("unlock");
+                    var unlockParts = unlockText.split(":", 2);
+                    if (unlockParts.length == 2) {
+                        var unlockType = unlockParts[0];
+                        var unlockContent = unlockParts[1];
+                        UNLOCK_CRITERIONS.put(resourceId.getPath(), new Pair<>(unlockType, unlockContent));
                     }
                 }
                 
