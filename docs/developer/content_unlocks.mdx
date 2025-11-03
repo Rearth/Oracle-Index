@@ -1,0 +1,30 @@
+---
+title: Content Progression System
+---
+
+Oracle index also has a feature where content needs to be unlocked before the player can access it. Locked pages are presented in an obfuscated manner, and won't appear in the search.
+If all entries of a folder are locked, the entire folder will be hidden.
+
+<Callout variant="warning">
+    This feature is obviously only available in the in-game wiki, not the online wiki. The main target audience here are modpack makers that don't want to reveal everything at once.
+</Callout>
+
+To control unlocks, the frontmatter of the page needs an *unlock* section. This can look as follow:
+
+```
+---
+title: Ingame Mod View Setup
+unlock: advancement:minecraft:oritech/pulverizer
+---
+"unlock" is always the same
+"advancement" is the name of the progress validator
+anything after the "advancement:" part is passed to the validator
+```
+
+# Validators
+Modders can register custom validator to the **Oracle Progress API**. Consult the javadocs of the API class for more details.
+
+Oracle index does not store which entries have been unlocked, and will just call the validators on demand.
+
+## Advancement Validator
+By default only one validator is included with the mod: The advancement validator. It checks if a player has a specific advancement completed to view the page.

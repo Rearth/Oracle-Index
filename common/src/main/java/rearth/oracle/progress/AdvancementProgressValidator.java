@@ -23,8 +23,7 @@ public class AdvancementProgressValidator {
         
         var advancementEntry = advancementHandler.get(id);
         
-        if (advancementEntry == null) {
-            Oracle.LOGGER.warn("Advancement progress validation failed: advancement entry not found: {}", id);
+        if (advancementEntry == null) { // not even in preview stage yet
             return false;
         }
         

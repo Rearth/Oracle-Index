@@ -4,5 +4,8 @@
   },
   "gradle_task.mdx": {
     "name": "(Optional) Automatic Gradle Wiki Sync"
+  },
+  "content_unlocks.mdx": {
+    "name": "Content Progression System"
   }
 }
