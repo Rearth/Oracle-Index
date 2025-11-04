@@ -1,1 +1,3 @@
-- Fix search crashing the game when displaying some results
+- Add page unlocking feature, available via API or with default advancement unlocker
+- Fix search crash on invalid math expressions
+- Fix search screen stuck on indexing on some platforms
