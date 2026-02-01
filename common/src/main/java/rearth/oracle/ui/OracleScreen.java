@@ -14,12 +14,14 @@ import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ConfirmLinkScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Util;
 import org.jetbrains.annotations.NotNull;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
@@ -29,7 +31,9 @@ import rearth.oracle.ui.components.ScalableLabelComponent;
 import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -192,31 +196,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         final var finalFilePath = filePath;
-        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, bookId, link -> {
-            
-            if (link.startsWith("http")) return false;
-            
-            var pathSegments = finalFilePath.getPath().split("/");
-            var newPath = "";
-            
-            // build path based on relative information
-            var parentIteration = link.startsWith("../") ? 1 : 0;
-            for (int i = 0; i < pathSegments.length - 1 - parentIteration; i++) {
-                newPath += pathSegments[i] + "/";
-            }
-            
-            newPath = newPath.split("#")[0];    // anchors are not supported, so we just remove them
-            newPath += link.replace("../", "") + ".mdx";    // add file ending
-            
-            var newId = Identifier.of(Oracle.MOD_ID, newPath);
-            
-            try {
-                loadContentContainer(newId, bookId);
-            } catch (IOException e) {
-                return false;
-            }
-            return true;
-        });
+        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, bookId, link -> onLinkClicked(bookId, link, finalFilePath));
         
         for (var paragraph : parsedTexts) {
             
@@ -244,6 +224,77 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                 paragraph.margins(Insets.of(4, 1, 0, 0));
             contentContainer.child(paragraph);
         }
+    }
+    
+    // returns true if the link has been handled / is valid
+    private boolean onLinkClicked(String bookId, String link, Identifier sourceEntryPath) {
+        
+        // links can either point to the internet, or to another entry in the wiki
+        if (link.startsWith("http")) {
+            return tryOpenWebLink(link);
+        } else {
+            return tryOpenWikiLink(bookId, link, sourceEntryPath);
+        }
+    }
+    
+    private boolean tryOpenWikiLink(String bookId, String link, Identifier sourceEntryPath) {
+        var newPathString = parsePathLink(link, sourceEntryPath);
+        
+        // add extension if missing. Theoretically links without file ending would be valid/used in some cases
+        if (!newPathString.endsWith(".mdx")) {
+            newPathString += ".mdx";
+        }
+        
+        var newId = Identifier.of(Oracle.MOD_ID, newPathString);
+        
+        try {
+            loadContentContainer(newId, bookId);
+            return true;
+        } catch (IOException e) {
+            Oracle.LOGGER.warn("Oracle: Could not find/open linked page " + newId);
+            Oracle.LOGGER.warn(e.getMessage());
+            return false;
+        }
+    }
+    
+    private boolean tryOpenWebLink(String link) {
+        try {
+            final var uri = new URI(link);
+            
+            // minecraft-typical confirmation screen
+            var confirmScreen = new ConfirmLinkScreen((accepted) -> {
+                if (accepted) {
+                    Util.getOperatingSystem().open(uri);
+                }
+                // Return to this OracleScreen after the user decides
+                MinecraftClient.getInstance().setScreen(this);
+            }, link, true);
+            
+            MinecraftClient.getInstance().setScreen(confirmScreen);
+            return true;
+        } catch (Exception e) {
+            Oracle.LOGGER.error("Failed to open link: {}", link, e);
+            return false;
+        }
+    }
+    
+    private @NotNull String parsePathLink(String link, Identifier sourceEntryPath) {
+        
+        // anchors inside the page are not supported
+        var cleanLink = link.split("#")[0];
+        
+        var currentPathObj = Path.of(sourceEntryPath.getPath());
+        var currentParentDir = currentPathObj.getParent();
+        
+        if (currentParentDir == null) {
+            currentParentDir = Path.of("");
+        }
+        
+        // this should resolve "../" and the sorts automatically
+        var resolvedPath = currentParentDir.resolve(cleanLink).normalize();
+        
+        // convert back to string and ensure forward slashes (might only be needed on windows?)
+        return resolvedPath.toString().replace("\\", "/");
     }
     
     private void buildModNavigation(FlowLayout buttonContainer) {
