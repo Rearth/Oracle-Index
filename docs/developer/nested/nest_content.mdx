@@ -6,6 +6,12 @@ title: Sample Nested Content
 
 This is a test link: [my link](../../developer/gradle_task)
 
+This is a test to the same, with without the double path: [my link again](../gradle_task)
+
 And a web link: [to google](https://google.de)
 
-And invalid tests: [an invalid link](../developer/gradle_task). The correct path is: "resources/assets/oracle_index/books/your-mod-id/".
+And internal ID tests: [my internal link](@oracle_index:search).
+
+And invalid tests: [an invalid link](../developer/gradle_task). And more text.
+
+And malformed tests: [a malformed link](../gradle_:task.mdx). The correct path is: "resources/assets/oracle_index/books/your-mod-id/".

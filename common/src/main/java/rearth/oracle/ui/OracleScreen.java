@@ -32,6 +32,7 @@ import rearth.oracle.util.MarkdownParser;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -190,7 +191,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         var resourceCandidate = resourceManager.getResource(filePath);
         
         if (resourceCandidate.isEmpty()) {
-            System.out.println("No content file found for " + filePath);
+            Oracle.LOGGER.warn("No content file found for {}", filePath);
             return;
         }
         
@@ -229,15 +230,21 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     // returns true if the link has been handled / is valid
     private boolean onLinkClicked(String bookId, String link, Identifier sourceEntryPath) {
         
-        // links can either point to the internet, or to another entry in the wiki
-        if (link.startsWith("http")) {
-            return tryOpenWebLink(link);
-        } else {
-            return tryOpenWikiLink(bookId, link, sourceEntryPath);
+        try {
+            // links can either point to the internet, or to another entry in the wiki
+            if (link.startsWith("http")) {
+                return tryOpenWebLink(link);
+            } else {
+                return tryOpenWikiLink(bookId, link, sourceEntryPath);
+            }
+        } catch (Exception e) {
+            Oracle.LOGGER.error("Oracle Index: Could not find/open link {}", link);
+            Oracle.LOGGER.error(e.getMessage());
+            return false;
         }
     }
     
-    private boolean tryOpenWikiLink(String bookId, String link, Identifier sourceEntryPath) {
+    private boolean tryOpenWikiLink(String bookId, String link, Identifier sourceEntryPath) throws IOException {
         var newPathString = parsePathLink(link, sourceEntryPath);
         
         // add extension if missing. Theoretically links without file ending would be valid/used in some cases
@@ -247,35 +254,25 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         var newId = Identifier.of(Oracle.MOD_ID, newPathString);
         
-        try {
-            loadContentContainer(newId, bookId);
-            return true;
-        } catch (IOException e) {
-            Oracle.LOGGER.warn("Oracle: Could not find/open linked page " + newId);
-            Oracle.LOGGER.warn(e.getMessage());
-            return false;
-        }
+        loadContentContainer(newId, bookId);
+        return true;
     }
     
-    private boolean tryOpenWebLink(String link) {
-        try {
-            final var uri = new URI(link);
-            
-            // minecraft-typical confirmation screen
-            var confirmScreen = new ConfirmLinkScreen((accepted) -> {
-                if (accepted) {
-                    Util.getOperatingSystem().open(uri);
-                }
-                // Return to this OracleScreen after the user decides
-                MinecraftClient.getInstance().setScreen(this);
-            }, link, true);
-            
-            MinecraftClient.getInstance().setScreen(confirmScreen);
-            return true;
-        } catch (Exception e) {
-            Oracle.LOGGER.error("Failed to open link: {}", link, e);
-            return false;
-        }
+    private boolean tryOpenWebLink(String link) throws URISyntaxException {
+        
+        var uri = new URI(link);
+        
+        // minecraft-typical confirmation screen
+        var confirmScreen = new ConfirmLinkScreen((accepted) -> {
+            if (accepted) {
+                Util.getOperatingSystem().open(uri);
+            }
+            // Return to this OracleScreen after the user decides
+            MinecraftClient.getInstance().setScreen(this);
+        }, link, true);
+        
+        MinecraftClient.getInstance().setScreen(confirmScreen);
+        return true;
     }
     
     private @NotNull String parsePathLink(String link, Identifier sourceEntryPath) {
@@ -380,7 +377,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         var resourceCandidate = resourceManager.getResource(metaPath);
         
         if (resourceCandidate.isEmpty()) {
-            System.out.println("No _meta.json found for " + bookId + " at " + metaPath);
+            Oracle.LOGGER.warn("No _meta.json found for {} at {}", bookId, metaPath);
             return false;
         }
         
