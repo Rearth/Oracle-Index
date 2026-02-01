@@ -1,13 +1,16 @@
 package rearth.oracle;
 
-import dev.architectury.event.events.client.ClientLifecycleEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
+import dev.architectury.registry.ReloadListenerRegistry;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import io.wispforest.owo.ui.util.Delta;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.item.ItemStack;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
+import net.minecraft.resource.SynchronousResourceReloader;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
 import org.jetbrains.annotations.Nullable;
@@ -65,9 +68,9 @@ public final class OracleClient {
             }
         });
         
-        ClientLifecycleEvent.CLIENT_STARTED.register(client -> {
-            Oracle.LOGGER.info("Indexing entry items...");
-            findAllResourceEntries();
+        ReloadListenerRegistry.register(ResourceType.CLIENT_RESOURCES, (SynchronousResourceReloader) manager -> {
+            Oracle.LOGGER.info("Indexing Oracle Wiki Resources...");
+            findAllResourceEntries(manager);
         });
         
         ClientTickEvent.CLIENT_POST.register(client -> {
@@ -96,11 +99,12 @@ public final class OracleClient {
         MinecraftClient.getInstance().setScreen(new OracleScreen(parent));
     }
     
-    private static void findAllResourceEntries() {
-        var resourceManager = MinecraftClient.getInstance().getResourceManager();
-        var resources = resourceManager.findResources("books", path -> path.getPath().endsWith(".mdx"));
+    private static void findAllResourceEntries(ResourceManager manager) {
+        var resources = manager.findResources("books", path -> path.getPath().endsWith(".mdx"));
         
         LOADED_BOOKS.clear();
+        ITEM_LINKS.clear();
+        UNLOCK_CRITERIONS.clear();
         
         for (var resourceId : resources.keySet()) {
             var purePath = resourceId.getPath().replaceFirst("books/", "");
