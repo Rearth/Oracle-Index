@@ -10,15 +10,15 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.Style;
+import net.minecraft.text.*;
 import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.apache.commons.lang3.StringUtils;
 import org.commonmark.Extension;
 import org.commonmark.ext.front.matter.YamlFrontMatterExtension;
+import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
+import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
 import org.jsoup.Jsoup;
 import rearth.oracle.Oracle;
@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 // a very basic and primitive (and hacky) ghetto markdown to owo lib parser
 public class MarkdownParser {
     
-    private static final String[] removedLines = new String[]{"<center", "</center", "<div", "</div", "<span", "</span", "---"};
+    private static final String[] removedLines = new String[]{"<center>", "</center>", "<div>", "</div>", "<span>", "</span>"};
     
     public static final Identifier ITEM_SLOT = Identifier.of(Oracle.MOD_ID, "textures/item_cell.png");
     
@@ -42,56 +42,199 @@ public class MarkdownParser {
     public static Surface ORACLE_PANEL_DARK = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_dark"), context, component);
     
     private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create());
-    private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).build();
+    private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).customBlockParserFactory(new MdxBlockFactory()).build();
     
     public static List<Component> parseMarkdownToOwoComponents(String markdown, String bookId, Predicate<String> linkHandler) {
         
-        
-        
-        //old:
-        var components = new ArrayList<Component>();
-        
-        var frontMatter = parseFrontmatter(markdown);
-        var contentWithoutFrontmatter = removeFrontmatter(markdown);
-        
-        var spacedPanel = getTitlePanel(linkHandler, frontMatter);
-        
-        components.add(spacedPanel);
-        
-        var paragraphs = splitIntoParagraphs(contentWithoutFrontmatter);
-        var htmlTagPattern = Pattern.compile("<([a-zA-Z0-9]+)(?:\\s[^>]*)?>"); // Regex to find opening HTML tags
-        
-        for (var paragraph : paragraphs) {
-            var trimmedParagraph = paragraph.trim();
-            if (trimmedParagraph.isEmpty()) continue;
-            
-            var matcher = htmlTagPattern.matcher(trimmedParagraph);
-            
-            if (matcher.lookingAt()) { // Check if paragraph starts with an HTML tag
-                var tagName = matcher.group(1); // Extract the tag name
-                
-                // Handle specific HTML tags
-                if ("Callout".equalsIgnoreCase(tagName)) {
-                    components.add(parseCalloutParagraph(paragraph, linkHandler));
-                } else if ("ModAsset".equalsIgnoreCase(tagName)) {
-                    components.add(parseImageParagraph(paragraph, bookId, true));
-                } else if ("Asset".equalsIgnoreCase(tagName)) {
-                    components.add(parseImageParagraph(paragraph, bookId, false));
-                } else if ("CraftingRecipe".equalsIgnoreCase(tagName)) {
-                    components.add(parseRecipeParagraph(paragraph));
-                } else {
-                    // do nothing, other html tags are not supported (yet)
-                }
-            } else {
-                // if not html, call normal paragraph method
-                components.add(parseParagraphToLabel(trimmedParagraph, linkHandler));
-            }
+        // some html blocks are not supported, and are removed to allow the markdown parser to actually work
+        for (var toRemove : removedLines) {
+            markdown = markdown.replace(toRemove, "");
         }
+        
+        var document = PARSER.parse(markdown);
+        var yamlVisitor = new YamlFrontMatterVisitor();
+        document.accept(yamlVisitor);
+        
+        // map of key to values (e.g. first one or for lists multiple values)
+        var frontmatter = yamlVisitor.getData();
+        
+        var simpleFrontMatter = new HashMap<String, String>();
+        for (var pair : frontmatter.entrySet()) {
+            simpleFrontMatter.put(pair.getKey(), pair.getValue().getFirst());
+        }
+        
+        var visitor = new OwoMarkdownVisitor(linkHandler);
+        document.accept(visitor);
+        
+        var components = new ArrayList<Component>();
+        components.add(getTitlePanel(linkHandler, simpleFrontMatter));
+        components.addAll(visitor.getResultComponents());
         
         return components;
     }
     
+    private static class OwoMarkdownVisitor extends AbstractVisitor {
+        
+        private final List<Component> components = new ArrayList<>();
+        private final Predicate<String> linkHandler;
+        
+        private MutableText buffer;
+        private Style currentStyle = Style.EMPTY;
+        
+        private OwoMarkdownVisitor(Predicate<String> linkHandler) {
+            this.linkHandler = linkHandler;
+        }
+        
+        public List<Component> getResultComponents() {
+            return components;
+        }
+        
+        private void flushBuffer() {
+            if (buffer != null && !buffer.getString().isEmpty()) {
+                var label = new ScalableLabelComponent(buffer, linkHandler);
+                label.lineHeight(10);
+                label.margins(Insets.bottom(5));
+                components.add(label);
+                buffer = Text.empty();
+            }
+        }
+        
+        @Override
+        public void visit(Paragraph paragraph) {
+            
+            // begin a new paragraph
+            buffer = Text.empty();
+            // visit all content (fills the buffer)
+            visitChildren(paragraph);
+            
+            flushBuffer();
+            
+        }
+        
+        @Override
+        public void visit(Heading heading) {
+            buffer = Text.empty();
+            
+            var oldStyle = currentStyle;
+            currentStyle = currentStyle.withBold(true).withColor(Formatting.GOLD);
+            
+            visitChildren(heading);
+            
+            currentStyle = oldStyle;    // reset
+            
+            var label = new ScalableLabelComponent(buffer, linkHandler);
+            label.scale = Math.max(1.0f, 2.0f - (heading.getLevel() * 0.2f));   // calculate scale based on heading level
+            label.margins(Insets.top(10).withBottom(5));
+            
+            components.add(label);
+            buffer = null;
+        }
+        
+        @Override
+        public void visit(FencedCodeBlock codeBlock) {
+            
+            flushBuffer();
+            
+            // dark panel for code. Children are not visited, so no formatting is applied to code
+            var panel = Containers.verticalFlow(Sizing.fill(), Sizing.content());
+            panel.surface(ORACLE_PANEL_DARK);
+            panel.padding(Insets.of(6));
+            panel.margins(Insets.bottom(5));
+            
+            var text = Text.literal(codeBlock.getLiteral().trim()).formatted(Formatting.GRAY);
+            panel.child(Components.label(text));
+            
+            components.add(panel);
+        }
+        
+        @Override
+        public void visit(BulletList bulletList) {
+            // a bullet list is created by adding bullets/changes to the children
+            visitChildren(bulletList);
+        }
+        
+        @Override
+        public void visit(ListItem listItem) {
+            buffer = Text.empty();
+            buffer.append(Text.literal("• ").formatted(Formatting.DARK_GRAY)); // Bullet point
+            
+            visitChildren(listItem);
+            
+            var label = new ScalableLabelComponent(buffer, linkHandler);
+            label.margins(Insets.left(10).withBottom(2)); // Indent
+            components.add(label);
+            buffer = null;
+        }
+        
+        @Override
+        public void visit(CustomBlock customBlock) {
+            
+            if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock craftingRecipeBlock) {
+                Oracle.LOGGER.info("crafting html detected: {}", craftingRecipeBlock);
+            } else {
+                Oracle.LOGGER.info("Custom block: {}", customBlock);
+            }
+        }
+        
+        @Override
+        public void visit(Image image) {
+            
+            // flush existing text
+            flushBuffer();
+            
+            Oracle.LOGGER.warn("detected non-asset image tag: {}", image.getDestination());
+        }
+        
+        // inline nodes
+        @Override
+        public void visit(org.commonmark.node.Text text) {
+            if (buffer != null) {
+                buffer.append(Text.literal(text.getLiteral()).setStyle(currentStyle));
+            }
+        }
+        
+        @Override
+        public void visit(StrongEmphasis strongEmphasis) {
+            var old = currentStyle;
+            currentStyle = currentStyle.withBold(true);
+            visitChildren(strongEmphasis);
+            currentStyle = old;
+        }
+        
+        @Override
+        public void visit(Emphasis emphasis) {
+            var old = currentStyle;
+            currentStyle = currentStyle.withItalic(true);
+            visitChildren(emphasis);
+            currentStyle = old;
+        }
+        
+        @Override
+        public void visit(Link link) {
+            var old = currentStyle;
+            var clickEvent = new ClickEvent(ClickEvent.Action.OPEN_URL, link.getDestination());
+            currentStyle = currentStyle.withColor(Formatting.BLUE).withUnderline(true).withClickEvent(clickEvent);
+            
+            // visit children to allow formatting
+            visitChildren(link);
+            
+            currentStyle = old;
+        }
+        
+        @Override
+        public void visit(Code inlineCode) {
+            // inline backticks: `some code`. Not calling visitChildren to avoid any further formatting inside
+            if (buffer != null) {
+                var codeText = Text.literal(inlineCode.getLiteral())
+                                 .formatted(Formatting.RED);
+                
+                buffer.append(codeText);
+            }
+        }
+    }
+    
     private static FlowLayout getTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter) {
+        
         var combinedPanel = Containers.horizontalFlow(Sizing.fill(), Sizing.content());
         combinedPanel.margins(Insets.of(2, 10, 0, 0));
         
@@ -120,6 +263,7 @@ public class MarkdownParser {
         } else {
             titlePanel.positioning(Positioning.layout());
         }
+        
         var titleLabel = new ScalableLabelComponent(Text.literal(title).formatted(Formatting.DARK_GRAY), linkHandler);
         titleLabel.scale = 2f;
         titlePanel.child(titleLabel);

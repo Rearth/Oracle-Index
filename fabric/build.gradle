@@ -47,8 +47,13 @@ dependencies {
     modImplementation "io.wispforest:owo-lib:0.12.11+1.21"
 
     // included libs
-    // jsoup for html / markdown parsing
+    // jsoup for html parsing
     implementation(include(api('org.jsoup:jsoup:1.17.2')))
+    // commonmark for markdown parsing
+    implementation(include(api('org.commonmark:commonmark:0.27.1')))
+    implementation(include(api('org.commonmark:commonmark-ext-yaml-front-matter:0.27.1')))
+    // exp4j for math expressions in search bar
+    implementation(include(api('net.objecthunter:exp4j:0.4.8')))
 
     // langchain for in memory vector store and small embedding model
     implementation(include(api("dev.langchain4j:langchain4j:1.0.0")))
@@ -60,8 +65,7 @@ dependencies {
     implementation(include(api("org.apache.opennlp:opennlp-tools:2.5.4")))
     implementation(include(api("com.microsoft.onnxruntime:onnxruntime:1.20.0")))
 
-    // exp4j for math expressions in search bar
-    implementation(include(api('net.objecthunter:exp4j:0.4.8')))
+
 
     modRuntimeOnly "teamreborn:energy:4.1.0"
     modImplementation "curse.maven:oritech-1030830:6520539" // oritech 0.15.5

@@ -24,8 +24,8 @@ dependencies {
 
     implementation 'net.objecthunter:exp4j:0.4.8'
 
-    implementation 'org.commonmark.commonmark:0.27.1'
-    include(implementation("org.commonmark:commonmark-ext-yaml-front-matter:0.27.1"))
+    implementation 'org.commonmark:commonmark:0.27.1'
+    implementation 'org.commonmark:commonmark-ext-yaml-front-matter:0.27.1'
 
 }
 

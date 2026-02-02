@@ -38,6 +38,9 @@ subprojects {
     }
 
     repositories {
+
+        mavenCentral()
+
         maven {
             name = 'Owo'
             url 'https://maven.wispforest.io/releases/'
