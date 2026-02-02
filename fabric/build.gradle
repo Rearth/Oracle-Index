@@ -65,7 +65,8 @@ dependencies {
     implementation(include(api("org.apache.opennlp:opennlp-tools:2.5.4")))
     implementation(include(api("com.microsoft.onnxruntime:onnxruntime:1.20.0")))
 
-
+    testImplementation "net.fabricmc:fabric-loader-junit:${rootProject.fabric_loader_version}"
+    compileOnly "net.fabricmc:fabric-loader-junit:${rootProject.fabric_loader_version}"
 
     modRuntimeOnly "teamreborn:energy:4.1.0"
     modImplementation "curse.maven:oritech-1030830:6520539" // oritech 0.15.5
@@ -79,6 +80,10 @@ dependencies {
     modImplementation "curse.maven:simply-swords-659887:6383325"
     modImplementation "curse.maven:fzzy-config-1005914:6405201"
     modImplementation("net.fabricmc:fabric-language-kotlin:1.13.3+kotlin.2.1.21")
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {
