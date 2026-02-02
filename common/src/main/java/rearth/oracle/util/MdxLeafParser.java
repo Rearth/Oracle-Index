@@ -10,6 +10,7 @@ public class MdxLeafParser extends AbstractBlockParser {
     private final MdxComponentBlock block;
     private final StringBuilder content = new StringBuilder();
     private final Pattern endPattern;
+    private final boolean finishedOnStart;
     
     public MdxLeafParser(MdxComponentBlock block, String tagName, String firstLine) {
         this.block = block;
@@ -19,6 +20,9 @@ public class MdxLeafParser extends AbstractBlockParser {
         
         // first line needs to be included because it's already passed in the continue capture blocks.
         content.append(firstLine).append("\n");
+        
+        // finish directly if its a one-line tag
+        this.finishedOnStart = endPattern.matcher(firstLine).matches();
     }
     
     @Override
@@ -26,6 +30,11 @@ public class MdxLeafParser extends AbstractBlockParser {
     
     @Override
     public BlockContinue tryContinue(ParserState state) {
+        
+        if (finishedOnStart) {
+            return BlockContinue.none();
+        }
+        
         var line = state.getLine().getContent();
         
         // collect content

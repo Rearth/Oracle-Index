@@ -10,7 +10,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
-import net.minecraft.text.*;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -20,14 +22,12 @@ import org.commonmark.ext.front.matter.YamlFrontMatterExtension;
 import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
-import org.jsoup.Jsoup;
 import rearth.oracle.Oracle;
 import rearth.oracle.ui.components.ScalableLabelComponent;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 // a very basic and primitive (and hacky) ghetto markdown to owo lib parser
 public class MarkdownParser {
@@ -42,7 +42,21 @@ public class MarkdownParser {
     public static Surface ORACLE_PANEL_DARK = (context, component) -> NinePatchTexture.draw(Identifier.of(Oracle.MOD_ID, "bedrock_panel_dark"), context, component);
     
     private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create());
-    private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).customBlockParserFactory(new MdxBlockFactory()).build();
+    private static final Set<Class<? extends Block>> ENABLED_BLOCKS = Set.of(
+      Heading.class,
+      HtmlBlock.class,
+      ThematicBreak.class,
+      FencedCodeBlock.class,
+      BlockQuote.class,
+      ListBlock.class
+      // indentedblock is missing compared to default here. This is to allow proper parsing of content inside html tags that are indented for readability
+    );
+    
+    private static final Parser PARSER = Parser.builder()
+                                           .enabledBlockTypes(ENABLED_BLOCKS)
+                                           .extensions(EXTENSIONS)
+                                           .customBlockParserFactory(new MdxBlockFactory())
+                                           .build();
     
     public static List<Component> parseMarkdownToOwoComponents(String markdown, String bookId, Predicate<String> linkHandler) {
         
@@ -55,19 +69,13 @@ public class MarkdownParser {
         var yamlVisitor = new YamlFrontMatterVisitor();
         document.accept(yamlVisitor);
         
-        // map of key to values (e.g. first one or for lists multiple values)
-        var frontmatter = yamlVisitor.getData();
+        var frontMatter = parseFrontmatter(markdown);
         
-        var simpleFrontMatter = new HashMap<String, String>();
-        for (var pair : frontmatter.entrySet()) {
-            simpleFrontMatter.put(pair.getKey(), pair.getValue().getFirst());
-        }
-        
-        var visitor = new OwoMarkdownVisitor(linkHandler);
+        var visitor = new OwoMarkdownVisitor(linkHandler, bookId);
         document.accept(visitor);
         
         var components = new ArrayList<Component>();
-        components.add(getTitlePanel(linkHandler, simpleFrontMatter));
+        components.add(getTitlePanel(linkHandler, frontMatter));
         components.addAll(visitor.getResultComponents());
         
         return components;
@@ -75,14 +83,16 @@ public class MarkdownParser {
     
     private static class OwoMarkdownVisitor extends AbstractVisitor {
         
-        private final List<Component> components = new ArrayList<>();
         private final Predicate<String> linkHandler;
+        private final String bookId;
         
+        private List<Component> components = new ArrayList<>();
         private MutableText buffer;
         private Style currentStyle = Style.EMPTY;
         
-        private OwoMarkdownVisitor(Predicate<String> linkHandler) {
+        private OwoMarkdownVisitor(Predicate<String> linkHandler, String bookId) {
             this.linkHandler = linkHandler;
+            this.bookId = bookId;
         }
         
         public List<Component> getResultComponents() {
@@ -169,11 +179,26 @@ public class MarkdownParser {
         @Override
         public void visit(CustomBlock customBlock) {
             
-            if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock craftingRecipeBlock) {
-                Oracle.LOGGER.info("crafting html detected: {}", craftingRecipeBlock);
-            } else {
-                Oracle.LOGGER.info("Custom block: {}", customBlock);
+            if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock recipe) {
+                components.add(createRecipeUI(recipe.slots, recipe.result, recipe.count));
+            } else if (customBlock instanceof MdxComponentBlock.AssetBlock image) {
+                components.add(createImageUI(image.location, image.width, this.bookId, image.isModAsset()));
+            }  else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
+                // this is a bit more complicated, since its a container. Capture children by overriding the component list
+                
+                var oldComponents = this.components;
+                var innerComponents = new ArrayList<Component>();
+                this.components = innerComponents;
+                
+                visitChildren(callout);
+                flushBuffer();
+                
+                this.components = oldComponents;
+                components.add(createCalloutUI(callout.variant, innerComponents));
+                
             }
+            
+            // todo handle "PrefabObtainingBlock", whatever that is
         }
         
         @Override
@@ -245,7 +270,7 @@ public class MarkdownParser {
         
         var title = frontMatter.getOrDefault("title", "Title not found in Frontmatter");
         var iconId = frontMatter.getOrDefault("icon", "");
-        if (!iconId.isEmpty()) {
+        if (Identifier.validate(iconId).isSuccess()) {
             // try find item
             if (Registries.ITEM.containsId(Identifier.of(iconId))) {
                 var itemDisplay = new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
@@ -274,210 +299,10 @@ public class MarkdownParser {
         return spacedPanel;
     }
     
-    public static Map<String, String> parseFrontmatter(String markdownContent) {
-        var frontmatter = new HashMap<String, String>();
-        if (!markdownContent.startsWith("---")) {
-            return frontmatter; // No frontmatter found
+    public static Component createRecipeUI(List<String> inputs, String resultId, int resultCount) {
+        if (inputs.size() != 9) {
+            return Components.label(Text.literal("Invalid crafting recipe data: expected 9 inputs").formatted(Formatting.RED));
         }
-        
-        var endDelimiterIndex = markdownContent.indexOf("---", 3); // Start searching after the first ---
-        if (endDelimiterIndex == -1) {
-            return frontmatter; // No closing delimiter found
-        }
-        
-        var frontmatterContent = markdownContent.substring(4, endDelimiterIndex); // Exclude delimiters
-        var lines = frontmatterContent.lines().toList();
-        
-        for (var line : lines) {
-            var parts = line.split(":", 2); // Split only at the first ':'
-            if (parts.length == 2) {
-                var key = parts[0].trim();
-                var value = parts[1].trim();
-                frontmatter.put(key, value);
-            }
-        }
-        return frontmatter;
-    }
-    
-    public static String removeFrontmatter(String markdownContent) {
-        if (!markdownContent.startsWith("---")) {
-            return markdownContent; // No frontmatter, return original
-        }
-        
-        var endDelimiterIndex = markdownContent.indexOf("---", 3); // Start searching after the first ---
-        if (endDelimiterIndex == -1) {
-            return markdownContent; // No closing delimiter, return original
-        }
-        
-        return markdownContent.substring(endDelimiterIndex + 3).trim(); // +4 to also remove "---" and "\n"
-    }
-    
-    
-    private static List<String> splitIntoParagraphs(String markdownContent) {
-        var lines = markdownContent.lines().toList();
-        var paragraphList = new ArrayList<String>();
-        
-        var currentParagraph = new StringBuilder();
-        var inCodeBlock = false;
-        for (var s : lines) {
-            var line = s.trim();
-            
-            var isSkipped = Arrays.stream(removedLines).anyMatch(line::startsWith);
-            var isSkippedDiv = line.startsWith("<div onlineOnly=\"true\"");
-            if (isSkipped && !inCodeBlock && !isSkippedDiv) continue;
-            
-            var newCodeBlock = line.startsWith("```");
-            
-            if (inCodeBlock && newCodeBlock) {
-                inCodeBlock = false;    // end existing code block
-            } else if (newCodeBlock) {
-                inCodeBlock = true; // begin code block, begin new paragraph
-                paragraphList.add(currentParagraph.toString());
-                currentParagraph = new StringBuilder();
-            }
-            
-            var isHeading = line.startsWith("#");
-            var isListing = line.matches("[0-9]+\\.\\s.+");
-            var isUnorderedList = line.matches("-\\s.+");
-            var isWeirdList = line.matches("•\\s.+");
-            var isHtml = line.matches("<[a-zA-Z]+");
-            
-            if (isHeading || isListing || isUnorderedList || isWeirdList || isHtml) {
-                paragraphList.add(currentParagraph.toString());
-                currentParagraph = new StringBuilder();
-                
-                if (isHeading) {    // headings get their own paragraph, lists/other components not
-                    paragraphList.add(line);
-                } else {
-                    currentParagraph.append(line).append(" ");
-                }
-                continue;
-            }
-            
-            var isSeparator = line.isEmpty();
-            if (isSeparator) {
-                paragraphList.add(currentParagraph.toString());
-                currentParagraph = new StringBuilder();
-            } else if (inCodeBlock) {
-                currentParagraph.append(line).append("\n");
-            } else {
-                currentParagraph.append(line).append(" ");
-            }
-            
-            var containsCodeBlock = line.contains("```");
-            if (!newCodeBlock && containsCodeBlock) {
-                inCodeBlock = false;
-            }
-        }
-        
-        if (!currentParagraph.isEmpty() && !currentParagraph.toString().startsWith("<div onlineOnly=\"true\""))
-            paragraphList.add(currentParagraph.toString());
-        
-        
-        return paragraphList;
-    }
-    
-    private static Component parseImageParagraph(String paragraphString, String bookId, boolean modAsset) {
-        
-        var tagName = modAsset ? "ModAsset" : "Asset";
-        
-        var doc = Jsoup.parseBodyFragment(paragraphString);
-        var element = doc.selectFirst(tagName);
-        
-        if (element != null) {
-            var location = element.attr("location");
-            var widthSource = element.attr("width");
-            var width = convertWidthStringToFloat(widthSource);
-            if (width <= 0) width = 0.5f;   // default to 50% width
-            
-            var itemIdCandidate = Identifier.of(location);
-            if (Registries.ITEM.containsId(itemIdCandidate)) {
-                if (width == 0.5f) width = 0.1f;    // make items smaller
-                var imageComponent = Components.item(new ItemStack(Registries.ITEM.get(itemIdCandidate)));
-                imageComponent.setTooltipFromStack(true);
-                imageComponent.verticalSizing(Sizing.fixed((int) (width * 100)));   // width is set as a way to get the desired width in the layout methods
-                return imageComponent;
-            }
-            
-            var imageModId = location.split(":")[0];
-            var imageModPath = location.split(":")[1];
-            var searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + bookId + "/" + imageModPath + ".png");
-            
-            var resource = MinecraftClient.getInstance().getResourceManager().getResource(searchPath);
-            if (resource.isEmpty()) {
-                return Components.label(Text.literal("Image not found: " + searchPath).formatted(Formatting.RED));
-            }
-            
-            try {
-                var image = NativeImage.read(resource.get().getInputStream());
-                var result = Components.texture(searchPath, 0, 0, image.getWidth(), image.getHeight(), image.getWidth(), image.getHeight());
-                result.verticalSizing(Sizing.fixed((int) (width * 100)));   // width is set as a way to get the desired width in the layout methods
-                return result;
-            } catch (IOException e) {
-                return Components.label(Text.literal("Image couldn't be read: " + location + "\n" + e.getMessage().formatted(Formatting.RED)));
-            }
-            
-        } else {
-            return Components.label(Text.literal("Image path couldn't be parsed in: " + paragraphString).formatted(Formatting.RED));
-        }
-    }
-    
-    private static Component parseCalloutParagraph(String paragraphString, Predicate<String> linkHandler) {
-        
-        var doc = Jsoup.parseBodyFragment(paragraphString);
-        var element = doc.selectFirst("Callout");
-        
-        if (element == null) return Components.label(Text.literal("Invalid Callout"));
-        
-        var calloutText = element.text();
-        var calloutVariant = element.attr("variant");
-        
-        var contentLabel = parseParagraphToLabel(calloutText, linkHandler);
-        contentLabel.horizontalSizing(Sizing.fill(70));
-        
-        if (contentLabel instanceof LabelComponent labelComponent) {
-            labelComponent.horizontalTextAlignment(HorizontalAlignment.CENTER);
-            labelComponent.color(Color.ofRgb(5592405));
-        }
-        var titleLabel = Components.label(Text.literal(StringUtils.capitalize((calloutVariant))));
-        
-        var contentContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
-        contentContainer.padding(Insets.of(6, 8, 8, 8));
-        contentContainer.margins(Insets.of(15, 0, 10, 0));
-        contentContainer.surface(ORACLE_PANEL);
-        contentContainer.child(contentLabel);
-        var titleContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
-        titleContainer.padding(Insets.of(6, 5, 8, 6));
-        titleContainer.positioning(Positioning.absolute(0, 0));
-        titleContainer.surface(ORACLE_PANEL_PRESSED);
-        titleContainer.child(titleLabel);
-        
-        var combinedContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
-        combinedContainer.child(contentContainer);
-        combinedContainer.child(titleContainer);
-        
-        return combinedContainer;
-    }
-    
-    private static Component parseRecipeParagraph(String paragraph) {
-        
-        var doc = Jsoup.parseBodyFragment(paragraph.replace("{[", "\"{[").replace("]}", "]}\""));
-        var element = doc.selectFirst("CraftingRecipe");
-        
-        if (element == null) return Components.label(Text.literal("Invalid recipe, unable to parse html"));
-        
-        var recipeInputs = element.attr("slots");
-        var recipeResult = element.attr("result");
-        var recipeResultCount = element.attr("count").replace("{", "").replace("}", "");
-        int resultCount = 1;
-        try {
-            resultCount = Integer.parseInt(recipeResultCount);
-        } catch (NumberFormatException ignored) {
-        }
-        
-        var recipeInputItems = extractRecipeInputs(recipeInputs);
-        if (recipeInputItems.size() != 9)
-            return Components.label(Text.literal("Invalid recipe, unable to parse 9 ingredients"));
         
         var panel = Containers.horizontalFlow(Sizing.content(), Sizing.content());
         panel.surface(ORACLE_PANEL);
@@ -487,27 +312,39 @@ public class MarkdownParser {
         var inputGrid = Containers.grid(Sizing.content(), Sizing.content(), 3, 3);
         inputGrid.padding(Insets.of(3));
         inputGrid.margins(Insets.of(3));
+        inputGrid.positioning(Positioning.relative(0, 0));
+        
         var backgroundGrid = Containers.grid(Sizing.content(), Sizing.content(), 3, 3);
         backgroundGrid.padding(Insets.of(3));
         backgroundGrid.margins(Insets.of(3));
-        backgroundGrid.positioning(Positioning.relative(0, 0));
-        for (int i = 0; i < recipeInputItems.size(); i++) {
-            var input = recipeInputItems.get(i);
+        
+        for (var i = 0; i < inputs.size(); i++) {
+            var input = inputs.get(i);
             var id = Identifier.of(input);
-            var itemstack = new ItemStack(Registries.ITEM.get(id));
-            var itemComponent = Components.item(itemstack);
-            itemComponent.setTooltipFromStack(true);
             
-            var row = i % 3;
-            var column = i / 3;
+            if (!input.equals("minecraft:air") && !input.isEmpty() && Registries.ITEM.containsId(id)) {
+                var itemstack = new ItemStack(Registries.ITEM.get(id));
+                var itemComponent = Components.item(itemstack);
+                itemComponent.setTooltipFromStack(true);
+                
+                var row = i / 3;
+                var column = i % 3;
+                
+                inputGrid.child(itemComponent, row, column);
+            }
             
-            backgroundGrid.child(getItemFrame(), column, row);
-            inputGrid.child(itemComponent, column, row);
+            backgroundGrid.child(getItemFrame(), i / 3, i % 3);
         }
         
         var arrow = Components.texture(Identifier.of(Oracle.MOD_ID, "textures/arrow_empty.png"), 0, 0, 29, 16, 29, 16);
         arrow.margins(Insets.of(5));
-        var result = Components.item(new ItemStack(Registries.ITEM.get(Identifier.of(recipeResult)), resultCount));
+        
+        var resultIdObj = Identifier.of(resultId);
+        var resultStack = Registries.ITEM.containsId(resultIdObj)
+                            ? new ItemStack(Registries.ITEM.get(resultIdObj), resultCount)
+                            : ItemStack.EMPTY;
+        
+        var result = Components.item(resultStack);
         result.setTooltipFromStack(true);
         result.margins(Insets.of(5));
         
@@ -521,149 +358,116 @@ public class MarkdownParser {
         panel.child(resultFrame);
         
         return panel;
-        
-        
     }
     
-    public static List<String> extractRecipeInputs(String input) {
-        List<String> resultList = new ArrayList<>();
+    public static Component createCalloutUI(String variant, List<Component> children) {
+        // wrapper for the content
+        var contentFlow = Containers.verticalFlow(Sizing.fill(70), Sizing.content());
+        contentFlow.horizontalAlignment(HorizontalAlignment.CENTER);
         
-        var trimmedInput = input.trim();
-        if (trimmedInput.startsWith("{[") && trimmedInput.endsWith("]}")) {
-            trimmedInput = trimmedInput.substring(2, trimmedInput.length() - 2).trim();
-        } else {
-            System.err.println("Input string does not have the expected format.");
-            return resultList; // Or throw an exception if you prefer
-        }
-        
-        var elements = trimmedInput.split(",");
-        
-        for (var element : elements) {
-            var trimmedElement = element.trim();
-            
-            // Remove single quotes if present
-            if (trimmedElement.startsWith("'") && trimmedElement.endsWith("'")) {
-                trimmedElement = trimmedElement.substring(1, trimmedElement.length() - 1);
+        for (var child : children) {
+            child.horizontalSizing(Sizing.fill()); // Ensure text wraps
+            if (child instanceof LabelComponent label) {
+                label.horizontalTextAlignment(HorizontalAlignment.CENTER);
+                label.color(Color.ofRgb(5592405));
             }
-            
-            resultList.add(trimmedElement);
+            contentFlow.child(child);
         }
         
-        return resultList;
+        var contentContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        contentContainer.padding(Insets.of(6, 6, 8, 8));
+        contentContainer.margins(Insets.of(15, 8, 10, 0));
+        contentContainer.surface(ORACLE_PANEL);
+        contentContainer.child(contentFlow);
+        
+        var titleText = StringUtils.capitalize(variant);
+        var titleLabel = Components.label(Text.literal(titleText));
+        
+        var titleContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        titleContainer.padding(Insets.of(6, 5, 8, 6));
+        titleContainer.positioning(Positioning.absolute(0, 0));
+        titleContainer.surface(ORACLE_PANEL_PRESSED);
+        titleContainer.child(titleLabel);
+        
+        var combinedContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        combinedContainer.child(contentContainer);
+        combinedContainer.child(titleContainer);
+        combinedContainer.margins(Insets.bottom(4));
+        
+        return combinedContainer;
+    }
+    
+    public static Component createImageUI(String location, String widthSource, String bookId, boolean isModAsset) {
+        var width = convertImageWidth(widthSource);
+        if (width <= 0) width = 0.5f;
+        
+        // case 1: ingame item
+        var itemIdCandidate = Identifier.of(location);
+        if (Registries.ITEM.containsId(itemIdCandidate)) {
+            if (width == 0.5f) width = 0.1f;
+            var itemComponent = Components.item(new ItemStack(Registries.ITEM.get(itemIdCandidate)));
+            itemComponent.setTooltipFromStack(true);
+            itemComponent.verticalSizing(Sizing.fixed((int) (width * 100)));
+            return itemComponent;
+        }
+        
+        // case 2: texture path
+        Identifier searchPath;
+        if (isModAsset) {
+            // Logic for <ModAsset>: Expects "modid:path/to/image"
+            // File location: books/{bookId}/.assets/{modid}/{path}.png
+            // if no mod id is found, it uses the existing book id of the article
+            var parts = location.split(":", 2);
+            var imageModId = parts.length > 0 ? parts[0] : bookId;
+            var imagePath = parts.length > 1 ? parts[1] : location;
+            searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + imageModId + "/" + imagePath + ".png");
+        } else {
+            // Logic for <Asset>: Expects "path/to/image" relative to current book assets
+            searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + bookId + "/" + location + ".png");
+        }
+        
+        var resourceManager = MinecraftClient.getInstance().getResourceManager();
+        var resource = resourceManager.getResource(searchPath);
+        
+        if (resource.isEmpty()) {
+            return Components.label(Text.literal("Image not found: " + searchPath).formatted(Formatting.RED));
+        }
+        
+        try {
+            var image = NativeImage.read(resource.get().getInputStream());
+            var result = Components.texture(searchPath, 0, 0, image.getWidth(), image.getHeight(), image.getWidth(), image.getHeight());
+            result.verticalSizing(Sizing.fixed((int) (width * 100)));
+            return result;
+        } catch (IOException e) {
+            return Components.label(Text.literal("Error reading image: " + location).formatted(Formatting.RED));
+        }
+    }
+    
+    
+    public static Map<String, String> parseFrontmatter(String markdown) {
+        
+        var document = PARSER.parse(markdown);
+        var yamlVisitor = new YamlFrontMatterVisitor();
+        document.accept(yamlVisitor);
+        
+        // map of key to values (e.g. first one or for lists multiple values)
+        var frontmatter = yamlVisitor.getData();
+        
+        var simpleFrontMatter = new HashMap<String, String>();
+        for (var pair : frontmatter.entrySet()) {
+            simpleFrontMatter.put(pair.getKey(), pair.getValue().getFirst().trim());
+        }
+        
+        return simpleFrontMatter;
     }
     
     public static Component getItemFrame() {
         return Components.texture(ITEM_SLOT, 0, 0, 16, 16, 16, 16).sizing(Sizing.fixed(16));
     }
     
-    private static Component parseParagraphToLabel(String paragraphString, Predicate<String> linkHandler) {
-        var paragraphText = Text.empty();
-        var index = 0;
-        var processedParagraphString = paragraphString;
-        
-        var isCodeBlock = paragraphString.startsWith("```");
-        if (isCodeBlock)
-            processedParagraphString = processedParagraphString.replace("```", "").trim();
-        
-        // process headings
-        var headingLevel = getHeadingLevel(paragraphString);
-        if (headingLevel > 0 && !isCodeBlock) {
-            var headingPattern = Pattern.compile("^(#+)\\s*(.+)");
-            var headingMatcher = headingPattern.matcher(paragraphString);
-            if (headingMatcher.find()) {
-                processedParagraphString = headingMatcher.group(2).trim(); // Extract the heading text without '#' and spaces
-            }
-        }
-        
-        while (index < processedParagraphString.length()) {
-            
-            // Check for links: [link text](url)
-            var linkMatcher = Pattern.compile("\\[([^]]+)]\\(([^)]+)\\)").matcher(processedParagraphString);
-            if (linkMatcher.find(index) && linkMatcher.start() == index && !isCodeBlock) {
-                var linkText = linkMatcher.group(1);
-                var url = linkMatcher.group(2);
-                
-                // Style for links: blue and underlined
-                var linkStyle = Style.EMPTY
-                                  .withUnderline(true)
-                                  .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url));
-                
-                paragraphText.append(Text.literal(linkText).setStyle(linkStyle));
-                index += linkMatcher.group(0).length();
-                continue;
-            }
-            
-            // Check for bold text: **text** or __text__
-            var boldMatcher = Pattern.compile("\\*\\*([^*]+)\\*\\*|__([^_]+)__").matcher(processedParagraphString);
-            if (boldMatcher.find(index) && boldMatcher.start() == index && !isCodeBlock) {
-                var boldText = (boldMatcher.group(1) != null) ? boldMatcher.group(1) : boldMatcher.group(2);
-                paragraphText.append(Text.literal(boldText).setStyle(Style.EMPTY.withBold(true)));
-                index += boldMatcher.group(0).length();
-                continue;
-            }
-            
-            // Check for italic text: *text* or _text_
-            var italicMatcher = Pattern.compile("\\*([^*]+)\\*|_([^_]+)_").matcher(processedParagraphString);
-            if (italicMatcher.find(index) && italicMatcher.start() == index && !isCodeBlock) {
-                var italicText = (italicMatcher.group(1) != null) ? italicMatcher.group(1) : italicMatcher.group(2);
-                paragraphText.append(Text.literal(italicText).setStyle(Style.EMPTY.withItalic(true)));
-                index += italicMatcher.group(0).length();
-                continue;
-            }
-            
-            //Check for color (example: #FF0000 text #FFFFFF )
-            var colorMatcher = Pattern.compile("#([0-9A-Fa-f]{6})\\s*([^#]+?)\\s*#([0-9A-Fa-f]{6})").matcher(processedParagraphString);
-            if (colorMatcher.find(index) && colorMatcher.start() == index && !isCodeBlock) {
-                var color1 = colorMatcher.group(1);
-                var coloredText = colorMatcher.group(2);
-                
-                var textColor1 = TextColor.fromRgb(Integer.parseInt(color1, 16));
-                
-                var coloredTextComponent = Text.literal(coloredText).setStyle(Style.EMPTY.withColor(textColor1));
-                
-                paragraphText.append(coloredTextComponent);
-                
-                index += colorMatcher.group(0).length();
-                continue;
-            }
-            
-            // Handle regular text
-            paragraphText.append(Text.literal(String.valueOf(processedParagraphString.charAt(index))));
-            index++;
-        }
-        
-        if (headingLevel > 0)
-            paragraphText = paragraphText.formatted(Formatting.GRAY);
-        
-        var label = new ScalableLabelComponent(paragraphText, linkHandler);
-        if (headingLevel > 0) {
-            label.scale = 1.5f - headingLevel * 0.1f;
-        }
-        label.lineHeight(10);
-        
-        if (isCodeBlock) {
-            var panel = Containers.horizontalFlow(Sizing.fill(100), Sizing.content());
-            panel.surface(ORACLE_PANEL_DARK);
-            panel.padding(Insets.of(6));
-            panel.child(label);
-            label.horizontalSizing(Sizing.fill(100));
-            return panel;
-        }
-        
-        return label;
-    }
-    
-    public static int getHeadingLevel(String paragraphString) {
-        var headingMatcher = Pattern.compile("^(#+)\\s*(.+)").matcher(paragraphString.trim());
-        if (headingMatcher.find()) {
-            return headingMatcher.group(1).length();
-        }
-        return 0; // Not a heading
-    }
-    
-    public static float convertWidthStringToFloat(String input) {
+    public static float convertImageWidth(String input) {
         if (input == null || input.isEmpty()) {
-            return 0.0f; // Or handle null/empty input as needed, maybe throw an exception
+            return 0.0f;
         }
         
         var trimmedInput = input.trim(); // Remove leading/trailing whitespace
@@ -681,6 +485,14 @@ public class MarkdownParser {
             try {
                 var numberString = trimmedInput.substring(1, trimmedInput.length() - 1); // Remove "{" and "}"
                 var number = Integer.parseInt(numberString);
+                return number / 1000.0f; // Normalize to 0.0f - 1.0f range
+            } catch (NumberFormatException e) {
+                System.err.println("Error parsing braced number value: " + input);
+                return 0.0f; // Or handle parsing errors as needed
+            }
+        } else if (StringUtils.isNumeric(trimmedInput)) {
+            try {
+                var number = Integer.parseInt(trimmedInput);
                 return number / 1000.0f; // Normalize to 0.0f - 1.0f range
             } catch (NumberFormatException e) {
                 System.err.println("Error parsing braced number value: " + input);

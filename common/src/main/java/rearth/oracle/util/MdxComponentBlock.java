@@ -14,8 +14,6 @@ public abstract class MdxComponentBlock extends CustomBlock {
     public void setupContent(String rawContent) {
         this.rawContent = rawContent;
         
-        System.out.println("Setup: " + rawContent);
-        
         parseContent();
     }
     
