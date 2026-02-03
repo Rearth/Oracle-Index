@@ -55,7 +55,7 @@ class MarkdownTests {
         Node doc = parser.parse(md);
         Node firstChild = doc.getFirstChild();
         
-        assertTrue(firstChild instanceof MdxComponentBlock.CraftingRecipeBlock);
+        assertInstanceOf(MdxComponentBlock.CraftingRecipeBlock.class, firstChild);
         MdxComponentBlock.CraftingRecipeBlock recipe = (MdxComponentBlock.CraftingRecipeBlock) firstChild;
         
         assertEquals("diamond", recipe.result);
@@ -75,7 +75,7 @@ class MarkdownTests {
         Node doc = parser.parse(md);
         Node firstChild = doc.getFirstChild();
         
-        assertTrue(firstChild instanceof MdxComponentBlock.CalloutBlock);
+        assertInstanceOf(MdxComponentBlock.CalloutBlock.class, firstChild);
         MdxComponentBlock.CalloutBlock callout = (MdxComponentBlock.CalloutBlock) firstChild;
         assertEquals("warning", callout.variant);
     }
@@ -83,7 +83,6 @@ class MarkdownTests {
     @Test
     @DisplayName("Utility: Image width conversion")
     void testWidthLogic() {
-        // Since this is a static pure-math method, we can test it directly!
         assertEquals(0.5f, MarkdownParser.convertImageWidth("50%"));
         assertEquals(0.256f, MarkdownParser.convertImageWidth("{256}"));
     }
@@ -119,41 +118,41 @@ class MarkdownTests {
         
         // 1. Verify the tree isn't empty
         assertNotNull(document);
-        assertTrue(document.getFirstChild() != null);
+        assertNotNull(document.getFirstChild());
         
         // 2. Validate Sequence of Blocks
         Node current = document.getFirstChild();
         
-        assertTrue(current instanceof YamlFrontMatterBlock, "Frontmatter is the first block");
+        assertInstanceOf(YamlFrontMatterBlock.class, current, "Frontmatter is the first block");
         current = current.getNext();
         
         // Node 1: Heading (# Nickel Mining)
-        assertTrue(current instanceof Heading, "First node should be a Heading");
+        assertInstanceOf(Heading.class, current, "First node should be a Heading");
         assertEquals(1, ((Heading) current).getLevel());
         current = current.getNext();
         
         // Node 2: Paragraph (Nickel is found...)
-        assertTrue(current instanceof Paragraph, "Second node should be a Paragraph");
+        assertInstanceOf(Paragraph.class, current, "Second node should be a Paragraph");
         current = current.getNext();
         
         // Node 3: Custom Callout Block
-        assertTrue(current instanceof MdxComponentBlock.CalloutBlock, "Third node should be a CalloutBlock");
+        assertInstanceOf(MdxComponentBlock.CalloutBlock.class, current, "Third node should be a CalloutBlock");
         MdxComponentBlock.CalloutBlock callout = (MdxComponentBlock.CalloutBlock) current;
         assertEquals("info", callout.variant);
         current = current.getNext();
         
         // Node 4: Heading (## Crafting)
-        assertTrue(current instanceof Heading, "Fourth node should be a Heading level 2");
+        assertInstanceOf(Heading.class, current, "Fourth node should be a Heading level 2");
         assertEquals(2, ((Heading) current).getLevel());
         current = current.getNext();
         
         // Node 5: Custom Recipe Block
-        assertTrue(current instanceof MdxComponentBlock.CraftingRecipeBlock, "Fifth node should be a RecipeBlock");
+        assertInstanceOf(MdxComponentBlock.CraftingRecipeBlock.class, current, "Fifth node should be a RecipeBlock");
         MdxComponentBlock.CraftingRecipeBlock recipe = (MdxComponentBlock.CraftingRecipeBlock) current;
         assertEquals("oritech:nickel_block", recipe.result);
         current = current.getNext();
         
         // Node 6: Bullet List
-        assertTrue(current instanceof BulletList, "Sixth node should be a BulletList");
+        assertInstanceOf(BulletList.class, current, "Sixth node should be a BulletList");
     }
 }
