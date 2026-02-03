@@ -10,6 +10,7 @@ import rearth.oracle.util.MarkdownParser;
 import rearth.oracle.util.MdxBlockFactory;
 import rearth.oracle.util.MdxComponentBlock;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,6 +79,70 @@ class MarkdownTests {
         assertInstanceOf(MdxComponentBlock.CalloutBlock.class, firstChild);
         MdxComponentBlock.CalloutBlock callout = (MdxComponentBlock.CalloutBlock) firstChild;
         assertEquals("warning", callout.variant);
+    }
+    
+    @Test
+    @DisplayName("Lists: Verify nesting depth and numbering sequence logic")
+    void testNestedListLogic() {
+        String md = """
+        1. First
+        2. Second
+           * Sub A
+           * Sub B
+        3. Third
+        """;
+        
+        Node document = parser.parse(md);
+        
+        // We'll track the results in a list of strings: "depth:label"
+        List<String> results = new ArrayList<>();
+        
+        AbstractVisitor testVisitor = new AbstractVisitor() {
+            @Override
+            public void visit(ListItem listItem) {
+                var parent = listItem.getParent();
+                
+                // Replicating depth logic
+                int depth = 0;
+                var ancestor = parent;
+                while (ancestor instanceof ListBlock || ancestor instanceof ListItem) {
+                    if (ancestor instanceof ListBlock) depth++;
+                    ancestor = ancestor.getParent();
+                }
+                
+                String label = "";
+                if (parent instanceof BulletList) {
+                    label = "•";
+                } else if (parent instanceof OrderedList orderedList) {
+                    int index = 1;
+                    Node sibling = listItem.getPrevious();
+                    while (sibling != null) {
+                        if (sibling instanceof ListItem) index++;
+                        sibling = sibling.getPrevious();
+                    }
+                    label = String.valueOf(orderedList.getStartNumber() + index - 1);
+                }
+                
+                results.add(depth + ":" + label);
+                visitChildren(listItem);
+            }
+        };
+        
+        document.accept(testVisitor);
+        
+        // Expected structure:
+        // 1:1 (First)
+        // 1:2 (Second)
+        // 2:• (Sub A - Depth 2)
+        // 2:• (Sub B - Depth 2)
+        // 1:3 (Third)
+        
+        assertEquals(5, results.size());
+        assertEquals("1:1", results.get(0));
+        assertEquals("1:2", results.get(1));
+        assertEquals("2:•", results.get(2));
+        assertEquals("2:•", results.get(3));
+        assertEquals("1:3", results.get(4));
     }
     
     @Test
