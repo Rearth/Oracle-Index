@@ -69,6 +69,10 @@ dependencies {
     forgeRuntimeLibrary(include(api("net.objecthunter:exp4j:0.4.8")))
 
     forgeRuntimeLibrary(include(api("org.jsoup:jsoup:1.17.2")))
+
+    // commonmark for markdown parsing
+    forgeRuntimeLibrary(include(api('org.commonmark:commonmark:0.27.1')))
+    forgeRuntimeLibrary(include(api('org.commonmark:commonmark-ext-yaml-front-matter:0.27.1')))
 }
 
 processResources {

@@ -88,6 +88,35 @@ class MarkdownTests {
     }
     
     @Test
+    @DisplayName("Formatting: Soft line breaks should be converted to spaces")
+    void testSoftLineBreaks() {
+        String md = """
+        Line One
+        Line Two
+        """;
+        
+        // We need a custom visitor for the test since OwoMarkdownVisitor
+        // depends on Minecraft/owo classes.
+        StringBuilder result = new StringBuilder();
+        AbstractVisitor testVisitor = new AbstractVisitor() {
+            @Override
+            public void visit(org.commonmark.node.Text text) {
+                result.append(text.getLiteral());
+            }
+            
+            @Override
+            public void visit(SoftLineBreak softLineBreak) {
+                result.append(" ");
+            }
+        };
+        
+        Node document = parser.parse(md);
+        document.accept(testVisitor);
+        
+        assertEquals("Line One Line Two", result.toString().trim());
+    }
+    
+    @Test
     @DisplayName("Should parse a complex MDX document into the correct AST nodes")
     void testFullDocumentStructure() {
         String fullDoc = """

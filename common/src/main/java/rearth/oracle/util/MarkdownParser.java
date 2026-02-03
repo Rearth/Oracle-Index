@@ -151,7 +151,7 @@ public class MarkdownParser {
             panel.padding(Insets.of(6));
             panel.margins(Insets.bottom(5));
             
-            var text = Text.literal(codeBlock.getLiteral().trim()).formatted(Formatting.GRAY);
+            var text = Text.literal(codeBlock.getLiteral()).formatted(Formatting.GRAY);
             panel.child(Components.label(text));
             
             components.add(panel);
@@ -183,7 +183,7 @@ public class MarkdownParser {
                 components.add(createRecipeUI(recipe.slots, recipe.result, recipe.count));
             } else if (customBlock instanceof MdxComponentBlock.AssetBlock image) {
                 components.add(createImageUI(image.location, image.width, this.bookId, image.isModAsset()));
-            }  else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
+            } else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
                 // this is a bit more complicated, since its a container. Capture children by overriding the component list
                 
                 var oldComponents = this.components;
@@ -255,6 +255,18 @@ public class MarkdownParser {
                 
                 buffer.append(codeText);
             }
+        }
+        
+        @Override
+        public void visit(SoftLineBreak softLineBreak) {
+            if (buffer != null)
+                buffer.append(Text.literal(" "));
+        }
+        
+        @Override
+        public void visit(HardLineBreak hardLineBreak) {
+            if (buffer != null)
+                buffer.append(Text.literal("\n"));
         }
     }
     
