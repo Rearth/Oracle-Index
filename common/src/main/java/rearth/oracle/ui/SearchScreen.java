@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import static rearth.oracle.OracleClient.ROOT_DIR;
+
 public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     
     private FlowLayout resultsPanel;
@@ -159,7 +161,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         
         for (var result : results) {
             
-            var contentId = Identifier.of(Oracle.MOD_ID, String.format("books/%s/%s", result.id().getNamespace(), result.id().getPath()));
+            var contentId = Identifier.of(Oracle.MOD_ID, String.format("%s/%s/%s", ROOT_DIR, result.id().getNamespace(), result.id().getPath()));
             
             // skip if result is locked
             if (OracleClient.UNLOCK_CRITERIONS.containsKey(contentId.getPath())) {

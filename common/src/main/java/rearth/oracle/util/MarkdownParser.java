@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
 
+import static rearth.oracle.OracleClient.ROOT_DIR;
+
 // a very basic and primitive (and hacky) ghetto markdown to owo lib parser
 public class MarkdownParser {
     
@@ -58,7 +60,7 @@ public class MarkdownParser {
                                            .customBlockParserFactory(new MdxBlockFactory())
                                            .build();
     
-    public static List<Component> parseMarkdownToOwoComponents(String markdown, String bookId, Predicate<String> linkHandler) {
+    public static List<Component> parseMarkdownToOwoComponents(String markdown, String wikiId, Predicate<String> linkHandler) {
         
         // some html blocks are not supported, and are removed to allow the markdown parser to actually work
         for (var toRemove : removedLines) {
@@ -71,7 +73,7 @@ public class MarkdownParser {
         
         var frontMatter = parseFrontmatter(markdown);
         
-        var visitor = new OwoMarkdownVisitor(linkHandler, bookId);
+        var visitor = new OwoMarkdownVisitor(linkHandler, wikiId);
         document.accept(visitor);
         
         var components = new ArrayList<Component>();
@@ -84,15 +86,16 @@ public class MarkdownParser {
     private static class OwoMarkdownVisitor extends AbstractVisitor {
         
         private final Predicate<String> linkHandler;
-        private final String bookId;
+        private final String wikiId;
         
         private List<Component> components = new ArrayList<>();
-        private MutableText buffer;
+        private MutableText buffer = Text.empty();
         private Style currentStyle = Style.EMPTY;
+        private int currentIndentation = 0;
         
-        private OwoMarkdownVisitor(Predicate<String> linkHandler, String bookId) {
+        private OwoMarkdownVisitor(Predicate<String> linkHandler, String wikiId) {
             this.linkHandler = linkHandler;
-            this.bookId = bookId;
+            this.wikiId = wikiId;
         }
         
         public List<Component> getResultComponents() {
@@ -103,17 +106,16 @@ public class MarkdownParser {
             if (buffer != null && !buffer.getString().isEmpty()) {
                 var label = new ScalableLabelComponent(buffer, linkHandler);
                 label.lineHeight(10);
-                label.margins(Insets.bottom(5));
+                label.margins(Insets.of(0, 5, currentIndentation * 6, 0));
                 components.add(label);
                 buffer = Text.empty();
+                currentIndentation = 0;
             }
         }
         
         @Override
         public void visit(Paragraph paragraph) {
             
-            // begin a new paragraph
-            buffer = Text.empty();
             // visit all content (fills the buffer)
             visitChildren(paragraph);
             
@@ -137,7 +139,7 @@ public class MarkdownParser {
             label.margins(Insets.top(10).withBottom(5));
             
             components.add(label);
-            buffer = null;
+            buffer = Text.empty();
         }
         
         @Override
@@ -164,16 +166,46 @@ public class MarkdownParser {
         }
         
         @Override
+        public void visit(OrderedList orderedList) {
+            // an ordered list is created by adding numbers to the children
+            visitChildren(orderedList);
+        }
+        
+        @Override
         public void visit(ListItem listItem) {
-            buffer = Text.empty();
-            buffer.append(Text.literal("• ").formatted(Formatting.DARK_GRAY)); // Bullet point
+            
+            var parent = listItem.getParent();
+            
+            // because listItem.getContentIndent() is always 0?
+            var depth = 0;
+            var ancestor = parent;
+            while (ancestor instanceof ListBlock || ancestor instanceof ListItem) {
+                if (ancestor instanceof ListBlock) depth++;
+                ancestor = ancestor.getParent();
+            }
+            
+            this.currentIndentation = depth - 1;
+            
+            if (parent instanceof BulletList) {
+                buffer.append(Text.literal("• ").formatted(Formatting.DARK_GRAY)); // Bullet point
+            } else if (parent instanceof OrderedList orderedList) { // i havent found a better way for this yet
+                var index = 1;
+                var sibling = listItem.getPrevious();
+                while (sibling != null) {
+                    if (sibling instanceof ListItem) index++;
+                    sibling = sibling.getPrevious();
+                }
+                
+                int displayNumber = orderedList.getStartNumber() + index - 1;
+                buffer.append(Text.literal(displayNumber + ". ").formatted(Formatting.DARK_GRAY));
+            }
+            
             
             visitChildren(listItem);
             
-            var label = new ScalableLabelComponent(buffer, linkHandler);
-            label.margins(Insets.left(10).withBottom(2)); // Indent
-            components.add(label);
-            buffer = null;
+            // shouldnt really be needed, but just to be safe
+            flushBuffer();
+            this.currentIndentation = 0;
         }
         
         @Override
@@ -182,7 +214,7 @@ public class MarkdownParser {
             if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock recipe) {
                 components.add(createRecipeUI(recipe.slots, recipe.result, recipe.count));
             } else if (customBlock instanceof MdxComponentBlock.AssetBlock image) {
-                components.add(createImageUI(image.location, image.width, this.bookId, image.isModAsset()));
+                components.add(createImageUI(image.location, image.width, this.wikiId, image.isModAsset()));
             } else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
                 // this is a bit more complicated, since its a container. Capture children by overriding the component list
                 
@@ -409,7 +441,7 @@ public class MarkdownParser {
         return combinedContainer;
     }
     
-    public static Component createImageUI(String location, String widthSource, String bookId, boolean isModAsset) {
+    public static Component createImageUI(String location, String widthSource, String wikiId, boolean isModAsset) {
         var width = convertImageWidth(widthSource);
         if (width <= 0) width = 0.5f;
         
@@ -427,15 +459,15 @@ public class MarkdownParser {
         Identifier searchPath;
         if (isModAsset) {
             // Logic for <ModAsset>: Expects "modid:path/to/image"
-            // File location: books/{bookId}/.assets/{modid}/{path}.png
+            // File location: books/{wikiId}/.assets/{modid}/{path}.png
             // if no mod id is found, it uses the existing book id of the article
             var parts = location.split(":", 2);
-            var imageModId = parts.length > 0 ? parts[0] : bookId;
+            var imageModId = parts.length > 0 ? parts[0] : wikiId;
             var imagePath = parts.length > 1 ? parts[1] : location;
-            searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + imageModId + "/" + imagePath + ".png");
+            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/.assets/" + imageModId + "/" + imagePath + ".png");
         } else {
             // Logic for <Asset>: Expects "path/to/image" relative to current book assets
-            searchPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + "/.assets/" + bookId + "/" + location + ".png");
+            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/.assets/" + wikiId + "/" + location + ".png");
         }
         
         var resourceManager = MinecraftClient.getInstance().getResourceManager();

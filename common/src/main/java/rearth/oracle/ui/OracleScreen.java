@@ -39,6 +39,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import static rearth.oracle.OracleClient.ROOT_DIR;
+
 public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     
     private FlowLayout navigationBar;
@@ -52,7 +54,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     private boolean needsLayout = false;
     
     public static Identifier activeEntry;
-    public static String activeBook;
+    public static String activeWiki;
     
     private static final int wideContentWidth = 50; // in %
     
@@ -178,12 +180,12 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
     
-    private void loadContentContainer(Identifier filePath, String bookId) throws IOException {
+    private void loadContentContainer(Identifier filePath, String wikiId) throws IOException {
         
         contentContainer.clearChildren();
         activeEntry = filePath;
         
-        var translatedPath = OracleClient.getTranslatedPath(filePath, bookId);
+        var translatedPath = OracleClient.getTranslatedPath(filePath, wikiId);
         if (translatedPath.isPresent())
             filePath = translatedPath.get();
         
@@ -197,11 +199,22 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         final var finalFilePath = filePath;
-        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, bookId, link -> onLinkClicked(bookId, link, finalFilePath));
+        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, wikiId, link -> onLinkClicked(wikiId, link, finalFilePath));
         
         for (var paragraph : parsedTexts) {
             
-            if (paragraph instanceof LabelComponent) {
+            if (paragraph == null) {
+                Oracle.LOGGER.error("Got invalid paragraph in: {}", fileContent);
+                continue;
+            }
+            
+            if (paragraph instanceof LabelComponent labelComponent) {
+                
+                if (labelComponent.text() == null) {
+                    Oracle.LOGGER.error("Got invalid paragraph label in: {}", fileContent);
+                    continue;
+                }
+                
                 paragraph.horizontalSizing(Sizing.fill());
             } else if (paragraph instanceof TextureComponent textureComponent) {
                 var ratio = textureComponent.visibleArea().get().width() / (float) textureComponent.visibleArea().get().height();
@@ -228,14 +241,14 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     }
     
     // returns true if the link has been handled / is valid
-    private boolean onLinkClicked(String bookId, String link, Identifier sourceEntryPath) {
+    private boolean onLinkClicked(String wikiId, String link, Identifier sourceEntryPath) {
         
         try {
             // links can either point to the internet, or to another entry in the wiki
             if (link.startsWith("http")) {
                 return tryOpenWebLink(link);
             } else {
-                return tryOpenWikiLink(bookId, link, sourceEntryPath);
+                return tryOpenWikiLink(wikiId, link, sourceEntryPath);
             }
         } catch (Exception e) {
             Oracle.LOGGER.error("Oracle Index: Could not find/open link {}", link);
@@ -244,7 +257,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
     
-    private boolean tryOpenWikiLink(String bookId, String link, Identifier sourceEntryPath) throws IOException {
+    private boolean tryOpenWikiLink(String wikiId, String link, Identifier sourceEntryPath) throws IOException {
         var newPathString = parsePathLink(link, sourceEntryPath);
         
         // add extension if missing. Theoretically links without file ending would be valid/used in some cases
@@ -254,7 +267,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         var newId = Identifier.of(Oracle.MOD_ID, newPathString);
         
-        loadContentContainer(newId, bookId);
+        loadContentContainer(newId, wikiId);
         return true;
     }
     
@@ -296,20 +309,20 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     
     private void buildModNavigation(FlowLayout buttonContainer) {
         
-        // collect all book ids
-        var bookIds = OracleClient.LOADED_BOOKS.stream()
+        // collect all wiki ids
+        var wikiIds = OracleClient.LOADED_WIKIS.stream()
                         .sorted()
                         .toList();
         
         var modSelectorDropdown = Components.dropdown(Sizing.content(3));
         modSelectorDropdown.zIndex(5);
         
-        if (activeBook == null)
-            activeBook = bookIds.getFirst();
+        if (activeWiki == null)
+            activeWiki = wikiIds.getFirst();
         
         if (activeEntry != null) {
             try {
-                loadContentContainer(activeEntry, activeBook);
+                loadContentContainer(activeEntry, activeWiki);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -320,56 +333,56 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             topMargins = 5;
         }
         
-        var bookTitleLabel = new ScalableLabelComponent(Text.translatable(Oracle.MOD_ID + ".title." + activeBook).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY), text -> false);
-        bookTitleLabel.scale = 1.5f;
-        var bookTitleWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
-        bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
-        bookTitleWrapper.padding(Insets.of(8));
-        bookTitleWrapper.margins(Insets.of(topMargins, -7, 0, 0));
-        bookTitleWrapper.child(bookTitleLabel);
-        buttonContainer.child(bookTitleWrapper.zIndex(5));
+        var wikiTitleLabel = new ScalableLabelComponent(Text.translatable(Oracle.MOD_ID + ".title." + activeWiki).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY), text -> false);
+        wikiTitleLabel.scale = 1.5f;
+        var wikiTitleWrapper = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        wikiTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
+        wikiTitleWrapper.padding(Insets.of(8));
+        wikiTitleWrapper.margins(Insets.of(topMargins, -7, 0, 0));
+        wikiTitleWrapper.child(wikiTitleLabel);
+        buttonContainer.child(wikiTitleWrapper.zIndex(5));
         
-        bookTitleWrapper.mouseEnter().subscribe(() -> {
-            bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER);
+        wikiTitleWrapper.mouseEnter().subscribe(() -> {
+            wikiTitleWrapper.surface(MarkdownParser.ORACLE_PANEL_HOVER);
         });
-        bookTitleWrapper.mouseLeave().subscribe(() -> {
-            bookTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
+        wikiTitleWrapper.mouseLeave().subscribe(() -> {
+            wikiTitleWrapper.surface(MarkdownParser.ORACLE_PANEL);
         });
-        bookTitleWrapper.mouseDown().subscribe((a, b, c) -> {
+        wikiTitleWrapper.mouseDown().subscribe((a, b, c) -> {
             if (modSelectorDropdown.hasParent()) {
                 modSelectorDropdown.remove();
                 return true;
             }
-            rootComponent.child(modSelectorDropdown.positioning(Positioning.absolute(bookTitleWrapper.x() + bookTitleWrapper.width(), bookTitleWrapper.y())));
+            rootComponent.child(modSelectorDropdown.positioning(Positioning.absolute(wikiTitleWrapper.x() + wikiTitleWrapper.width(), wikiTitleWrapper.y())));
             return true;
         });
         
-        for (var bookId : bookIds) {
-            modSelectorDropdown.button(Text.translatable(Oracle.MOD_ID + ".title." + bookId), elem -> {
+        for (var wikiId : wikiIds) {
+            modSelectorDropdown.button(Text.translatable(Oracle.MOD_ID + ".title." + wikiId), elem -> {
                 activeEntry = null;
                 modSelectorDropdown.remove();
-                buildModNavigationBar(bookId);
-                bookTitleLabel.text(Text.translatable(Oracle.MOD_ID + ".title." + bookId).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY));
-                activeBook = bookId;
+                buildModNavigationBar(wikiId);
+                wikiTitleLabel.text(Text.translatable(Oracle.MOD_ID + ".title." + wikiId).formatted(Formatting.DARK_GRAY).append(" >").formatted(Formatting.DARK_GRAY));
+                activeWiki = wikiId;
             });
         }
         
-        buildModNavigationBar(activeBook);
+        buildModNavigationBar(activeWiki);
         
     }
     
-    private void buildModNavigationBar(String bookId) {
+    private void buildModNavigationBar(String wikiId) {
         navigationBar.clearChildren();
-        buildNavigationEntriesForModPath(bookId, "", navigationBar);
+        buildNavigationEntriesForModPath(wikiId, "", navigationBar);
     }
     
     // returns whether any children are unlocked (e.g. only false if all children are locked)
-    private boolean buildNavigationEntriesForModPath(String bookId, String path, FlowLayout container) {
+    private boolean buildNavigationEntriesForModPath(String wikiId, String path, FlowLayout container) {
         
         var resourceManager = MinecraftClient.getInstance().getResourceManager();
-        var metaPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/_meta.json");
+        var metaPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/_meta.json");
         
-        var translatedMetaPath = OracleClient.getTranslatedPath(metaPath, bookId);
+        var translatedMetaPath = OracleClient.getTranslatedPath(metaPath, wikiId);
         if (translatedMetaPath.isPresent()) {
             metaPath = translatedMetaPath.get();
         }
@@ -377,7 +390,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         var resourceCandidate = resourceManager.getResource(metaPath);
         
         if (resourceCandidate.isEmpty()) {
-            Oracle.LOGGER.warn("No _meta.json found for {} at {}", bookId, metaPath);
+            Oracle.LOGGER.warn("No _meta.json found for {} at {}", wikiId, metaPath);
             return false;
         }
         
@@ -390,8 +403,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             if (activeEntry == null) {
                 var firstEntry = entries.stream().filter(elem -> !elem.directory).findFirst();
                 if (firstEntry.isPresent()) {
-                    var firstEntryPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/" + firstEntry.get().id());
-                    loadContentContainer(firstEntryPath, bookId);
+                    var firstEntryPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + firstEntry.get().id());
+                    loadContentContainer(firstEntryPath, wikiId);
                     activeEntry = firstEntryPath;
                 }
             }
@@ -404,7 +417,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                       Sizing.content(1),
                       Sizing.content(1),
                       Text.translatable(entry.name()).formatted(Formatting.WHITE), false);
-                    var anyChildrenUnlocked = buildNavigationEntriesForModPath(bookId, path + "/" + entry.id(), directoryContainer);
+                    var anyChildrenUnlocked = buildNavigationEntriesForModPath(wikiId, path + "/" + entry.id(), directoryContainer);
                     if (anyChildrenUnlocked) anyUnlocked = true;
                     directoryContainer.margins(Insets.of(0, 0, 0, 0));
                     
@@ -427,14 +440,14 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                     
                     
                 } else {
-                    final var labelPath = Identifier.of(Oracle.MOD_ID, "books/" + bookId + path + "/" + entry.id());
+                    final var labelPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
                     final var labelText = Text.translatable(entry.name).formatted(Formatting.WHITE);
                     final var label = Components.label(labelText.formatted(Formatting.UNDERLINE));
                     
                     var isUnlocked = true;
                     if (OracleClient.UNLOCK_CRITERIONS.containsKey(labelPath.getPath())) {
                         var unlockData = OracleClient.UNLOCK_CRITERIONS.get(labelPath.getPath());
-                        isUnlocked = OracleProgressAPI.IsUnlocked(bookId, labelPath.getPath(), unlockData.getLeft(), unlockData.getRight());
+                        isUnlocked = OracleProgressAPI.IsUnlocked(wikiId, labelPath.getPath(), unlockData.getLeft(), unlockData.getRight());
                     }
                     
                     if (isUnlocked) {
@@ -448,7 +461,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                         
                         label.mouseDown().subscribe((a, b, c) -> {
                             try {
-                                loadContentContainer(labelPath, bookId);
+                                loadContentContainer(labelPath, wikiId);
                                 return true;
                             } catch (IOException e) {
                                 Oracle.LOGGER.error(e.getMessage());

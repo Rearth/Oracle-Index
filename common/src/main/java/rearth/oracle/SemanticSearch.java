@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static rearth.oracle.OracleClient.ROOT_DIR;
+
 public class SemanticSearch {
     
     private InMemoryEmbeddingStore<TextSegment> embeddingStore;
@@ -62,10 +64,10 @@ public class SemanticSearch {
                              .build();
                 // generate embeddings for all found entries
                 var resourceManager = MinecraftClient.getInstance().getResourceManager();
-                var resources = resourceManager.findResources("books", path -> path.getPath().endsWith(".mdx"));
+                var resources = resourceManager.findResources(ROOT_DIR, path -> path.getPath().endsWith(".mdx"));
                 
                 for (var resourceId : resources.keySet()) {
-                    var purePath = resourceId.getPath().replaceFirst("books/", "");
+                    var purePath = resourceId.getPath().replaceFirst(ROOT_DIR + "/", "");
                     var segments = purePath.split("/");
                     var modId = segments[0];        // e.g. "oritech"
                     var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
@@ -121,7 +123,7 @@ public class SemanticSearch {
         
         for (var match : matches) {
             
-            var id = match.embedded().metadata().getString("book") + ":" + match.embedded().metadata().getString("category") + match.embedded().metadata().getString("fileName");
+            var id = match.embedded().metadata().getString("wiki") + ":" + match.embedded().metadata().getString("category") + match.embedded().metadata().getString("fileName");
             var title = match.embedded().metadata().getString("title");
             if (title == null) title = "No title";
             
@@ -141,7 +143,7 @@ public class SemanticSearch {
         
     }
     
-    public void queueEmbeddingsJob(String bookId, String filePath, String fileName, Map<String, String> frontmatter, String content) {
+    public void queueEmbeddingsJob(String wikiId, String filePath, String fileName, Map<String, String> frontmatter, String content) {
         
         CompletableFuture.runAsync(() -> {
             PENDING_JOBS.addAndGet(1);
@@ -149,7 +151,7 @@ public class SemanticSearch {
             var document = Document.from(content, Metadata.from(frontmatter));
             document.metadata().put("fileName", fileName);
             document.metadata().put("category", filePath);
-            document.metadata().put("book", bookId);
+            document.metadata().put("wiki", wikiId);
             ingestor.ingest(document);
             var takenTime = System.nanoTime() - startedAt;
             TOTAL_EMBEDDING_TIME.addAndGet(takenTime);

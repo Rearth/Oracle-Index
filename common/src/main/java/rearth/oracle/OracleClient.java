@@ -27,13 +27,29 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+/* steps for content wiki:
+
+- Option to also display content in navigation bar
+- Init check to see which wiki modes are available
+- Button to toggle current mode on navigation (if both available)
+- Add button to go to last page. Also add button to close wiki screen.
+- Handle [linkname](@modid:item) to resolve content links. Create id caches in init()
+- Handle [linkname](@item) to resolve to minecraft wiki links
+- Handle [linkname]($path/to/page) to resolve to docu links.
+- Handle ![](@asset) to handle images (either ingame images or from .assets)
+- Add infobox to content entries, with grid on top of page. Collect properties from ingame registries only.
+- PrefabObtaining is skipped / ignored for now.
+
+*/
 public final class OracleClient {
+    
+    public static final String ROOT_DIR = "books";   // wikis would be more fitting, but this is kept for compat reasons
     
     public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_index.open", GLFW.GLFW_KEY_H, "key.categories.oracle");
     public static final KeyBinding ORACLE_SEARCH = new KeyBinding("key.oracle_index.search", -1, "key.categories.oracle");
     
-    public static final Set<String> LOADED_BOOKS = new HashSet<>();
-    public static final HashMap<Identifier, BookItemLink> ITEM_LINKS = new HashMap<>();
+    public static final Set<String> LOADED_WIKIS = new HashSet<>(); // just keeps a set of loaded wiki ids
+    public static final HashMap<Identifier, ItemArticleRef> ITEM_LINKS = new HashMap<>();   // items that have a corresponding wiki page (docs or content)
     public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
     
     public static ItemStack tooltipStack;
@@ -81,18 +97,18 @@ public final class OracleClient {
     }
     
     /**
-     * Opens the Oracle Screen, potentially setting the active book and entry.
+     * Opens the Oracle Screen, potentially setting the active wiki and entry.
      *
-     * @param bookId  The ID of the book to activate. If null, the last active book remains active.
+     * @param wikiId  The ID of the wiki to activate. If null, the last active wiki remains active.
      * @param entryId The Identifier of the entry to activate. If null, the currently active entry remains active. Example format: {@code oracle_index:books/oritech/interaction/enderic_laser.mdx}
      * @param parent  The parent screen. This is the screen that will be returned to when the wiki is closed. Usually just {@code MinecraftClient.getInstance().currentScreen} works here.
-     * @warning If {@code entryId} is set, {@code bookId} should generally also be set to ensure the correct book is active.
-     * Otherwise, the behavior depends on the currently active book, and could lead to unexpected results. Only omit
-     * {@code bookId} if you are certain that the correct book is already active.
+     * @warning If {@code entryId} is set, {@code wikiId} should generally also be set to ensure the correct wiki is active.
+     * Otherwise, the behavior depends on the currently active wiki, and could lead to unexpected results. Only omit
+     * {@code wikiId} if you are certain that the correct wiki is already active.
      */
-    public static void openScreen(@Nullable String bookId, @Nullable Identifier entryId, @Nullable Screen parent) {
-        if (bookId != null)
-            OracleScreen.activeBook = bookId;
+    public static void openScreen(@Nullable String wikiId, @Nullable Identifier entryId, @Nullable Screen parent) {
+        if (wikiId != null)
+            OracleScreen.activeWiki = wikiId;
         if (entryId != null)
             OracleScreen.activeEntry = entryId;
         
@@ -100,14 +116,14 @@ public final class OracleClient {
     }
     
     private static void findAllResourceEntries(ResourceManager manager) {
-        var resources = manager.findResources("books", path -> path.getPath().endsWith(".mdx"));
+        var resources = manager.findResources(ROOT_DIR, path -> path.getPath().endsWith(".mdx"));
         
-        LOADED_BOOKS.clear();
+        LOADED_WIKIS.clear();
         ITEM_LINKS.clear();
         UNLOCK_CRITERIONS.clear();
         
         for (var resourceId : resources.keySet()) {
-            var purePath = resourceId.getPath().replaceFirst("books/", "");
+            var purePath = resourceId.getPath().replaceFirst(ROOT_DIR + "/", "");
             var segments = purePath.split("/");
             var modId = segments[0];        // e.g. "oritech"
             var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
@@ -124,7 +140,7 @@ public final class OracleClient {
                     var itemStrings = baseString.split(", ");
                     for (var itemString : itemStrings) {
                         var itemId = Identifier.of(itemString);
-                        var linkData = new BookItemLink(resourceId, fileComponents.getOrDefault("title", "missing"), modId);
+                        var linkData = new ItemArticleRef(resourceId, fileComponents.getOrDefault("title", "missing"), modId);
                         ITEM_LINKS.put(itemId, linkData);
                     }
                 }
@@ -139,11 +155,11 @@ public final class OracleClient {
                 }
                 
             } catch (IOException e) {
-                Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
+                Oracle.LOGGER.error("Unable to load wiki with id: " + resourceId);
                 throw new RuntimeException(e);
             }
             
-            LOADED_BOOKS.add(modId);
+            LOADED_WIKIS.add(modId);
         }
     }
     
@@ -158,13 +174,13 @@ public final class OracleClient {
         return MinecraftClient.getInstance().getLanguageManager().getLanguage();
     }
     
-    public static Optional<Identifier> getTranslatedPath(Identifier identifier, String bookId) {
+    public static Optional<Identifier> getTranslatedPath(Identifier identifier, String wikiId) {
         
         var languageCode = OracleClient.getActiveLangCode();
         var resourceManager = MinecraftClient.getInstance().getResourceManager();
         
         if (!languageCode.startsWith("en_")) {
-            var translatedPath = Identifier.of(identifier.getNamespace(), identifier.getPath().replace("books/" + bookId, "books/" + bookId + "/.translated/" + languageCode));
+            var translatedPath = Identifier.of(identifier.getNamespace(), identifier.getPath().replace(ROOT_DIR + "/" + wikiId, ROOT_DIR + "/" + wikiId + "/.translated/" + languageCode));
             
             if (resourceManager.getResource(translatedPath).isPresent()) {
                 return Optional.of(translatedPath);
@@ -175,7 +191,7 @@ public final class OracleClient {
         return Optional.empty();
     }
     
-    public record BookItemLink(Identifier linkTarget, String entryName, String bookId) {
+    public record ItemArticleRef(Identifier linkTarget, String entryName, String wikiId) {
     }
     
 }

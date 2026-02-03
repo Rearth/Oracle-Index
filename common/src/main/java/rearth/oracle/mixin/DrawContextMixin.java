@@ -23,7 +23,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rearth.oracle.OracleClient;
-import rearth.oracle.ui.OracleScreen;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +56,7 @@ public class DrawContextMixin {
 				modifiableComponents.add(separator);
 				
 				var stackLink = OracleClient.ITEM_LINKS.get(stackId);
-				var tooltipText = Text.literal("\uD83D\uDCD5 ").append(Text.literal(stackLink.bookId() + ": ").formatted(Formatting.ITALIC)).append(Text.literal(stackLink.entryName()));
+				var tooltipText = Text.literal("\uD83D\uDCD5 ").append(Text.literal(stackLink.wikiId() + ": ").formatted(Formatting.ITALIC)).append(Text.literal(stackLink.entryName()));
 				var tooltip = TooltipComponent.of(tooltipText.formatted(Formatting.GRAY).asOrderedText());
 				modifiableComponents.add(tooltip);
 				
@@ -73,7 +72,7 @@ public class DrawContextMixin {
 						
 						if (OracleClient.openEntryProgress > 0.95f) {
 								// open screen
-								OracleClient.openScreen(stackLink.bookId(), stackLink.linkTarget(), MinecraftClient.getInstance().currentScreen);
+								OracleClient.openScreen(stackLink.wikiId(), stackLink.linkTarget(), MinecraftClient.getInstance().currentScreen);
 						}
 						
 				} else {
