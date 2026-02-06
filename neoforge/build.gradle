@@ -73,6 +73,11 @@ dependencies {
     // commonmark for markdown parsing
     forgeRuntimeLibrary(include(api('org.commonmark:commonmark:0.27.1')))
     forgeRuntimeLibrary(include(api('org.commonmark:commonmark-ext-yaml-front-matter:0.27.1')))
+
+    // just for testing mffs wiki ingame
+    modImplementation "curse.maven:mffs-238546:7370783"
+    implementation("one.util:streamex:0.8.4")
+    forgeRuntimeLibrary(include(api("one.util:streamex:0.8.4")))
 }
 
 processResources {

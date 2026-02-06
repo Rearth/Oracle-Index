@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
@@ -52,6 +53,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     private final Screen parent;
     
     private boolean needsLayout = false;
+    
+    
+    // Helper to track the currently active mode for the UI
+    public static String activeWikiMode = "docs";   // either docs or content
     
     public static Identifier activeEntry;
     public static String activeWiki;
@@ -371,9 +376,60 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
     }
     
+    private String getWikiMode(String wikiId) {
+        
+        var availableModes = OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs"));
+        if (availableModes.contains(activeWikiMode)) return activeWikiMode;
+        
+        return availableModes.stream().findFirst().get();
+        
+    }
+    
+    private boolean canSwitchWikiMode(String wikiId) {
+        return OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs")).size() > 1;
+    }
+    
     private void buildModNavigationBar(String wikiId) {
         navigationBar.clearChildren();
-        buildNavigationEntriesForModPath(wikiId, "", navigationBar);
+        
+        // add mode selection header
+        activeWikiMode = getWikiMode(wikiId);
+        if (canSwitchWikiMode(wikiId)) {
+            addModeSelector(navigationBar);
+        }
+        
+        var path = activeWikiMode.equals("docs") ? "" : "/.content";
+        
+        buildNavigationEntriesForModPath(wikiId, path, navigationBar);
+    }
+    
+    private void addModeSelector(FlowLayout navBar) {
+        var container = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        
+        var docsButton = createModeButton("Docs", "docs");
+        var contentButton = createModeButton("Content", "content");
+        
+        container.child(docsButton);
+        container.child(contentButton);
+        
+        navBar.child(container);
+        
+    }
+    
+    private Component createModeButton(String label, String mode) {
+        var text = Text.literal(label).formatted(Formatting.GOLD);
+        var comp = Components.button(text, elem -> {
+            if (!activeWikiMode.equals(mode)) {
+                // switch mode
+                activeWikiMode = mode;
+                activeEntry = null;
+                buildModNavigationBar(activeWiki);
+            }
+        });
+        
+        comp.margins(Insets.of(2));
+        
+        return comp;
     }
     
     // returns whether any children are unlocked (e.g. only false if all children are locked)
@@ -441,7 +497,21 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                     
                 } else {
                     final var labelPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
-                    final var labelText = Text.translatable(entry.name).formatted(Formatting.WHITE);
+                    
+                    var shownName = entry.name;
+                    
+                    if (shownName.isBlank()) {
+                        var contentCandidate = resourceManager.getResource(labelPath);
+                        if (contentCandidate.isEmpty()) {
+                            Oracle.LOGGER.warn("Unable to get content for name from frontmatter for entry: {}", labelPath);
+                        } else {
+                            var fileContent = new String(contentCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                            var frontMatter = MarkdownParser.parseFrontmatter(fileContent);
+                            shownName = MarkdownParser.getTitleFromDocument(frontMatter);
+                        }
+                    }
+                    
+                    final var labelText = Text.translatable(shownName).formatted(Formatting.WHITE);
                     final var label = Components.label(labelText.formatted(Formatting.UNDERLINE));
                     
                     var isUnlocked = true;

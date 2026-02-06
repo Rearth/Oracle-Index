@@ -7,6 +7,7 @@ import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import io.wispforest.owo.ui.util.NinePatchTexture;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
@@ -302,6 +303,24 @@ public class MarkdownParser {
         }
     }
     
+    // tries to get the title from either the title field, or them item name from the id field, or just the id
+    public static String getTitleFromDocument(Map<String, String> frontMatter) {
+        
+        if (frontMatter.containsKey("title")) {
+            return frontMatter.get("title");
+        } else if (frontMatter.containsKey("id")) {
+            var item = frontMatter.get("id");
+            if (Identifier.validate(item).isSuccess() && Registries.ITEM.containsId(Identifier.of(item))) {
+                return I18n.translate(Registries.ITEM.get(Identifier.of(item)).getTranslationKey());
+            } else {
+                return item;
+            }
+        } else {
+            return "No title found";
+        }
+        
+    }
+    
     private static FlowLayout getTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter) {
         
         var combinedPanel = Containers.horizontalFlow(Sizing.fill(), Sizing.content());
@@ -312,7 +331,7 @@ public class MarkdownParser {
         titlePanel.surface(ORACLE_PANEL);
         combinedPanel.child(titlePanel.positioning(Positioning.absolute(48 + 6, 7)));
         
-        var title = frontMatter.getOrDefault("title", "Title not found in Frontmatter");
+        var title = getTitleFromDocument(frontMatter);
         var iconId = frontMatter.getOrDefault("icon", "");
         if (Identifier.validate(iconId).isSuccess()) {
             // try find item

@@ -39,6 +39,7 @@ import java.util.Set;
 - Handle ![](@asset) to handle images (either ingame images or from .assets)
 - Add infobox to content entries, with grid on top of page. Collect properties from ingame registries only.
 - PrefabObtaining is skipped / ignored for now.
+- Update search to also work with content
 
 */
 public final class OracleClient {
@@ -51,6 +52,9 @@ public final class OracleClient {
     public static final Set<String> LOADED_WIKIS = new HashSet<>(); // just keeps a set of loaded wiki ids
     public static final HashMap<Identifier, ItemArticleRef> ITEM_LINKS = new HashMap<>();   // items that have a corresponding wiki page (docs or content)
     public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
+    public static final HashMap<String, Set<String>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
+    public static final HashMap<String, Identifier> CONTENT_ID_MAP = new HashMap<>();// item / block id -> resource path (e.g., "oritech:enderic_laser" -> "oracle_index:books/oritech/.content/machines/laser.mdx")
+    
     
     public static ItemStack tooltipStack;
     public static float openEntryProgress = 0;
@@ -121,45 +125,58 @@ public final class OracleClient {
         LOADED_WIKIS.clear();
         ITEM_LINKS.clear();
         UNLOCK_CRITERIONS.clear();
+        CONTENT_ID_MAP.clear();
+        AVAILABLE_MODES.clear();
         
-        for (var resourceId : resources.keySet()) {
-            var purePath = resourceId.getPath().replaceFirst(ROOT_DIR + "/", "");
-            var segments = purePath.split("/");
-            var modId = segments[0];        // e.g. "oritech"
-            var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
-            var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
-            var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
+        for (var entry : resources.entrySet()) {
+            var resourceId = entry.getKey();
+            var path = resourceId.getPath(); // e.g., "books/oritech/.content/machines/laser.mdx"
             
-            if (entryDirectory.startsWith(".translated")) continue; // skip / don't support translations for now
+            // extract mode + mod id
+            var segments = path.split("/");
+            if (segments.length < 2) continue;
             
-            try {
-                var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                var fileComponents = MarkdownParser.parseFrontmatter(fileContent);
-                if (fileComponents.containsKey("related_items")) {
-                    var baseString = fileComponents.get("related_items").replace("[", "").replace("]", "");
-                    var itemStrings = baseString.split(", ");
-                    for (var itemString : itemStrings) {
-                        var itemId = Identifier.of(itemString);
-                        var linkData = new ItemArticleRef(resourceId, fileComponents.getOrDefault("title", "missing"), modId);
-                        ITEM_LINKS.put(itemId, linkData);
+            var modId = segments[1]; // e.g., "oritech"
+            LOADED_WIKIS.add(modId);
+            
+            // check docs or content
+            var isContent = path.contains("/.content/");
+            var mode = isContent ? "content" : "docs";
+            AVAILABLE_MODES.computeIfAbsent(modId, k -> new HashSet<>()).add(mode);
+            
+            // parse frontmatter
+            try (var inputStream = entry.getValue().getInputStream()) {
+                var fileContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+                var frontmatter = MarkdownParser.parseFrontmatter(fileContent);
+                
+                // map game id for content links
+                if (isContent && frontmatter.containsKey("id")) {
+                    var id = frontmatter.get("id").trim();
+                    CONTENT_ID_MAP.put(id, resourceId);
+                    var itemId = Identifier.of(id);
+                    ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, frontmatter.getOrDefault("title", "missing"), modId));
+                }
+                
+                // frontmatter custom item links indexing
+                if (frontmatter.containsKey("related_items")) {
+                    var baseString = frontmatter.get("related_items").replace("[", "").replace("]", "");
+                    for (var itemString : baseString.split(", ")) {
+                        var itemId = Identifier.of(itemString.trim());
+                        ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, frontmatter.getOrDefault("title", "missing"), modId));
                     }
                 }
-                if (fileComponents.containsKey("unlock")) {
-                    var unlockText = fileComponents.get("unlock");
-                    var unlockParts = unlockText.split(":", 2);
-                    if (unlockParts.length == 2) {
-                        var unlockType = unlockParts[0];
-                        var unlockContent = unlockParts[1];
-                        UNLOCK_CRITERIONS.put(resourceId.getPath(), new Pair<>(unlockType, unlockContent));
+                
+                if (frontmatter.containsKey("unlock")) {
+                    var unlockText = frontmatter.get("unlock");
+                    var parts = unlockText.split(":", 2);
+                    if (parts.length == 2) {
+                        UNLOCK_CRITERIONS.put(path, new Pair<>(parts[0], parts[1]));
                     }
                 }
                 
             } catch (IOException e) {
-                Oracle.LOGGER.error("Unable to load wiki with id: " + resourceId);
-                throw new RuntimeException(e);
+                Oracle.LOGGER.error("Unable to load book entry: {}", resourceId, e);
             }
-            
-            LOADED_WIKIS.add(modId);
         }
     }
     
