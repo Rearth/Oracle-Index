@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -125,7 +126,14 @@ public class SemanticSearch {
             
             var id = match.embedded().metadata().getString("wiki") + ":" + match.embedded().metadata().getString("category") + match.embedded().metadata().getString("fileName");
             var title = match.embedded().metadata().getString("title");
-            if (title == null) title = "No title";
+            if (title == null) {
+                var frontmatter = new HashMap<String, String>();
+                for (var data : match.embedded().metadata().toMap().entrySet()) {
+                    if (data.getValue() instanceof String value)
+                        frontmatter.put(data.getKey(), value);
+                }
+                title = MarkdownParser.getTitle(frontmatter, Identifier.of(id));
+            }
             
             // check if id already exists, add it to alt texts
             var existingCandidate = results.stream().filter(result -> result.id.equals(Identifier.of(id))).findFirst();

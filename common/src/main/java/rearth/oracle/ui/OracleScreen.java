@@ -3,6 +3,7 @@ package rearth.oracle.ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.mojang.blaze3d.systems.RenderSystem;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.ItemComponent;
@@ -12,6 +13,7 @@ import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
+import io.wispforest.owo.ui.util.NinePatchTexture;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ConfirmLinkScreen;
@@ -35,14 +37,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
 public class OracleScreen extends BaseOwoScreen<FlowLayout> {
+    
+    public static final HashMap<Identifier, String> PAGE_FALLBACK_NAMES = new HashMap<>();  // used to store the name defined in the meta json for each entry, in case the page itself doesnt have a title or id in frontmatter
     
     private FlowLayout navigationBar;
     private FlowLayout contentContainer;
@@ -204,7 +205,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         final var finalFilePath = filePath;
-        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, wikiId, link -> onLinkClicked(wikiId, link, finalFilePath));
+        var parsedTexts = MarkdownParser.parseMarkdownToOwoComponents(fileContent, wikiId, filePath, link -> onLinkClicked(wikiId, link, finalFilePath));
         
         for (var paragraph : parsedTexts) {
             
@@ -249,31 +250,37 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     private boolean onLinkClicked(String wikiId, String link, Identifier sourceEntryPath) {
         
         try {
-            // links can either point to the internet, or to another entry in the wiki
-            if (link.startsWith("http")) {
+            // handle web (yeah I don't want to open any http sides intentionally)
+            if (link.startsWith("https")) {
                 return tryOpenWebLink(link);
-            } else {
-                return tryOpenWikiLink(wikiId, link, sourceEntryPath);
             }
+            
+            // handle ingame targets
+            var ingameTarget = MarkdownParser.getLinkTarget(link, wikiId, sourceEntryPath);
+            if (ingameTarget != null) {
+                loadContentContainer(ingameTarget, wikiId);
+                return true;
+            }
+            
+            // handle minecraft wiki. Default namespace is minecraft.
+            if (link.startsWith("@") || link.contains(":")) {  // reference content by id
+                var id = link.startsWith("@") ? link.substring(1) : link;
+                if (id.startsWith("minecraft") || !id.contains(":")) {
+                    var webLink = "https://minecraft.wiki/w/" + id.replace("minecraft:", "");
+                    try {
+                        return tryOpenWebLink(webLink);
+                    } catch (URISyntaxException e) {
+                        return false;
+                    }
+                }
+            }
+            
+            return false;
         } catch (Exception e) {
             Oracle.LOGGER.error("Oracle Index: Could not find/open link {}", link);
             Oracle.LOGGER.error(e.getMessage());
             return false;
         }
-    }
-    
-    private boolean tryOpenWikiLink(String wikiId, String link, Identifier sourceEntryPath) throws IOException {
-        var newPathString = parsePathLink(link, sourceEntryPath);
-        
-        // add extension if missing. Theoretically links without file ending would be valid/used in some cases
-        if (!newPathString.endsWith(".mdx")) {
-            newPathString += ".mdx";
-        }
-        
-        var newId = Identifier.of(Oracle.MOD_ID, newPathString);
-        
-        loadContentContainer(newId, wikiId);
-        return true;
     }
     
     private boolean tryOpenWebLink(String link) throws URISyntaxException {
@@ -291,25 +298,6 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         MinecraftClient.getInstance().setScreen(confirmScreen);
         return true;
-    }
-    
-    private @NotNull String parsePathLink(String link, Identifier sourceEntryPath) {
-        
-        // anchors inside the page are not supported
-        var cleanLink = link.split("#")[0];
-        
-        var currentPathObj = Path.of(sourceEntryPath.getPath());
-        var currentParentDir = currentPathObj.getParent();
-        
-        if (currentParentDir == null) {
-            currentParentDir = Path.of("");
-        }
-        
-        // this should resolve "../" and the sorts automatically
-        var resolvedPath = currentParentDir.resolve(cleanLink).normalize();
-        
-        // convert back to string and ensure forward slashes (might only be needed on windows?)
-        return resolvedPath.toString().replace("\\", "/");
     }
     
     private void buildModNavigation(FlowLayout buttonContainer) {
@@ -406,8 +394,8 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     private void addModeSelector(FlowLayout navBar) {
         var container = Containers.horizontalFlow(Sizing.content(), Sizing.content());
         
-        var docsButton = createModeButton("Docs", "docs");
-        var contentButton = createModeButton("Content", "content");
+        var docsButton = createModeButton("docs");
+        var contentButton = createModeButton("content");
         
         container.child(docsButton);
         container.child(contentButton);
@@ -416,8 +404,11 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
     }
     
-    private Component createModeButton(String label, String mode) {
-        var text = Text.literal(label).formatted(Formatting.GOLD);
+    private Component createModeButton(String mode) {
+        
+        var isActive = !activeWikiMode.equals(mode);
+        
+        var text = Text.translatable("oracle_index.button." + mode).formatted(isActive ? Formatting.DARK_GRAY : Formatting.WHITE);
         var comp = Components.button(text, elem -> {
             if (!activeWikiMode.equals(mode)) {
                 // switch mode
@@ -427,7 +418,20 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             }
         });
         
-        comp.margins(Insets.of(2));
+        comp.renderer((matrices, button, delta) -> {
+            RenderSystem.enableDepthTest();
+            
+            var texture = button.active
+                            ? button.isHovered() ? Identifier.of(Oracle.MOD_ID, "bedrock_panel_hover") : Identifier.of(Oracle.MOD_ID, "bedrock_panel")
+                            : Identifier.of(Oracle.MOD_ID, "bedrock_panel_disabled");
+            NinePatchTexture.draw(texture, matrices, button.getX(), button.getY(), button.getWidth(), button.getHeight());
+        });
+        
+        comp.margins(Insets.of(0));
+        comp.textShadow(false);
+        comp.setWidth(60);
+        
+        comp.active(isActive);
         
         return comp;
     }
@@ -455,15 +459,6 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         try {
             var metaFile = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             var entries = parseJson(metaFile);
-            
-            if (activeEntry == null) {
-                var firstEntry = entries.stream().filter(elem -> !elem.directory).findFirst();
-                if (firstEntry.isPresent()) {
-                    var firstEntryPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + firstEntry.get().id());
-                    loadContentContainer(firstEntryPath, wikiId);
-                    activeEntry = firstEntryPath;
-                }
-            }
             
             var levelContainers = new ArrayList<ColoredCollapsibleContainer>();
             
@@ -504,12 +499,15 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                         var contentCandidate = resourceManager.getResource(labelPath);
                         if (contentCandidate.isEmpty()) {
                             Oracle.LOGGER.warn("Unable to get content for name from frontmatter for entry: {}", labelPath);
+                            shownName = "<ERROR>";
                         } else {
                             var fileContent = new String(contentCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                             var frontMatter = MarkdownParser.parseFrontmatter(fileContent);
-                            shownName = MarkdownParser.getTitleFromDocument(frontMatter);
+                            shownName = MarkdownParser.getTitle(frontMatter, labelPath);
                         }
                     }
+                    
+                    PAGE_FALLBACK_NAMES.put(labelPath, shownName);
                     
                     final var labelText = Text.translatable(shownName).formatted(Formatting.WHITE);
                     final var label = Components.label(labelText.formatted(Formatting.UNDERLINE));
@@ -546,6 +544,16 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
                     container.child(label);
                 }
             }
+            
+            if (activeEntry == null) {
+                var firstEntry = entries.stream().filter(elem -> !elem.directory).findFirst();
+                if (firstEntry.isPresent()) {
+                    var firstEntryPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + firstEntry.get().id());
+                    loadContentContainer(firstEntryPath, wikiId);
+                    activeEntry = firstEntryPath;
+                }
+            }
+            
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -578,6 +586,25 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         }
         return entries;
         
+    }
+    
+    public static @NotNull String parsePathLink(String link, Identifier sourceEntryPath) {
+        
+        // anchors inside the page are not supported
+        var cleanLink = link.split("#")[0];
+        
+        var currentPathObj = Path.of(sourceEntryPath.getPath());
+        var currentParentDir = currentPathObj.getParent();
+        
+        if (currentParentDir == null) {
+            currentParentDir = Path.of("");
+        }
+        
+        // this should resolve "../" and the sorts automatically
+        var resolvedPath = currentParentDir.resolve(cleanLink).normalize();
+        
+        // convert back to string and ensure forward slashes (might only be needed on windows?)
+        return resolvedPath.toString().replace("\\", "/");
     }
     
     public record MetaJsonEntry(String id, String name, boolean directory) {

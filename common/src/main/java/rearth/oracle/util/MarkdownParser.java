@@ -23,10 +23,14 @@ import org.commonmark.ext.front.matter.YamlFrontMatterExtension;
 import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
+import org.jetbrains.annotations.Nullable;
 import rearth.oracle.Oracle;
+import rearth.oracle.OracleClient;
+import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.components.ScalableLabelComponent;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -61,7 +65,7 @@ public class MarkdownParser {
                                            .customBlockParserFactory(new MdxBlockFactory())
                                            .build();
     
-    public static List<Component> parseMarkdownToOwoComponents(String markdown, String wikiId, Predicate<String> linkHandler) {
+    public static List<Component> parseMarkdownToOwoComponents(String markdown, String wikiId, Identifier currentPath, Predicate<String> linkHandler) {
         
         // some html blocks are not supported, and are removed to allow the markdown parser to actually work
         for (var toRemove : removedLines) {
@@ -74,11 +78,11 @@ public class MarkdownParser {
         
         var frontMatter = parseFrontmatter(markdown);
         
-        var visitor = new OwoMarkdownVisitor(linkHandler, wikiId);
+        var visitor = new OwoMarkdownVisitor(linkHandler, wikiId, currentPath);
         document.accept(visitor);
         
         var components = new ArrayList<Component>();
-        components.add(getTitlePanel(linkHandler, frontMatter));
+        components.add(getTitlePanel(linkHandler, frontMatter, currentPath));
         components.addAll(visitor.getResultComponents());
         
         return components;
@@ -88,15 +92,17 @@ public class MarkdownParser {
         
         private final Predicate<String> linkHandler;
         private final String wikiId;
+        private final Identifier contentPath;
         
         private List<Component> components = new ArrayList<>();
         private MutableText buffer = Text.empty();
         private Style currentStyle = Style.EMPTY;
         private int currentIndentation = 0;
         
-        private OwoMarkdownVisitor(Predicate<String> linkHandler, String wikiId) {
+        private OwoMarkdownVisitor(Predicate<String> linkHandler, String wikiId, Identifier contentPath) {
             this.linkHandler = linkHandler;
             this.wikiId = wikiId;
+            this.contentPath = contentPath;
         }
         
         public List<Component> getResultComponents() {
@@ -129,7 +135,7 @@ public class MarkdownParser {
             buffer = Text.empty();
             
             var oldStyle = currentStyle;
-            currentStyle = currentStyle.withBold(true).withColor(Formatting.GOLD);
+            currentStyle = currentStyle.withColor(Formatting.GRAY);
             
             visitChildren(heading);
             
@@ -273,6 +279,13 @@ public class MarkdownParser {
             var clickEvent = new ClickEvent(ClickEvent.Action.OPEN_URL, link.getDestination());
             currentStyle = currentStyle.withColor(Formatting.BLUE).withUnderline(true).withClickEvent(clickEvent);
             
+            if (link.getFirstChild() == null && (link.getTitle() == null || link.getTitle().isBlank())) {
+                
+                var linkTitle = getLinkText(link.getDestination(), wikiId, contentPath);
+                
+                buffer.append(Text.literal(linkTitle).setStyle(currentStyle));
+            }
+            
             // visit children to allow formatting
             visitChildren(link);
             
@@ -303,8 +316,65 @@ public class MarkdownParser {
         }
     }
     
+    public static String getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+        
+        var linkTarget = getLinkTarget(link, activeWikiId, sourceEntryPath);
+        if (linkTarget == null) return "<invalid link>";
+        
+        var resourceManager = MinecraftClient.getInstance().getResourceManager();
+        var resourceCandidate = resourceManager.getResource(linkTarget);
+        if (resourceCandidate.isEmpty()) {
+            return "<invalid link>";
+        }
+        
+        try {
+            var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            var frontMatter = parseFrontmatter(fileContent);
+            return getTitle(frontMatter, sourceEntryPath);
+        } catch (IOException e) {
+            Oracle.LOGGER.warn("Unable to load file content to get link title: {}, {}", linkTarget, e);
+            return "<invalid link>";
+        }
+        
+    }
+    
+    @Nullable
+    public static Identifier getLinkTarget(String link, String activeWikiId, Identifier sourceEntryPath) {
+        
+        Identifier targetFile = null;
+        
+        if (link.startsWith("@") || link.contains(":")) {  // reference content by id
+            var id = link.startsWith("@") ? link.substring(1) : link;
+            
+            if (OracleClient.CONTENT_ID_MAP.containsKey(id)) {
+                targetFile = OracleClient.CONTENT_ID_MAP.get(id);
+            }
+            
+        } else if (link.startsWith("$")) {  // references docs by path
+            var newPathString = "books/" + activeWikiId + "/" + link.substring(1);
+            
+            if (!newPathString.endsWith(".mdx")) {
+                newPathString += ".mdx";
+            }
+            
+            targetFile = Identifier.of(Oracle.MOD_ID, newPathString);
+        } else {
+            // default relative links
+            var newPathString = OracleScreen.parsePathLink(link, sourceEntryPath);
+            
+            // add extension if missing. Theoretically links without file ending would be valid/used in some cases
+            if (!newPathString.endsWith(".mdx")) {
+                newPathString += ".mdx";
+            }
+            
+            targetFile = Identifier.of(Oracle.MOD_ID, newPathString);
+        }
+        
+        return targetFile;
+    }
+    
     // tries to get the title from either the title field, or them item name from the id field, or just the id
-    public static String getTitleFromDocument(Map<String, String> frontMatter) {
+    public static String getTitle(Map<String, String> frontMatter, Identifier pagePath) {
         
         if (frontMatter.containsKey("title")) {
             return frontMatter.get("title");
@@ -315,13 +385,11 @@ public class MarkdownParser {
             } else {
                 return item;
             }
-        } else {
-            return "No title found";
-        }
+        } else return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, "No title found");
         
     }
     
-    private static FlowLayout getTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter) {
+    private static FlowLayout getTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter, Identifier pageId) {
         
         var combinedPanel = Containers.horizontalFlow(Sizing.fill(), Sizing.content());
         combinedPanel.margins(Insets.of(2, 10, 0, 0));
@@ -331,8 +399,9 @@ public class MarkdownParser {
         titlePanel.surface(ORACLE_PANEL);
         combinedPanel.child(titlePanel.positioning(Positioning.absolute(48 + 6, 7)));
         
-        var title = getTitleFromDocument(frontMatter);
+        var title = getTitle(frontMatter, pageId);
         var iconId = frontMatter.getOrDefault("icon", "");
+        if (iconId.isBlank()) iconId = frontMatter.getOrDefault("id", "");
         if (Identifier.validate(iconId).isSuccess()) {
             // try find item
             if (Registries.ITEM.containsId(Identifier.of(iconId))) {

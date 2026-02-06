@@ -197,7 +197,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
             
             // process first non-empty paragraph
             for (var text : result.texts()) {
-                var paragraphs = MarkdownParser.parseMarkdownToOwoComponents(text, result.id().getNamespace(), string -> false);
+                var paragraphs = MarkdownParser.parseMarkdownToOwoComponents(text, result.id().getNamespace(), result.id(), string -> false);
                 
                 if (paragraphs.getFirst() instanceof BaseParentComponent parentComponent)
                     paragraphs.addAll(parentComponent.children());

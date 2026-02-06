@@ -29,17 +29,17 @@ import java.util.Set;
 
 /* steps for content wiki:
 
-- Option to also display content in navigation bar
-- Init check to see which wiki modes are available
-- Button to toggle current mode on navigation (if both available)
+- Option to also display content in navigation bar X
+- Init check to see which wiki modes are available X
+- Button to toggle current mode on navigation (if both available) X
 - Add button to go to last page. Also add button to close wiki screen.
-- Handle [linkname](@modid:item) to resolve content links. Create id caches in init()
-- Handle [linkname](@item) to resolve to minecraft wiki links
-- Handle [linkname]($path/to/page) to resolve to docu links.
+- Handle [linkname](@modid:item) to resolve content links. Create id caches in init() X
+- Handle [linkname](@item) to resolve to minecraft wiki links X
+- Handle [linkname]($path/to/page) to resolve to docu links. X
 - Handle ![](@asset) to handle images (either ingame images or from .assets)
 - Add infobox to content entries, with grid on top of page. Collect properties from ingame registries only.
 - PrefabObtaining is skipped / ignored for now.
-- Update search to also work with content
+- Update search to also work with content X
 
 */
 public final class OracleClient {
@@ -54,7 +54,6 @@ public final class OracleClient {
     public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
     public static final HashMap<String, Set<String>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
     public static final HashMap<String, Identifier> CONTENT_ID_MAP = new HashMap<>();// item / block id -> resource path (e.g., "oritech:enderic_laser" -> "oracle_index:books/oritech/.content/machines/laser.mdx")
-    
     
     public static ItemStack tooltipStack;
     public static float openEntryProgress = 0;
