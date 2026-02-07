@@ -7,7 +7,9 @@ import io.wispforest.owo.ui.util.Delta;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.resource.language.I18n;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
 import net.minecraft.resource.SynchronousResourceReloader;
@@ -153,7 +155,10 @@ public final class OracleClient {
                     var id = frontmatter.get("id").trim();
                     CONTENT_ID_MAP.put(id, resourceId);
                     var itemId = Identifier.of(id);
-                    ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, frontmatter.getOrDefault("title", "missing"), modId));
+                    var title = frontmatter.getOrDefault("title", "missing");
+                    if (title.equals("missing") && Registries.ITEM.containsId(itemId))
+                        title = I18n.translate(Registries.ITEM.get(itemId).getTranslationKey());
+                    ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, title, modId));
                 }
                 
                 // frontmatter custom item links indexing
