@@ -44,9 +44,11 @@
 ## About The Project
 
 A simple ingame wiki / documentation viewer, built for neoforge and fabric 1.21. Uses the same formatting / directory layout as https://moddedmc.wiki/,
-so mod wikis can be created for both ingame usage and online view without having to rewrite the pages.
+so mod wikis can be created for both ingame usage and online view without having to rewrite the pages. Support both documentation and content wikis.
+If both are found in a wiki, it'll include a button to switch in the navigation panel.
 
-Includes a basic markdown parser for the content, and support for some custom html tags similar to moddedmc.wiki. Relevant items can be defined per wiki page, allowing
+Includes a basic markdown parser for the content, and support for some custom html tags similar to moddedmc.wiki. 
+Relevant items can be defined per wiki page, allowing
 the users to directly open the relevant wiki pages from the items tooltip.
 
 Features:

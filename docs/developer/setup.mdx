@@ -6,7 +6,7 @@ This page is aimed at developers that want their wiki to be accessible via the o
 
 ## Project Setup
 1. Create your wiki directory / content layout as normal, following the instructions of moddedmc.wiki
-2. Make sure you have _meta.json files with entries for **all** your content. The oracle index uses the meta.json files to build the
+2. Make sure you have _meta.json files with entries for **all** your content. Oracle Index uses the meta.json files to build the
 navigation bar.
 3. Copy the entire wiki to your mods resources folder. This can be automated, see [auto gradle sync](../developer/gradle_task). The correct path is: "resources/assets/oracle_index/books/your-mod-id/".
 5. The oracle index will automatically load your mods resources.
@@ -17,7 +17,10 @@ The resulting directory tree should look like this:
 <ModAsset location="oracle-index:folder_layout" width={600} />
 </center>
 
-There is no hot-reloading. Use the moddedmc.wiki live preview to create your wiki contents.
+There is no hot-reloading. Use the moddedmc.wiki live preview to create your wiki contents. However a resource reload will refresh the content ingame.
+
+The ingame wiki resources can be added through resource packs (which may also be contained inside mods). Take a look at the oritech repo for an example
+of how to set things up.
 
 ### Limitations
 The Oracle Index only includes a primitive markdown parser. This means that most html tags are not supported.
@@ -27,8 +30,9 @@ ignored, and will not be displayed at all.
 
 If you want to use other html tags, feel free to open a PR.
 
-If a `<ModAsset>` image matches an existing ingame item, the actual ingame item (or blockitem) will be displayed instead. This means that you don't need to include the rendered textures of your items.
-All images are expected in the ".assets/modid/" folder, not the ".assets/item/modid" subfolder.
+If a `<ModAsset>` (or item asset) image matches an existing ingame item, the actual ingame item (or blockitem) will be displayed instead. This means that you don't need to include the rendered textures of your items.
+All images are expected in the ".assets/modid/" folder, not the ".assets/item/modid" subfolder. Content wikis will have their item properties collected
+from the ingame registries, instead of using the predefined json files.
 
 If you have something in a paragraph that you don't want to display inside the ingame wiki (e.g. a table or other not-supported element), you can wrap the paragraph in a div like this:
 `<div onlineOnly="true" >`
@@ -45,13 +49,15 @@ related_items: [oritech:basic_generator_block, oritech:bio_generator_block, orit
 Here would be your content.
 ```
 
+These links will automatically be generated for content wiki entries.
+
 ### Custom Book / Opening the Screens
 Oracle Index does not come with a guide book by default. However, in your mod, you can very easily just add a new book item, and open the desired screen when the book is used.
 You could also open the book via other mechanisms, such as a button in another screen.
 
 Call the following code on the client side:
 ```
-OracleScreen.activeBook = "oracle-index";   // your book name
-OracleScreen.activeEntry = "oracle_index:books/oracle-index/user_guide.mdx";    // your modId + filepath
-MinecraftClient.getInstance().setScreen(new OracleScreen());
+// Oritech is the wiki name here.
+// The second parameter is the entry to open. The namespace is always "oracle_index"
+OracleClient.openScreen("oritech", "oracle_index:books/oritech/intro.mdx");
 ```

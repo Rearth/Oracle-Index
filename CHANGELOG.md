@@ -1,3 +1,10 @@
-- Add page unlocking feature, available via API or with default advancement unlocker
-- Fix search crash on invalid math expressions
-- Fix search screen stuck on indexing on some platforms
+- Add support for content wikis (with switch in navbar)
+- Add support for web links (with confirmation screen)
+- Add support for other link types
+- Add support for item/block property displays in content wikis
+- Add resource reload listener to be able to update wikis ingame
+- Add back button to UI
+- Add close button to UI
+- Migrate markdown parsing to commonmark, massively improving robustness and compatibility
+- Lots of small bugfixes and improvements
+- Lots of internal refactoring. External API methods are still the same, but lots of internals have changed

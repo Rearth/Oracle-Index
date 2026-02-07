@@ -29,11 +29,6 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-/* steps for content wiki:
-
-- Add button to go to last page. Also add button to close wiki screen. Maybe near / added to the search button?
-
-*/
 public final class OracleClient {
     
     public static final String ROOT_DIR = "books";   // wikis would be more fitting, but this is kept for compat reasons

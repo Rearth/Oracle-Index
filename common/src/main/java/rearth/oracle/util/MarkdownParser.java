@@ -244,8 +244,6 @@ public class MarkdownParser {
                 components.add(createCalloutUI(callout.variant, innerComponents));
                 
             }
-            
-            // todo handle "PrefabObtainingBlock", whatever that is
         }
         
         @Override
