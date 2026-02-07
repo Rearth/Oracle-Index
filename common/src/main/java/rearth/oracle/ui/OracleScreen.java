@@ -399,6 +399,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         
         container.child(docsButton);
         container.child(contentButton);
+        container.horizontalAlignment(HorizontalAlignment.CENTER);
         
         navBar.child(container);
         
@@ -427,7 +428,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             NinePatchTexture.draw(texture, matrices, button.getX(), button.getY(), button.getWidth(), button.getHeight());
         });
         
-        comp.margins(Insets.of(0));
+        comp.margins(Insets.of(2, 4, 0, 0));
         comp.textShadow(false);
         comp.setWidth(60);
         

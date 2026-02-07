@@ -246,6 +246,8 @@ public class MarkdownParser {
             // flush existing text
             flushBuffer();
             
+            components.add(createImageUI(image.getDestination(), "60%", wikiId, true));
+            
             Oracle.LOGGER.warn("detected non-asset image tag: {}", image.getDestination());
         }
         
@@ -532,6 +534,10 @@ public class MarkdownParser {
     public static Component createImageUI(String location, String widthSource, String wikiId, boolean isModAsset) {
         var width = convertImageWidth(widthSource);
         if (width <= 0) width = 0.5f;
+        
+        if (location.startsWith("@")) {
+            location = location.substring(1);
+        }
         
         // case 1: ingame item
         var itemIdCandidate = Identifier.of(location);
