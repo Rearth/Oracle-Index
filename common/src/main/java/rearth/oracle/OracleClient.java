@@ -31,17 +31,7 @@ import java.util.Set;
 
 /* steps for content wiki:
 
-- Option to also display content in navigation bar X
-- Init check to see which wiki modes are available X
-- Button to toggle current mode on navigation (if both available) X
-- Add button to go to last page. Also add button to close wiki screen.
-- Handle [linkname](@modid:item) to resolve content links. Create id caches in init() X
-- Handle [linkname](@item) to resolve to minecraft wiki links X
-- Handle [linkname]($path/to/page) to resolve to docu links. X
-- Handle ![](@asset) to handle images (either ingame images or from .assets)
-- Add infobox to content entries, with grid on top of page. Collect properties from ingame registries only.
-- PrefabObtaining is skipped / ignored for now.
-- Update search to also work with content X
+- Add button to go to last page. Also add button to close wiki screen. Maybe near / added to the search button?
 
 */
 public final class OracleClient {

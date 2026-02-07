@@ -5,10 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
-import io.wispforest.owo.ui.component.Components;
-import io.wispforest.owo.ui.component.ItemComponent;
-import io.wispforest.owo.ui.component.LabelComponent;
-import io.wispforest.owo.ui.component.TextureComponent;
+import io.wispforest.owo.ui.component.*;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.ScrollContainer;
@@ -18,8 +15,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ConfirmLinkScreen;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -38,6 +33,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Consumer;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
@@ -52,8 +48,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     private ScrollContainer<FlowLayout> outerContentContainer;
     
     private final Screen parent;
+    private final Stack<Identifier> navigationHistory = new Stack<>();
     
     private boolean needsLayout = false;
+    private boolean inHistory = false;
     
     
     // Helper to track the currently active mode for the UI
@@ -63,6 +61,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
     public static String activeWiki;
     
     private static final int wideContentWidth = 50; // in %
+    private ButtonComponent backAction;
     
     public OracleScreen() {
         this.parent = null;
@@ -114,28 +113,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         var outerNavigationBarContainer = Containers.verticalScroll(Sizing.content(3), Sizing.fill(80), navigationBar);
         leftPanel.child(outerNavigationBarContainer);
         
-        // search icon
-        var searchContainer = Containers.horizontalFlow(Sizing.content(), Sizing.content());
-        searchContainer.surface(MarkdownParser.ORACLE_PANEL);
-        searchContainer.margins(Insets.of(6, 6, 6, 6));
-        searchContainer.padding(Insets.of(4, 6, 4, 4));
-        searchContainer.positioning(Positioning.relative(99, 99));
-        
-        searchContainer.mouseDown().subscribe(((mouseX, mouseY, button) -> {
-            MinecraftClient.getInstance().setScreen(new SearchScreen(this));
-            return true;
-        }));
-        
-        searchContainer.mouseEnter().subscribe(() -> searchContainer.surface(MarkdownParser.ORACLE_PANEL_HOVER));
-        searchContainer.mouseLeave().subscribe(() -> searchContainer.surface(MarkdownParser.ORACLE_PANEL));
-        
-        var searchIcon = Components.item(new ItemStack(Items.SPYGLASS));
-        searchIcon.sizing(Sizing.fixed(24));
-        searchIcon.tooltip(Text.translatable("tooltip.oracle_index.open_search", OracleClient.ORACLE_WIKI.getBoundKeyLocalizedText(), OracleClient.ORACLE_SEARCH.getBoundKeyLocalizedText()));
-        
-        searchContainer.child(searchIcon);
-        
-        rootComponent.child(searchContainer.zIndex(5));
+        createActionHub(rootComponent);
     }
     
     @Override
@@ -180,13 +158,106 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             this.updateLayout();
         }
         
-//        if (Screen.hasControlDown()) {
-//            Oracle.LOGGER.info("Opening Oracle Search...");
-//            Objects.requireNonNull(client).setScreen(new SearchScreen(this));
-//        }
+        if (Screen.hasControlDown()) {
+            Oracle.LOGGER.info("Opening Oracle Search...");
+            Objects.requireNonNull(client).setScreen(new SearchScreen(this));
+        }
+    }
+    
+    // small container on the bottom right (for back, search, exit)
+    private void createActionHub(FlowLayout rootComponent) {
+        
+        // collection container
+        var actionHub = Containers.horizontalFlow(Sizing.content(), Sizing.content());
+        actionHub.positioning(Positioning.relative(99, 99));
+        actionHub.margins(Insets.of(3));
+        
+        backAction = createHubAction(
+          Text.translatable("tooltip.oracle_index.back"),
+          Identifier.ofVanilla("textures/gui/sprites/widget/page_backward.png"),
+          23, 13,
+          button -> back(),
+          24,
+          20
+        );
+        backAction.visible = !navigationHistory.isEmpty();
+        backAction.margins(Insets.of(2, 0, 0, -1));
+        
+        
+        var searchAction = createHubAction(
+          Text.translatable("tooltip.oracle_index.open_search", OracleClient.ORACLE_WIKI.getBoundKeyLocalizedText(), OracleClient.ORACLE_SEARCH.getBoundKeyLocalizedText()),
+          Identifier.ofVanilla("textures/gui/sprites/icon/search.png"),
+          16, 16,
+          button -> MinecraftClient.getInstance().setScreen(new SearchScreen(this)),
+          24,
+          24
+        );
+        
+        var closeAction = createHubAction(
+          Text.translatable("tooltip.oracle_index.close_screen"),
+          Identifier.ofVanilla("textures/gui/sprites/container/beacon/cancel.png"),
+          13, 13,
+          button -> close(),
+          20,
+          20
+        );
+        closeAction.margins(Insets.of(2, 0, -1, 0));
+        
+        actionHub.child(backAction);
+        actionHub.child(searchAction);
+        actionHub.child(closeAction);
+        rootComponent.child(actionHub.zIndex(5));
+    }
+    
+    // create a button with a custom texture renderer
+    private ButtonComponent createHubAction(Text tooltip, Identifier iconTexture, int texW, int texH, Consumer<ButtonComponent> onPress, int width, int height) {
+        
+        var main = Components.button(Text.empty(), onPress);
+        main.sizing(Sizing.fixed(width), Sizing.fixed(height));
+        main.tooltip(tooltip);
+        
+        main.renderer((matrices, button, delta) -> {
+            RenderSystem.enableDepthTest();
+            
+            var texture = button.active
+                            ? button.isHovered() ? Identifier.of(Oracle.MOD_ID, "bedrock_panel_hover") : Identifier.of(Oracle.MOD_ID, "bedrock_panel")
+                            : Identifier.of(Oracle.MOD_ID, "bedrock_panel_disabled");
+            NinePatchTexture.draw(texture, matrices, button.getX(), button.getY(), button.getWidth(), button.getHeight());
+            
+            // calculate mid
+            int x = button.x() + (button.width() - texW) / 2 + 1;
+            int y = button.y() + (button.height() - texH) / 2 - 1;
+            
+            if (button.isHovered())
+                y += 1;
+            
+            matrices.drawTexture(iconTexture, x, y, 0, 0, texW, texH, texW, texH);
+        });
+        
+        return main;
+    }
+    
+    private void back() {
+        
+        if (navigationHistory.isEmpty()) return;
+        
+        var target = navigationHistory.pop();
+        
+        try {
+            inHistory = true;
+            loadContentContainer(target, activeWiki);
+            inHistory = false;
+        } catch (IOException e) {
+            Oracle.LOGGER.error("unable to open page from history: {}", e.getMessage());
+        }
+        
+        backAction.visible = !navigationHistory.isEmpty();
+        
     }
     
     private void loadContentContainer(Identifier filePath, String wikiId) throws IOException {
+        
+        var lastEntry = activeEntry;
         
         contentContainer.clearChildren();
         activeEntry = filePath;
@@ -202,6 +273,13 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             Oracle.LOGGER.warn("No content file found for {}", filePath);
             return;
         }
+        
+        // update history
+        if (lastEntry != null && lastEntry != activeEntry && !inHistory && (navigationHistory.isEmpty() || !navigationHistory.peek().equals(lastEntry)))
+            navigationHistory.push(lastEntry);
+        
+        if (backAction != null)
+            backAction.visible = !navigationHistory.isEmpty();
         
         var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         final var finalFilePath = filePath;
