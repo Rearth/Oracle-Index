@@ -338,7 +338,7 @@ public class MarkdownParser {
         try {
             var fileContent = new String(resourceCandidate.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             var frontMatter = parseFrontmatter(fileContent);
-            return getTitle(frontMatter, sourceEntryPath);
+            return getTitle(frontMatter, linkTarget);
         } catch (IOException e) {
             Oracle.LOGGER.warn("Unable to load file content to get link title: {}, {}", linkTarget, e);
             return "<invalid link>";
