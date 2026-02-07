@@ -222,7 +222,7 @@ remapJar {
 publishMods {
     file = remapJar.archiveFile
     changelog = file("../CHANGELOG.md").getText()
-    type = BETA
+    type = STABLE
     modLoaders.add("fabric")
 
     modrinth {
