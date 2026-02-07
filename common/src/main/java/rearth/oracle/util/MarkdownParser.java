@@ -83,6 +83,14 @@ public class MarkdownParser {
         
         var components = new ArrayList<Component>();
         components.add(getTitlePanel(linkHandler, frontMatter, currentPath));
+        
+        if (frontMatter.containsKey("id")) {
+            var gameId = frontMatter.get("id");
+            var id = Identifier.of(gameId);
+            if (Registries.ITEM.containsId(id) || Registries.BLOCK.containsId(id))
+                components.add(createPropertiesUI(ContentProperties.getProperties(gameId)));
+        }
+        
         components.addAll(visitor.getResultComponents());
         
         return components;
@@ -247,8 +255,6 @@ public class MarkdownParser {
             flushBuffer();
             
             components.add(createImageUI(image.getDestination(), "60%", wikiId, true));
-            
-            Oracle.LOGGER.warn("detected non-asset image tag: {}", image.getDestination());
         }
         
         // inline nodes
@@ -581,6 +587,35 @@ public class MarkdownParser {
         }
     }
     
+    // creates a grid that contains the properties
+    private static Component createPropertiesUI(Map<String, Text> properties) {
+        
+        var outer = Containers.verticalFlow(Sizing.fill(80), Sizing.content());
+        outer.surface(ORACLE_PANEL_DARK);
+        outer.padding(Insets.of(10));
+        outer.margins(Insets.bottom(15));
+        outer.horizontalAlignment(HorizontalAlignment.CENTER);
+        
+        // title
+        outer.child(Components.label(Text.literal("Details").formatted(Formatting.BOLD, Formatting.GRAY)).margins(Insets.bottom(8)));
+        
+        var grid = Containers.grid(Sizing.fill(), Sizing.content(), properties.size(), 2);
+        
+        int row = 0;
+        for (var entry : properties.entrySet()) {
+            var key = Components.label(Text.literal(entry.getKey()).formatted(Formatting.GOLD));
+            var value = Components.label(entry.getValue());
+            value.horizontalSizing(Sizing.fill(45));
+            
+            // key on left, property on right
+            grid.child(key.horizontalTextAlignment(HorizontalAlignment.LEFT), row, 0);
+            grid.child(value.horizontalTextAlignment(HorizontalAlignment.RIGHT), row, 1);
+            row++;
+        }
+        
+        outer.child(grid);
+        return outer;
+    }
     
     public static Map<String, String> parseFrontmatter(String markdown) {
         

@@ -180,10 +180,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
             this.updateLayout();
         }
         
-        if (Screen.hasControlDown()) {
-            Oracle.LOGGER.info("Opening Oracle Search...");
-            Objects.requireNonNull(client).setScreen(new SearchScreen(this));
-        }
+//        if (Screen.hasControlDown()) {
+//            Oracle.LOGGER.info("Opening Oracle Search...");
+//            Objects.requireNonNull(client).setScreen(new SearchScreen(this));
+//        }
     }
     
     private void loadContentContainer(Identifier filePath, String wikiId) throws IOException {
