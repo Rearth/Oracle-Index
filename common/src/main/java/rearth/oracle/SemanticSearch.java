@@ -20,10 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
@@ -33,10 +30,8 @@ public class SemanticSearch {
     private AllMiniLmL6V2QuantizedEmbeddingModel embeddingModel;
     private EmbeddingStoreIngestor ingestor;
     
-    private final AtomicLong TOTAL_EMBEDDING_TIME = new AtomicLong(0);
-    private final AtomicInteger PENDING_JOBS = new AtomicInteger(0);
-    
     public static AtomicBoolean EMBEDDING_ERRORED = new AtomicBoolean(false);
+    public static AtomicBoolean FINISHED = new AtomicBoolean(false);
     
     public SemanticSearch() {
         
@@ -44,6 +39,9 @@ public class SemanticSearch {
         new Thread(() -> {
             
             try {
+                
+                Oracle.LOGGER.info("Starting search indexing in background thread");
+                var startedAt = System.nanoTime();
                 
                 embeddingStore = new InMemoryEmbeddingStore<>();
                 
@@ -84,11 +82,17 @@ public class SemanticSearch {
                         // generate embeddings
                         this.queueEmbeddingsJob(modId, entryDirectory, entryFileName, fileComponents, fileContent);
                         
+                        
                     } catch (IOException e) {
                         Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
                         throw new RuntimeException(e);
                     }
                 }
+                
+                var time = System.nanoTime() - startedAt;
+                Oracle.LOGGER.info("Embeddings done in " + (time / 1_000_000) + " ms");
+                FINISHED.set(true);
+                
             } catch (Throwable e) {
                 Oracle.LOGGER.error("Unable to generate embeddings: " + e.getMessage());
                 EMBEDDING_ERRORED.set(true);
@@ -103,11 +107,7 @@ public class SemanticSearch {
             throw new InvalidObjectException("Embeddings failed to load");
         }
         
-        return PENDING_JOBS.get() <= 0 && TOTAL_EMBEDDING_TIME.get() > 10;
-    }
-    
-    public long getEmbeddingTime() {
-        return TOTAL_EMBEDDING_TIME.get();
+        return FINISHED.get();
     }
     
     public ArrayList<SearchResult> search(String query) {
@@ -153,18 +153,11 @@ public class SemanticSearch {
     
     public void queueEmbeddingsJob(String wikiId, String filePath, String fileName, Map<String, String> frontmatter, String content) {
         
-        CompletableFuture.runAsync(() -> {
-            PENDING_JOBS.addAndGet(1);
-            var startedAt = System.nanoTime();
-            var document = Document.from(content, Metadata.from(frontmatter));
-            document.metadata().put("fileName", fileName);
-            document.metadata().put("category", filePath);
-            document.metadata().put("wiki", wikiId);
-            ingestor.ingest(document);
-            var takenTime = System.nanoTime() - startedAt;
-            TOTAL_EMBEDDING_TIME.addAndGet(takenTime);
-            PENDING_JOBS.decrementAndGet();
-        });
+        var document = Document.from(content, Metadata.from(frontmatter));
+        document.metadata().put("fileName", fileName);
+        document.metadata().put("category", filePath);
+        document.metadata().put("wiki", wikiId);
+        ingestor.ingest(document);
     }
     
     public record SearchResult(List<String> texts, double bestScore, String title, Identifier id, String iconName) {

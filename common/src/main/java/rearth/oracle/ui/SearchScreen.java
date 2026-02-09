@@ -120,8 +120,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         if (searchReady) {
             searchBar.setEditable(true);
             if (searchBar.getText().startsWith("Indexing")) {
-                searchBar.setText("");
-                Oracle.LOGGER.info("Embeddings took {}ms across all threads.", OracleClient.getOrCreateSearch().getEmbeddingTime() / 1_000_000);
+                searchBar.setText("");  // remove initial indexing text
             }
         } else {
             waitFrames++;
