@@ -15,6 +15,8 @@ import net.minecraft.resource.ResourceType;
 import net.minecraft.resource.SynchronousResourceReloader;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.progress.AdvancementProgressValidator;
@@ -53,6 +55,8 @@ public final class OracleClient {
         KeyMappingRegistry.register(ORACLE_WIKI);
         KeyMappingRegistry.register(ORACLE_SEARCH);
         
+        Configurator.setLevel("ai.djl.util.Platform", Level.WARN);
+        
         AdvancementProgressValidator.register();
         
         ClientTickEvent.CLIENT_POST.register(client -> {
@@ -77,6 +81,7 @@ public final class OracleClient {
         ReloadListenerRegistry.register(ResourceType.CLIENT_RESOURCES, (SynchronousResourceReloader) manager -> {
             Oracle.LOGGER.info("Indexing Oracle Wiki Resources...");
             findAllResourceEntries(manager);
+            getOrCreateSearch();    // start search to begin indexing in advance
         });
         
         ClientTickEvent.CLIENT_POST.register(client -> {
@@ -103,6 +108,44 @@ public final class OracleClient {
             OracleScreen.activeEntry = entryId;
         
         MinecraftClient.getInstance().setScreen(new OracleScreen(parent));
+    }
+    
+    /**
+     * Opens an entry in the Oracle Wiki based on the provided asset/content ID.
+     *
+     * @param assetId The * @param assetId The in-game item ID (e.g., `oritech:nickel_ingot`) used to locate the corresponding content entry.used to locate the corresponding content entry.
+     * @param parent  The parent screen to return to when the Oracle Wiki screen is closed. Can be null.
+     * @return True if the entry was successfully opened, false otherwise.
+     */
+    public static boolean openEntry(Identifier assetId, @Nullable Screen parent) {
+        var contentKey = assetId.toString();
+        if (!CONTENT_ID_MAP.containsKey(contentKey)) return false;
+        
+        var contentPath = CONTENT_ID_MAP.get(contentKey);
+        
+        var path = contentPath.getPath(); // e.g., "books/oritech/.content/machines/laser_arm_block.mdx"
+        // extract mod id
+        var segments = path.split("/");
+        if (segments.length < 2) return false;
+        
+        // e.g., "oritech"
+        OracleScreen.activeWiki = segments[1];
+        OracleScreen.activeEntry = contentPath;
+        
+        MinecraftClient.getInstance().setScreen(new OracleScreen(parent));
+        
+        return true;
+    }
+    
+    
+    /**
+     * Checks if there is a content entry associated with the given asset ID.
+     *
+     * @param assetId The in-game item ID (e.g., "oritech:nickel_ingot") used to locate the corresponding content entry.
+     * @return True if a content entry exists for the given asset ID, false otherwise.
+     */
+    public static boolean hasContentEntry(Identifier assetId) {
+        return CONTENT_ID_MAP.containsKey(assetId.toString());
     }
     
     private static void findAllResourceEntries(ResourceManager manager) {
