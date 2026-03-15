@@ -242,7 +242,7 @@ publishMods {
         clientRequired = true
         serverRequired = false
 
-        projectSlug = "oritech"
+        projectSlug = "oracle-index"
         announcementTitle = "Neoforge Version on CurseForge"
     }
 }

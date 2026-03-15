@@ -69,7 +69,7 @@ dependencies {
     compileOnly "net.fabricmc:fabric-loader-junit:${rootProject.fabric_loader_version}"
 
     modRuntimeOnly "teamreborn:energy:4.1.0"
-    modImplementation "curse.maven:oritech-1030830:6520539" // oritech 0.15.5
+    // modImplementation "curse.maven:oritech-1030830:6520539" // oritech 0.15.5
     modRuntimeOnly "curse.maven:architectury-api-419699:5786326"
     modRuntimeOnly "curse.maven:athena-841890:5629396"
     modRuntimeOnly "curse.maven:geckolib-388172:5605709"
@@ -248,7 +248,7 @@ publishMods {
         clientRequired = true
         serverRequired = false
 
-        projectSlug = "oritech"
+        projectSlug = "oracle-index"
         announcementTitle = "Fabric Version on CurseForge"
     }
 }

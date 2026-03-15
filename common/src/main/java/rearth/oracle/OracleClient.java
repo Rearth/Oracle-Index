@@ -168,6 +168,8 @@ public final class OracleClient {
             var modId = segments[1]; // e.g., "oritech"
             LOADED_WIKIS.add(modId);
             
+            if (path.startsWith(".translated")) continue; // skip / don't support translations for now
+            
             // check docs or content
             var isContent = path.contains("/.content/");
             var mode = isContent ? "content" : "docs";
@@ -191,7 +193,7 @@ public final class OracleClient {
                 
                 // frontmatter custom item links indexing
                 if (frontmatter.containsKey("related_items")) {
-                    var baseString = frontmatter.get("related_items").replace("[", "").replace("]", "");
+                    var baseString = frontmatter.get("related_items").replace("[", "").replace("]", "").replace("\"", "");
                     for (var itemString : baseString.split(", ")) {
                         var itemId = Identifier.of(itemString.trim());
                         ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, frontmatter.getOrDefault("title", "missing"), modId));

@@ -84,14 +84,14 @@ public class MarkdownParser {
         var components = new ArrayList<Component>();
         components.add(getTitlePanel(linkHandler, frontMatter, currentPath));
         
+        components.addAll(visitor.getResultComponents());
+        
         if (frontMatter.containsKey("id")) {
             var gameId = frontMatter.get("id");
             var id = Identifier.of(gameId);
             if (Registries.ITEM.containsId(id) || Registries.BLOCK.containsId(id))
                 components.add(createPropertiesUI(ContentProperties.getProperties(gameId)));
         }
-        
-        components.addAll(visitor.getResultComponents());
         
         return components;
     }
@@ -591,7 +591,7 @@ public class MarkdownParser {
         var outer = Containers.verticalFlow(Sizing.fill(80), Sizing.content());
         outer.surface(ORACLE_PANEL_DARK);
         outer.padding(Insets.of(10));
-        outer.margins(Insets.bottom(15));
+        outer.margins(Insets.top(15));
         outer.horizontalAlignment(HorizontalAlignment.CENTER);
         
         // title
@@ -624,12 +624,20 @@ public class MarkdownParser {
         // map of key to values (e.g. first one or for lists multiple values)
         var frontmatter = yamlVisitor.getData();
         
-        var simpleFrontMatter = new HashMap<String, String>();
-        for (var pair : frontmatter.entrySet()) {
-            simpleFrontMatter.put(pair.getKey(), pair.getValue().getFirst().trim());
+        try {
+            
+            var simpleFrontMatter = new HashMap<String, String>();
+            for (var pair : frontmatter.entrySet()) {
+                if (pair.getValue().isEmpty()) continue;
+                simpleFrontMatter.put(pair.getKey(), pair.getValue().getFirst().trim());
+            }
+            return simpleFrontMatter;
+            
+        } catch (RuntimeException ex) {
+            Oracle.LOGGER.warn("Error parsing markdown frontmatter: {} in {}", ex, markdown);
+            return new HashMap<>();
         }
         
-        return simpleFrontMatter;
     }
     
     public static Component getItemFrame() {
