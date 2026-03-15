@@ -76,6 +76,10 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
         Objects.requireNonNull(client).setScreen(parent);
     }
     
+    public void fullClose() {
+        Objects.requireNonNull(client).setScreen(null);
+    }
+    
     @Override
     protected @NotNull OwoUIAdapter<FlowLayout> createAdapter() {
         return OwoUIAdapter.create(this, Containers::horizontalFlow);
@@ -197,7 +201,7 @@ public class OracleScreen extends BaseOwoScreen<FlowLayout> {
           Text.translatable("tooltip.oracle_index.close_screen"),
           Identifier.ofVanilla("textures/gui/sprites/container/beacon/cancel.png"),
           13, 13,
-          button -> close(),
+          button -> fullClose(),
           20,
           20
         );
