@@ -1,6 +1,0 @@
-- Auto-Index all pages for search in background of the main menu
-- Make search indexing use only a single thread for less impact
-- Fix close button not always closing the screen
-- Fix some issues with content wikis
-- Move item/block properties in content wikis to bottom of page
-- Add api methods to open specific content wikis
