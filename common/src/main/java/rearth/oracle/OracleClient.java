@@ -168,7 +168,7 @@ public final class OracleClient {
             var modId = segments[1]; // e.g., "oritech"
             LOADED_WIKIS.add(modId);
             
-            if (path.startsWith(".translated")) continue; // skip / don't support translations for now
+            if (path.contains(".translated")) continue; // skip / don't support translations for now in indexing
             
             // check docs or content
             var isContent = path.contains("/.content/");

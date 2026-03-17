@@ -73,7 +73,7 @@ public class SemanticSearch {
                     var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
                     var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
                     
-                    if (entryDirectory.startsWith(".translated")) continue; // skip / don't support translations for now
+                    if (entryDirectory.contains(".translated")) continue; // skip / don't support translations for now
                     
                     try {
                         var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
