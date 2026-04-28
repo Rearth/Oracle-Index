@@ -458,8 +458,8 @@ public class OracleScreen extends WikiBaseScreen {
                 requestLayout();
             }
         }).centerChild().selected(selected)
-                 .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
-                   WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_DISABLED);
+                       .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
+                         WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_DISABLED);
         
         widget.setPadding(Insets.of(5, 12));
         

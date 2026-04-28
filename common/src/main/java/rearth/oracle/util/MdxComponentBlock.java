@@ -17,7 +17,9 @@ public abstract class MdxComponentBlock extends CustomBlock {
         parseContent();
     }
     
-    public String getRawContent() { return rawContent; }
+    public String getRawContent() {
+        return rawContent;
+    }
     
     abstract void parseContent();
     
@@ -52,7 +54,8 @@ public abstract class MdxComponentBlock extends CustomBlock {
                 var countStr = el.attr("count").replaceAll("[{}]", "");
                 try {
                     this.count = Integer.parseInt(countStr);
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
         
@@ -94,8 +97,13 @@ public abstract class MdxComponentBlock extends CustomBlock {
         public String location;
         public String width = "50%";
         
-        public AssetBlock(boolean isModAsset) { this.isModAsset = isModAsset; }
-        public boolean isModAsset() { return isModAsset; }
+        public AssetBlock(boolean isModAsset) {
+            this.isModAsset = isModAsset;
+        }
+        
+        public boolean isModAsset() {
+            return isModAsset;
+        }
         
         @Override
         void parseContent() {
@@ -123,6 +131,7 @@ public abstract class MdxComponentBlock extends CustomBlock {
     public static class PrefabObtainingBlock extends MdxComponentBlock {
         // not supported (yet?)
         @Override
-        void parseContent() {}
+        void parseContent() {
+        }
     }
 }

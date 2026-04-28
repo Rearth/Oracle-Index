@@ -39,8 +39,6 @@ public enum WikiSurface {
     }
     
     private static Renderer ninePatch(String name) {
-        // bedrock panels are registered as GUI sprites by owo today; once owo is gone
-        // we use a plain texture path under textures/gui/.
         var id = Identifier.of(Oracle.MOD_ID, "textures/gui/" + name + ".png");
         var renderer = new NinePatchRenderer(id);
         return renderer::render;

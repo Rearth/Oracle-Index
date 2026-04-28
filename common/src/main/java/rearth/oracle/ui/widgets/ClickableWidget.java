@@ -8,8 +8,8 @@ import java.util.function.Consumer;
 
 public class ClickableWidget extends UIComponent {
     
-    private UIComponent child;
-    private Consumer<ClickableWidget> onPress;
+    private final UIComponent child;
+    private final Consumer<ClickableWidget> onPress;
     private boolean enabled = true;
     private boolean selected = false;
     private boolean pressed = false;
@@ -29,11 +29,20 @@ public class ClickableWidget extends UIComponent {
         this.onPress = onPress;
     }
     
-    public ClickableWidget enabled(boolean enabled) { this.enabled = enabled; return this; }
+    public ClickableWidget enabled(boolean enabled) {
+        this.enabled = enabled;
+        return this;
+    }
     
-    public ClickableWidget selected(boolean selected) { this.selected = selected; return this; }
+    public ClickableWidget selected(boolean selected) {
+        this.selected = selected;
+        return this;
+    }
     
-    public ClickableWidget fillWidth() { this.fillWidth = true; return this; }
+    public ClickableWidget fillWidth() {
+        this.fillWidth = true;
+        return this;
+    }
     
     public ClickableWidget fixedHeight(int height) {
         this.fixedHeight = height;
@@ -93,7 +102,7 @@ public class ClickableWidget extends UIComponent {
             childH = Math.min(innerH, child.getPreferredHeight(childW));
         }
         child.setPosition(x + padding.left() + (centerChild ? (innerW - childW) / 2 : 0),
-            y + padding.top() + (centerChild ? (innerH - childH) / 2 : 0));
+          y + padding.top() + (centerChild ? (innerH - childH) / 2 : 0));
         child.setLayoutSize(childW, childH);
         child.layout(childW, childH);
     }
@@ -114,7 +123,8 @@ public class ClickableWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {}
+    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    }
     
     @Override
     public void tick() {

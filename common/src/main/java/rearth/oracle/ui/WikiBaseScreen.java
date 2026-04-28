@@ -17,7 +17,9 @@ import java.util.List;
  */
 public abstract class WikiBaseScreen extends Screen {
     
-    /** Optional dark fill behind everything. {@code 0} disables the fill. */
+    /**
+     * Optional dark fill behind everything. {@code 0} disables the fill.
+     */
     protected int backgroundFillColor = 0xE6191923; // 90% alpha very dark blue-grey
     
     private final List<UIComponent> rootWidgets = new ArrayList<>();
@@ -37,7 +39,9 @@ public abstract class WikiBaseScreen extends Screen {
         needsLayout = true;
     }
     
-    /** Subclasses lay out their root widgets here. */
+    /**
+     * Subclasses lay out their root widgets here.
+     */
     protected abstract void layoutWidgets();
     
     @Override
@@ -50,7 +54,9 @@ public abstract class WikiBaseScreen extends Screen {
         needsLayout = true;
     }
     
-    /** Build the screen's widget tree. Called from {@link #init()}. */
+    /**
+     * Build the screen's widget tree. Called from {@link #init()}.
+     */
     protected abstract void buildRoots();
     
     @Override
@@ -134,5 +140,7 @@ public abstract class WikiBaseScreen extends Screen {
     }
     
     @Override
-    public boolean shouldPause() { return false; }
+    public boolean shouldPause() {
+        return false;
+    }
 }

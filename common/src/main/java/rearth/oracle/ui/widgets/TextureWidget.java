@@ -12,7 +12,8 @@ public class TextureWidget extends UIComponent {
     private final Identifier texture;
     private int u = 0, v = 0;
     private int regionWidth, regionHeight;
-    private int textureWidth, textureHeight;
+    private final int textureWidth;
+    private final int textureHeight;
     
     public TextureWidget(Identifier texture, int textureWidth, int textureHeight) {
         this.texture = texture;

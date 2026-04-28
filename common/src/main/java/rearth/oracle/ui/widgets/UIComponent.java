@@ -27,8 +27,11 @@ public abstract class UIComponent {
     
     private List<Text> tooltip;
     
-    /** Set by the screen / parent container so widgets can request a re-layout. */
-    @Nullable private Runnable layoutRequester;
+    /**
+     * Set by the screen / parent container so widgets can request a re-layout.
+     */
+    @Nullable
+    private Runnable layoutRequester;
     
     public UIComponent() {
     }
@@ -42,7 +45,9 @@ public abstract class UIComponent {
         this.preferredHeight = height;
     }
     
-    /** Fluent setter for size. */
+    /**
+     * Fluent setter for size.
+     */
     public UIComponent size(int width, int height) {
         this.width = width;
         this.height = height;
@@ -51,12 +56,16 @@ public abstract class UIComponent {
         return this;
     }
     
-    /** Alias for {@link #isMouseOver(double, double)}. */
+    /**
+     * Alias for {@link #isMouseOver(double, double)}.
+     */
     public boolean isInBounds(double mouseX, double mouseY) {
         return isMouseOver(mouseX, mouseY);
     }
     
-    /** Tooltip lookup; subclasses can return a position-dependent tooltip. */
+    /**
+     * Tooltip lookup; subclasses can return a position-dependent tooltip.
+     */
     public List<Text> tooltip(int mouseX, int mouseY) {
         return tooltip;
     }
@@ -73,7 +82,8 @@ public abstract class UIComponent {
     
     protected abstract void renderContent(DrawContext context, int mouseX, int mouseY, float delta);
     
-    public void tick() {}
+    public void tick() {
+    }
     
     // --------------------------------------------------------------- layout
     
@@ -84,7 +94,8 @@ public abstract class UIComponent {
      *
      * <p>Width / height hints of -1 mean "no constraint, use intrinsic size".
      */
-    public void layout(int parentWidthHint, int parentHeightHint) {}
+    public void layout(int parentWidthHint, int parentHeightHint) {
+    }
     
     /**
      * Preferred width given a width hint (-1 = no hint).
@@ -94,7 +105,9 @@ public abstract class UIComponent {
         return preferredWidth >= 0 ? preferredWidth : width;
     }
     
-    /** Preferred height. Width hint already resolved. -1 = no constraint. */
+    /**
+     * Preferred height. Width hint already resolved. -1 = no constraint.
+     */
     public int getPreferredHeight(int widthHint) {
         return preferredHeight >= 0 ? preferredHeight : height;
     }
@@ -117,25 +130,69 @@ public abstract class UIComponent {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
     
-    public boolean handleClick(double mouseX, double mouseY, int button) { return false; }
-    public boolean handleDrag(double mouseX, double mouseY, double deltaX, double deltaY, int button) { return false; }
-    public boolean handleMouseRelease(double mouseX, double mouseY, int button) { return false; }
-    public boolean handleMouseScroll(double mouseX, double mouseY, double scrollDelta) { return false; }
+    public boolean handleClick(double mouseX, double mouseY, int button) {
+        return false;
+    }
+    
+    public boolean handleDrag(double mouseX, double mouseY, double deltaX, double deltaY, int button) {
+        return false;
+    }
+    
+    public boolean handleMouseRelease(double mouseX, double mouseY, int button) {
+        return false;
+    }
+    
+    public boolean handleMouseScroll(double mouseX, double mouseY, double scrollDelta) {
+        return false;
+    }
     
     // --------------------------------------------------------------- accessors
     
-    public int getX() { return x; }
-    public int getY() { return y; }
-    public int getWidth() { return width; }
-    public int getHeight() { return height; }
-    public Insets getPadding() { return padding; }
-    public boolean isVisible() { return visible; }
+    public int getX() {
+        return x;
+    }
     
-    public void setPosition(int x, int y) { this.x = x; this.y = y; }
-    public void setLayoutSize(int width, int height) { this.width = width; this.height = height; }
-    public void setPadding(Insets padding) { this.padding = padding; }
-    public void setSurface(WikiSurface surface) { this.surface = surface; }
-    public void setVisible(boolean visible) { this.visible = visible; }
+    public int getY() {
+        return y;
+    }
+    
+    public int getWidth() {
+        return width;
+    }
+    
+    public int getHeight() {
+        return height;
+    }
+    
+    public Insets getPadding() {
+        return padding;
+    }
+    
+    public boolean isVisible() {
+        return visible;
+    }
+    
+    public void setPosition(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+    
+    public void setLayoutSize(int width, int height) {
+        this.width = width;
+        this.height = height;
+    }
+    
+    public void setPadding(Insets padding) {
+        this.padding = padding;
+    }
+    
+    public void setSurface(WikiSurface surface) {
+        this.surface = surface;
+    }
+    
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
     
     // --------------------------------------------------------------- fluent
     

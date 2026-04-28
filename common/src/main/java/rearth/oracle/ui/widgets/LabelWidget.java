@@ -28,7 +28,9 @@ public class LabelWidget extends UIComponent {
     private float scale = 1.0f;
     private int color = 0xFFFFFFFF;
     private int lineSpacing = 0;
-    /** -1 means "use the layout-supplied hint". */
+    /**
+     * -1 means "use the layout-supplied hint".
+     */
     private int wrapWidth = -1;
     private boolean fillWidth = false;
     
@@ -75,7 +77,9 @@ public class LabelWidget extends UIComponent {
         return this;
     }
     
-    /** Set an explicit wrap width (in unscaled pixels). -1 means use the layout-supplied hint. */
+    /**
+     * Set an explicit wrap width (in unscaled pixels). -1 means use the layout-supplied hint.
+     */
     public LabelWidget wrapWidth(int wrapWidth) {
         this.wrapWidth = wrapWidth;
         invalidateWrap();
@@ -102,7 +106,9 @@ public class LabelWidget extends UIComponent {
         return MinecraftClient.getInstance().textRenderer;
     }
     
-    /** Width in unscaled font pixels available for wrapping, given a layout hint. */
+    /**
+     * Width in unscaled font pixels available for wrapping, given a layout hint.
+     */
     private int effectiveWrapWidthPx(int widthHint) {
         int avail;
         if (wrapWidth > 0) avail = wrapWidth;
@@ -176,12 +182,15 @@ public class LabelWidget extends UIComponent {
         var style = styleAt(mouseX, mouseY);
         if (style == null) return super.handleClick(mouseX, mouseY, button);
         var click = style.getClickEvent();
-        if (click == null || click.getAction() != ClickEvent.Action.OPEN_URL) return super.handleClick(mouseX, mouseY, button);
+        if (click == null || click.getAction() != ClickEvent.Action.OPEN_URL)
+            return super.handleClick(mouseX, mouseY, button);
         if (linkHandler.test(click.getValue())) return true;
         return super.handleClick(mouseX, mouseY, button);
     }
     
-    /** Returns the {@link Style} under the given mouse position, or null. */
+    /**
+     * Returns the {@link Style} under the given mouse position, or null.
+     */
     public Style styleAt(double mouseX, double mouseY) {
         if (!isInBounds(mouseX, mouseY)) return null;
         var tr = textRenderer();

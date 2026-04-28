@@ -15,7 +15,9 @@ import net.minecraft.util.Identifier;
  */
 public record NinePatchRenderer(Identifier texture, int texWidth, int texHeight, int cornerWidth, int cornerHeight) {
     
-    /** Default for the bedrock panels: 16x16 texture, 4x4 corners. */
+    /**
+     * Default for the bedrock panels: 16x16 texture, 4x4 corners.
+     */
     public NinePatchRenderer(Identifier texture) {
         this(texture, 16, 16, 4, 4);
     }
@@ -29,19 +31,19 @@ public record NinePatchRenderer(Identifier texture, int texWidth, int texHeight,
         int stretchH = Math.max(0, height - ch * 2);
         
         // 4 corners (1:1 source → destination)
-        corner(context, x,                  y,                   0,              0);
-        corner(context, x + width - cw,     y,                   texWidth - cw,  0);
-        corner(context, x,                  y + height - ch,     0,              texHeight - ch);
-        corner(context, x + width - cw,     y + height - ch,     texWidth - cw,  texHeight - ch);
+        corner(context, x, y, 0, 0);
+        corner(context, x + width - cw, y, texWidth - cw, 0);
+        corner(context, x, y + height - ch, 0, texHeight - ch);
+        corner(context, x + width - cw, y + height - ch, texWidth - cw, texHeight - ch);
         
         // edges (stretch one axis)
         if (stretchW > 0) {
-            stretched(context, x + cw, y,                   cw, 0,              stretchW, ch,        centerW, ch);
-            stretched(context, x + cw, y + height - ch,     cw, texHeight - ch, stretchW, ch,        centerW, ch);
+            stretched(context, x + cw, y, cw, 0, stretchW, ch, centerW, ch);
+            stretched(context, x + cw, y + height - ch, cw, texHeight - ch, stretchW, ch, centerW, ch);
         }
         if (stretchH > 0) {
-            stretched(context, x,              y + ch, 0,             ch, cw,       stretchH, cw,      centerH);
-            stretched(context, x + width - cw, y + ch, texWidth - cw, ch, cw,       stretchH, cw,      centerH);
+            stretched(context, x, y + ch, 0, ch, cw, stretchH, cw, centerH);
+            stretched(context, x + width - cw, y + ch, texWidth - cw, ch, cw, stretchH, cw, centerH);
         }
         
         // centre (stretch both axes)

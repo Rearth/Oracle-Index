@@ -1,7 +1,10 @@
 package rearth.oracle.util;
 
 import org.commonmark.node.Block;
-import org.commonmark.parser.block.*;
+import org.commonmark.parser.block.AbstractBlockParser;
+import org.commonmark.parser.block.BlockContinue;
+import org.commonmark.parser.block.ParserState;
+
 import java.util.regex.Pattern;
 
 public class MdxContainerParser extends AbstractBlockParser {
@@ -18,13 +21,19 @@ public class MdxContainerParser extends AbstractBlockParser {
     }
     
     @Override
-    public boolean isContainer() { return true; }
+    public boolean isContainer() {
+        return true;
+    }
     
     @Override
-    public boolean canContain(Block childBlock) { return true; }
+    public boolean canContain(Block childBlock) {
+        return true;
+    }
     
     @Override
-    public Block getBlock() { return block; }
+    public Block getBlock() {
+        return block;
+    }
     
     @Override
     public BlockContinue tryContinue(ParserState state) {

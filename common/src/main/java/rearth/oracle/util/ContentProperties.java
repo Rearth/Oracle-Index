@@ -62,7 +62,8 @@ public class ContentProperties {
             
             // Luminance
             int light = defaultState.getLuminance();
-            if (light > 0) properties.put("Light Level", Text.literal(String.valueOf(light)).formatted(Formatting.YELLOW));
+            if (light > 0)
+                properties.put("Light Level", Text.literal(String.valueOf(light)).formatted(Formatting.YELLOW));
             
         }
         

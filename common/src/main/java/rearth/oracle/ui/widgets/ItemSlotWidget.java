@@ -20,7 +20,9 @@ public class ItemSlotWidget extends UIComponent {
         size(SLOT_SIZE, SLOT_SIZE);
     }
     
-    public ItemWidget item() { return item; }
+    public ItemWidget item() {
+        return item;
+    }
     
     @Override
     public void layout(int parentWidthHint, int parentHeightHint) {

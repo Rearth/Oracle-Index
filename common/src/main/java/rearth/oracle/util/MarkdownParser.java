@@ -58,7 +58,7 @@ public class MarkdownParser {
      *                       size images and lay out wrapped labels.
      */
     public static List<UIComponent> parseMarkdownToWidgets(String markdown, String wikiId, Identifier currentPath,
-                                                            Predicate<String> linkHandler, int contentWidthPx) {
+                                                           Predicate<String> linkHandler, int contentWidthPx) {
         for (var toRemove : removedLines) markdown = markdown.replace(toRemove, "");
         
         var document = PARSER.parse(markdown);
@@ -105,7 +105,9 @@ public class MarkdownParser {
             this.contentWidthPx = contentWidthPx;
         }
         
-        List<UIComponent> results() { return components; }
+        List<UIComponent> results() {
+            return components;
+        }
         
         private void flushBuffer() {
             if (buffer == null || buffer.getString().isEmpty()) return;
@@ -148,8 +150,15 @@ public class MarkdownParser {
             components.add(panel);
         }
         
-        @Override public void visit(BulletList l)  { visitChildren(l); }
-        @Override public void visit(OrderedList l) { visitChildren(l); }
+        @Override
+        public void visit(BulletList l) {
+            visitChildren(l);
+        }
+        
+        @Override
+        public void visit(OrderedList l) {
+            visitChildren(l);
+        }
         
         @Override
         public void visit(ListItem listItem) {
@@ -247,8 +256,15 @@ public class MarkdownParser {
             }
         }
         
-        @Override public void visit(SoftLineBreak n) { if (buffer != null) buffer.append(Text.literal(" ")); }
-        @Override public void visit(HardLineBreak n) { if (buffer != null) buffer.append(Text.literal("\n")); }
+        @Override
+        public void visit(SoftLineBreak n) {
+            if (buffer != null) buffer.append(Text.literal(" "));
+        }
+        
+        @Override
+        public void visit(HardLineBreak n) {
+            if (buffer != null) buffer.append(Text.literal("\n"));
+        }
     }
     
     // ---------------------------------------------------------------- helpers
@@ -564,16 +580,25 @@ public class MarkdownParser {
         if (input == null || input.isEmpty()) return 0.0f;
         var trimmed = input.trim();
         if (trimmed.endsWith("%")) {
-            try { return Integer.parseInt(trimmed.substring(0, trimmed.length() - 1)) / 100.0f; }
-            catch (NumberFormatException e) { return 0.0f; }
+            try {
+                return Integer.parseInt(trimmed.substring(0, trimmed.length() - 1)) / 100.0f;
+            } catch (NumberFormatException e) {
+                return 0.0f;
+            }
         }
         if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-            try { return Integer.parseInt(trimmed.substring(1, trimmed.length() - 1)) / 1000.0f; }
-            catch (NumberFormatException e) { return 0.0f; }
+            try {
+                return Integer.parseInt(trimmed.substring(1, trimmed.length() - 1)) / 1000.0f;
+            } catch (NumberFormatException e) {
+                return 0.0f;
+            }
         }
         if (StringUtils.isNumeric(trimmed)) {
-            try { return Integer.parseInt(trimmed) / 1000.0f; }
-            catch (NumberFormatException e) { return 0.0f; }
+            try {
+                return Integer.parseInt(trimmed) / 1000.0f;
+            } catch (NumberFormatException e) {
+                return 0.0f;
+            }
         }
         return 0.0f;
     }

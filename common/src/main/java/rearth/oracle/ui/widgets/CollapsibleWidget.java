@@ -44,9 +44,9 @@ public class CollapsibleWidget extends FlowWidget {
         this.header = new ClickableWidget(headerContent, row -> {
             toggle();
             MinecraftClient.getInstance().getSoundManager()
-                .play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0f));
+              .play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0f));
         }).fillWidth().fixedHeight(HEADER_HEIGHT)
-                    .surfaces(WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE);
+                        .surfaces(WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE);
         header.setPadding(Insets.of(1, 4));
         
         this.body = FlowWidget.vertical().gap(2);
@@ -90,8 +90,8 @@ public class CollapsibleWidget extends FlowWidget {
     
     private Text headerTitle(boolean hovered) {
         return hovered
-            ? title.copy().formatted(Formatting.WHITE, Formatting.GRAY)
-            : title.copy().formatted(Formatting.WHITE);
+                 ? title.copy().formatted(Formatting.WHITE, Formatting.GRAY)
+                 : title.copy().formatted(Formatting.WHITE);
     }
     
     @Override
@@ -110,6 +110,8 @@ public class CollapsibleWidget extends FlowWidget {
         super.renderContent(context, mouseX, mouseY, delta);
     }
     
-    public FlowWidget body() { return body; }
+    public FlowWidget body() {
+        return body;
+    }
     
 }

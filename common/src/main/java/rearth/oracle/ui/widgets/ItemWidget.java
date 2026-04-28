@@ -52,6 +52,6 @@ public class ItemWidget extends UIComponent {
         if (stack == null || stack.isEmpty() || hideItemTooltip) return super.tooltip(mouseX, mouseY);
         var mc = MinecraftClient.getInstance();
         return stack.getTooltip(Item.TooltipContext.create(mc.world), mc.player,
-            mc.options.advancedItemTooltips ? TooltipType.ADVANCED : TooltipType.BASIC);
+          mc.options.advancedItemTooltips ? TooltipType.ADVANCED : TooltipType.BASIC);
     }
 }

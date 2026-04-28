@@ -160,8 +160,6 @@ class MarkdownTests {
         Line Two
         """;
         
-        // We need a custom visitor for the test since OwoMarkdownVisitor
-        // depends on Minecraft/owo classes.
         StringBuilder result = new StringBuilder();
         AbstractVisitor testVisitor = new AbstractVisitor() {
             @Override

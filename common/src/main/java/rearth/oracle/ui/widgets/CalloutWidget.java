@@ -79,7 +79,7 @@ public class CalloutWidget extends FlowWidget {
         int chipH = tr.fontHeight + 9;
         int chipX = body.getX();
         int chipY = body.getY();
-        WikiSurface.BEDROCK_PANEL_PRESSED.render(context, chipX -6, chipY -6, chipW, chipH);
+        WikiSurface.BEDROCK_PANEL_PRESSED.render(context, chipX - 6, chipY - 6, chipW, chipH);
         context.drawText(tr, title, chipX, chipY, 0xFFFFFFFF, false);
     }
 }

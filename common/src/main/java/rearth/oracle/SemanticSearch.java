@@ -143,7 +143,8 @@ public class SemanticSearch {
                 var list = new ArrayList<String>();
                 list.add(match.embedded().text());
                 var icon = match.embedded().metadata().getString("icon");
-                if ((icon == null || icon.isBlank()) && match.embedded().metadata().containsKey("id")) icon = match.embedded().metadata().getString("id");
+                if ((icon == null || icon.isBlank()) && match.embedded().metadata().containsKey("id"))
+                    icon = match.embedded().metadata().getString("id");
                 var step = new SearchResult(list, match.score(), title, Identifier.of(id), icon);
                 results.add(step);
             }

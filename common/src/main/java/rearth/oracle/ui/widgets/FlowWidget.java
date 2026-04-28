@@ -20,9 +20,11 @@ import java.util.List;
  */
 public class FlowWidget extends UIComponent {
     
-    public enum Direction { HORIZONTAL, VERTICAL }
-    public enum HorizontalAlignment { LEFT, CENTER, RIGHT }
-    public enum VerticalAlignment { TOP, CENTER, BOTTOM }
+    public enum Direction {HORIZONTAL, VERTICAL}
+    
+    public enum HorizontalAlignment {LEFT, CENTER, RIGHT}
+    
+    public enum VerticalAlignment {TOP, CENTER, BOTTOM}
     
     private final Direction direction;
     private final List<UIComponent> children = new ArrayList<>();
@@ -35,15 +37,36 @@ public class FlowWidget extends UIComponent {
         this.direction = direction;
     }
     
-    public static FlowWidget horizontal() { return new FlowWidget(Direction.HORIZONTAL); }
-    public static FlowWidget vertical() { return new FlowWidget(Direction.VERTICAL); }
+    public static FlowWidget horizontal() {
+        return new FlowWidget(Direction.HORIZONTAL);
+    }
     
-    public FlowWidget gap(int gap) { this.gap = gap; return this; }
-    public int gap() { return gap; }
-    public Direction direction() { return direction; }
+    public static FlowWidget vertical() {
+        return new FlowWidget(Direction.VERTICAL);
+    }
     
-    public FlowWidget horizontalAlignment(HorizontalAlignment a) { this.horizontalAlignment = a; return this; }
-    public FlowWidget verticalAlignment(VerticalAlignment a) { this.verticalAlignment = a; return this; }
+    public FlowWidget gap(int gap) {
+        this.gap = gap;
+        return this;
+    }
+    
+    public int gap() {
+        return gap;
+    }
+    
+    public Direction direction() {
+        return direction;
+    }
+    
+    public FlowWidget horizontalAlignment(HorizontalAlignment a) {
+        this.horizontalAlignment = a;
+        return this;
+    }
+    
+    public FlowWidget verticalAlignment(VerticalAlignment a) {
+        this.verticalAlignment = a;
+        return this;
+    }
     
     public FlowWidget child(UIComponent child) {
         children.add(child);
@@ -74,7 +97,11 @@ public class FlowWidget extends UIComponent {
         if (direction == Direction.HORIZONTAL) {
             int total = padding.horizontal();
             int n = 0;
-            for (var c : children) { if (!c.isVisible()) continue; total += c.getPreferredWidth(-1); n++; }
+            for (var c : children) {
+                if (!c.isVisible()) continue;
+                total += c.getPreferredWidth(-1);
+                n++;
+            }
             if (n > 1) total += gap * (n - 1);
             return total;
         } else {
@@ -94,7 +121,11 @@ public class FlowWidget extends UIComponent {
         if (direction == Direction.VERTICAL) {
             int total = padding.vertical();
             int n = 0;
-            for (var c : children) { if (!c.isVisible()) continue; total += c.getPreferredHeight(innerWidth); n++; }
+            for (var c : children) {
+                if (!c.isVisible()) continue;
+                total += c.getPreferredHeight(innerWidth);
+                n++;
+            }
             if (n > 1) total += gap * (n - 1);
             return total;
         } else {

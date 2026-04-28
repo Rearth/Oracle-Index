@@ -31,7 +31,11 @@ public class GridWidget extends UIComponent {
         this.cells = new UIComponent[rows * columns];
     }
     
-    public GridWidget gap(int gx, int gy) { this.gapX = gx; this.gapY = gy; return this; }
+    public GridWidget gap(int gx, int gy) {
+        this.gapX = gx;
+        this.gapY = gy;
+        return this;
+    }
     
     public GridWidget set(int row, int column, UIComponent child) {
         cells[row * columns + column] = child;
