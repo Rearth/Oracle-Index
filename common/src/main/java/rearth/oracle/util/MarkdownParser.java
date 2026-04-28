@@ -300,28 +300,103 @@ public class MarkdownParser {
     }
     
     private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter, Identifier pageId, int contentWidthPx) {
-        var row = FlowWidget.horizontal().gap(10);
-        row.setSurface(WikiSurface.BEDROCK_PANEL);
-        row.setPadding(Insets.of(8, 10));
-        row.verticalAlignment(FlowWidget.VerticalAlignment.CENTER);
-        
+        ItemStack iconStack = ItemStack.EMPTY;
         var iconId = frontMatter.getOrDefault("icon", "");
         if (iconId.isBlank()) iconId = frontMatter.getOrDefault("id", "");
         if (Identifier.validate(iconId).isSuccess() && Registries.ITEM.containsId(Identifier.of(iconId))) {
-            var iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
-            var icon = new ItemWidget(iconStack);
-            icon.size(48, 48);
-            row.child(icon);
+            iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
+        }
+        return new PageTitleWidget(Text.literal(getTitle(frontMatter, pageId)).formatted(Formatting.DARK_GRAY), iconStack, linkHandler, contentWidthPx);
+    }
+    
+    private static class PageTitleWidget extends UIComponent {
+        private static final int ICON_PANEL_SIZE = 58;
+        private static final int ICON_ITEM_SIZE = 50;
+        private static final int TITLE_OVERLAP = 12;
+        private static final int TITLE_PAD_X = 14;
+        private static final int TITLE_PAD_Y = 9;
+        
+        private final LabelWidget titleLabel;
+        private final ItemWidget icon;
+        private final int contentWidthPx;
+        
+        private int titleX;
+        private int titleY;
+        private int titleW;
+        private int titleH;
+        private int iconX;
+        private int iconY;
+        
+        PageTitleWidget(Text title, ItemStack iconStack, Predicate<String> linkHandler, int contentWidthPx) {
+            this.titleLabel = new LabelWidget(title).scale(2f).linkHandler(linkHandler);
+            this.icon = iconStack.isEmpty() ? null : new ItemWidget(iconStack);
+            if (icon != null) icon.setHideItemTooltip(true);
+            this.contentWidthPx = contentWidthPx;
         }
         
-        var titleStr = getTitle(frontMatter, pageId);
-        var titleLabel = new LabelWidget(Text.literal(titleStr).formatted(Formatting.DARK_GRAY))
-            .scale(2f)
-            .wrapWidth(Math.max(80, contentWidthPx - 90))
-            .linkHandler(linkHandler);
-        row.child(titleLabel);
+        @Override
+        public int getPreferredWidth(int widthHint) {
+            int maxWidth = widthHint > 0 ? widthHint : contentWidthPx;
+            int labelMaxWidth = labelMaxWidth(maxWidth);
+            titleLabel.wrapWidth(labelMaxWidth);
+            int titlePanelWidth = titleLabel.getPreferredWidth(labelMaxWidth) + TITLE_PAD_X * 2;
+            return leadingWidth() + titlePanelWidth;
+        }
         
-        return row;
+        @Override
+        public int getPreferredHeight(int widthHint) {
+            int maxWidth = widthHint > 0 ? widthHint : contentWidthPx;
+            int labelMaxWidth = labelMaxWidth(maxWidth);
+            titleLabel.wrapWidth(labelMaxWidth);
+            int titlePanelHeight = titleLabel.getPreferredHeight(labelMaxWidth) + TITLE_PAD_Y * 2;
+            return Math.max(icon == null ? 0 : ICON_PANEL_SIZE, titlePanelHeight);
+        }
+        
+        @Override
+        public void layout(int parentWidthHint, int parentHeightHint) {
+            int labelMaxWidth = Math.max(80, width - leadingWidth() - TITLE_PAD_X * 2);
+            titleLabel.wrapWidth(labelMaxWidth);
+            int labelW = titleLabel.getPreferredWidth(labelMaxWidth);
+            int labelH = titleLabel.getPreferredHeight(labelMaxWidth);
+            titleW = labelW + TITLE_PAD_X * 2;
+            titleH = labelH + TITLE_PAD_Y * 2;
+            titleX = x + leadingWidth();
+            titleY = y + (height - titleH) / 2;
+            titleLabel.setPosition(titleX + TITLE_PAD_X, titleY + TITLE_PAD_Y);
+            titleLabel.setLayoutSize(labelW, labelH);
+            titleLabel.layout(labelW, labelH);
+            if (icon != null) {
+                iconX = x;
+                iconY = y + (height - ICON_PANEL_SIZE) / 2;
+                icon.setPosition(iconX + (ICON_PANEL_SIZE - ICON_ITEM_SIZE) / 2, iconY + (ICON_PANEL_SIZE - ICON_ITEM_SIZE) / 2);
+                icon.setLayoutSize(ICON_ITEM_SIZE, ICON_ITEM_SIZE);
+                icon.layout(ICON_ITEM_SIZE, ICON_ITEM_SIZE);
+            }
+        }
+        
+        @Override
+        protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+            WikiSurface.BEDROCK_PANEL.render(context, titleX, titleY, titleW, titleH);
+            titleLabel.render(context, mouseX, mouseY, delta);
+            if (icon != null) {
+                WikiSurface.BEDROCK_PANEL.render(context, iconX, iconY, ICON_PANEL_SIZE, ICON_PANEL_SIZE);
+                icon.render(context, mouseX, mouseY, delta);
+            }
+        }
+        
+        @Override
+        public List<Text> tooltip(int mouseX, int mouseY) {
+            if (icon != null && icon.isInBounds(mouseX, mouseY)) return icon.tooltip(mouseX, mouseY);
+            return super.tooltip(mouseX, mouseY);
+        }
+        
+        private int leadingWidth() {
+            return icon == null ? 0 : ICON_PANEL_SIZE - TITLE_OVERLAP;
+        }
+        
+        private int labelMaxWidth(int maxWidth) {
+            return Math.max(80, maxWidth - leadingWidth() - TITLE_PAD_X * 2);
+        }
     }
     
     private static UIComponent buildPropertiesPanel(Map<String, Text> properties, int contentWidthPx) {

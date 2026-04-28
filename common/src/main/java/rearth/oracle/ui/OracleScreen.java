@@ -42,6 +42,7 @@ public class OracleScreen extends WikiBaseScreen {
     private static final int MIN_SIDEBAR_WIDTH = 132;
     private static final int NAV_ROW_HEIGHT = 16;
     private static final int WIKI_HEADER_HEIGHT = 25;
+    private static final int TITLE_NAV_OVERLAP = 4;
     
     private final Screen parent;
     private final Stack<Identifier> navigationHistory = new Stack<>();
@@ -99,13 +100,13 @@ public class OracleScreen extends WikiBaseScreen {
         leftPanel.child(leftScroll);
         
         // content area
-        contentContainer = FlowWidget.vertical().gap(4);
-        contentContainer.setPadding(Insets.of(20, 0, 0, 0));
+        contentContainer = FlowWidget.vertical().gap(6);
+        contentContainer.setPadding(Insets.of(20, 0, 28, 0));
         contentScroll = new ScrollWidget(contentContainer);
         contentScroll.scrollSpeed(20);
         
         // action hub (back / search / close)
-        actionHub = FlowWidget.horizontal().gap(2);
+        actionHub = FlowWidget.horizontal().gap(-1);
         backAction = makeHubAction(Text.translatable("tooltip.oracle_index.back"),
           Identifier.ofVanilla("textures/gui/sprites/widget/page_backward.png"), 23, 13, 24, 20,
           b -> back());
@@ -224,17 +225,23 @@ public class OracleScreen extends WikiBaseScreen {
         int actionMargin = 4;
         int sidebarWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(SIDEBAR_WIDTH, this.width / 3));
         
-        int leftPrefH = (int) (this.height * 0.95f);
-        leftPanel.setLayoutSize(sidebarWidth, leftPrefH);
+        int contentH = (int) (this.height * 0.95f);
         
         // give the inner left scroll an explicit size: remaining height under header
         int headerHeight = wikiTitleHeader == null ? 0 : wikiTitleHeader.getPreferredHeight(sidebarWidth);
         int dropdownHeight = modDropdown != null && modDropdown.isVisible() ? modDropdown.getPreferredHeight(sidebarWidth) : 0;
         int visibleTopRows = modDropdown != null && modDropdown.isVisible() ? 2 : 1;
         int usedGap = leftPanel.gap() * visibleTopRows;
-        leftScroll.setLayoutSize(sidebarWidth, Math.max(40, leftPrefH - headerHeight - dropdownHeight - usedGap));
+        int titleOverlap = isModDropdownOpen() ? 0 : 6;
+        int topRowsHeight = headerHeight + dropdownHeight + usedGap - titleOverlap;
+        int navContentHeight = navigationBar.getPreferredHeight(Math.max(1, sidebarWidth - 6));
+        int maxScrollHeight = Math.max(40, contentH - topRowsHeight);
+        int leftScrollHeight = Math.min(Math.max(40, navContentHeight), maxScrollHeight);
+        int leftPanelH = Math.min(contentH, topRowsHeight + leftScrollHeight);
+        leftPanel.setLayoutSize(sidebarWidth, leftPanelH);
+        leftScroll.setLayoutSize(sidebarWidth, leftScrollHeight);
         
-        int panelY = (this.height - leftPrefH) / 2;
+        int panelY = (this.height - contentH) / 2;
         leftPanel.setPosition(leftOffset, panelY);
         
         int contentAreaLeft = leftOffset + sidebarWidth + 10;
@@ -251,10 +258,15 @@ public class OracleScreen extends WikiBaseScreen {
             contentX = contentAreaLeft;
         }
         contentScroll.setPosition(contentX, panelY);
-        contentScroll.setLayoutSize(contentW, leftPrefH);
+        contentScroll.setLayoutSize(contentW, contentH);
         
-        leftPanel.layout(leftPanel.getWidth(), leftPrefH);
-        contentScroll.layout(contentW, leftPrefH);
+        leftPanel.layout(leftPanel.getWidth(), leftPanelH);
+        if (titleOverlap > 0) {
+            leftScroll.setPosition(leftScroll.getX(), leftScroll.getY() - titleOverlap);
+            leftScroll.setLayoutSize(leftScroll.getWidth(), leftScroll.getHeight() + titleOverlap);
+            leftScroll.layout(leftScroll.getWidth(), leftScroll.getHeight());
+        }
+        contentScroll.layout(contentW, contentH);
         
         // action hub bottom-right
         int hubW = actionHub.getPreferredWidth(-1);
@@ -269,6 +281,9 @@ public class OracleScreen extends WikiBaseScreen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
+        if (!isModDropdownOpen() && wikiTitleHeader != null) {
+            wikiTitleHeader.render(context, mouseX, mouseY, delta);
+        }
         if (Screen.hasControlDown()) {
             Oracle.LOGGER.info("Opening Oracle Search...");
             Objects.requireNonNull(client).setScreen(new SearchScreen(this));

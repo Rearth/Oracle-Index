@@ -2,8 +2,9 @@ package rearth.oracle.ui.widgets;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.text.Text;
 
 import java.util.List;
@@ -13,7 +14,8 @@ import java.util.List;
  */
 public class ItemWidget extends UIComponent {
     
-    private ItemStack stack;
+    private final ItemStack stack;
+    private boolean hideItemTooltip;
     
     public ItemWidget(ItemStack stack) {
         this.stack = stack;
@@ -36,11 +38,15 @@ public class ItemWidget extends UIComponent {
         matrices.pop();
     }
     
+    public void setHideItemTooltip(boolean hideItemTooltip) {
+        this.hideItemTooltip = hideItemTooltip;
+    }
+    
     @Override
     public List<Text> tooltip(int mouseX, int mouseY) {
-        if (stack == null || stack.isEmpty()) return super.tooltip(mouseX, mouseY);
+        if (stack == null || stack.isEmpty() || hideItemTooltip) return super.tooltip(mouseX, mouseY);
         var mc = MinecraftClient.getInstance();
-        return stack.getTooltip(net.minecraft.item.Item.TooltipContext.create(mc.world), mc.player,
+        return stack.getTooltip(Item.TooltipContext.create(mc.world), mc.player,
             mc.options.advancedItemTooltips ? TooltipType.ADVANCED : TooltipType.BASIC);
     }
 }

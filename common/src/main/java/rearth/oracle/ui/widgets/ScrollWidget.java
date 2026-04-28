@@ -22,7 +22,7 @@ public class ScrollWidget extends UIComponent {
     private static final int FADE_HEIGHT = 6;
     private static final int SCROLL_BAR_WIDTH = 4;
     private static final int SCROLL_BAR_VISIBLE_TICKS = 25; // ~1.25s
-    private static final float SCROLL_LERP = 0.25f;
+    private static final float SCROLL_LERP = 0.15f;
     
     private UIComponent child;
     private float scrollOffset = 0;
@@ -86,7 +86,7 @@ public class ScrollWidget extends UIComponent {
         child.setPosition(x, y);
         child.layout(childW, childH);
         
-        contentHeight = childH;
+        contentHeight = child instanceof FlowWidget flow ? Math.max(childH, flow.laidOutHeight()) : Math.max(childH, child.getHeight());
         targetScrollOffset = clampOffset(targetScrollOffset);
         scrollOffset = MathHelper.clamp(scrollOffset, 0, maxOffset());
     }

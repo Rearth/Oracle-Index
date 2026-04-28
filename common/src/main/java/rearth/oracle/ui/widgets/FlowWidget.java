@@ -29,6 +29,7 @@ public class FlowWidget extends UIComponent {
     private int gap = 0;
     private HorizontalAlignment horizontalAlignment = HorizontalAlignment.LEFT;
     private VerticalAlignment verticalAlignment = VerticalAlignment.TOP;
+    private int laidOutHeight = 0;
     
     public FlowWidget(Direction direction) {
         this.direction = direction;
@@ -56,6 +57,10 @@ public class FlowWidget extends UIComponent {
     
     public List<UIComponent> children() {
         return children;
+    }
+    
+    public int laidOutHeight() {
+        return laidOutHeight;
     }
     
     // ---------------------------------------------------------------- layout
@@ -117,6 +122,7 @@ public class FlowWidget extends UIComponent {
         if (direction == Direction.VERTICAL) {
             // optionally shrink children width to fit, set position
             int cy = innerY;
+            int visibleCount = 0;
             for (var c : children) {
                 if (!c.isVisible()) continue;
                 int cw = c.getPreferredWidth(innerW);
@@ -132,8 +138,11 @@ public class FlowWidget extends UIComponent {
                 c.setPosition(cx, cy);
                 c.setLayoutSize(cw, ch);
                 c.layout(cw, ch);
+                ch = c.getHeight();
                 cy += ch + gap;
+                visibleCount++;
             }
+            laidOutHeight = visibleCount == 0 ? padding.vertical() : cy - y - gap + padding.bottom();
         } else {
             int usedW = 0;
             int visibleCount = 0;
@@ -150,6 +159,7 @@ public class FlowWidget extends UIComponent {
                 case CENTER -> innerX + Math.max(0, (innerW - usedW) / 2);
                 case RIGHT -> innerX + Math.max(0, innerW - usedW);
             };
+            int maxChildHeight = 0;
             for (var c : children) {
                 if (!c.isVisible()) continue;
                 int cw = c.getPreferredWidth(-1);
@@ -165,8 +175,11 @@ public class FlowWidget extends UIComponent {
                 c.setPosition(cx, cy);
                 c.setLayoutSize(cw, ch);
                 c.layout(cw, ch);
+                ch = c.getHeight();
+                maxChildHeight = Math.max(maxChildHeight, ch);
                 cx += cw + gap;
             }
+            laidOutHeight = padding.vertical() + maxChildHeight;
         }
     }
     

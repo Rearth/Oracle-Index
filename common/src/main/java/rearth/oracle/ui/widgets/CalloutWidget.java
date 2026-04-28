@@ -13,6 +13,7 @@ import org.apache.commons.lang3.StringUtils;
  * "tip" …) is used for the title — capitalised.
  */
 public class CalloutWidget extends FlowWidget {
+    private static final int BODY_TEXT_COLOR = 0xFF555555;
     
     private final String variant;
     private final FlowWidget body;
@@ -27,8 +28,44 @@ public class CalloutWidget extends FlowWidget {
     }
     
     public CalloutWidget addBodyChild(UIComponent child) {
+        tintBodyText(child);
         body.child(child);
         return this;
+    }
+    
+    private void tintBodyText(UIComponent child) {
+        if (child instanceof LabelWidget label) {
+            label.color(BODY_TEXT_COLOR);
+        } else if (child instanceof FlowWidget flow) {
+            for (var nested : flow.children()) tintBodyText(nested);
+        }
+    }
+    
+    @Override
+    public int getPreferredWidth(int widthHint) {
+        if (widthHint > 0) return widthHint;
+        return super.getPreferredWidth(widthHint);
+    }
+    
+    @Override
+    public int getPreferredHeight(int widthHint) {
+        if (widthHint > 0) return body.getPreferredHeight(calloutWidth(widthHint));
+        return super.getPreferredHeight(widthHint);
+    }
+    
+    @Override
+    public void layout(int parentWidthHint, int parentHeightHint) {
+        width = parentWidthHint > 0 ? parentWidthHint : getPreferredWidth(-1);
+        int bodyWidth = calloutWidth(width);
+        int bodyHeight = body.getPreferredHeight(bodyWidth);
+        height = bodyHeight;
+        body.setPosition(x + (width - bodyWidth) / 2, y);
+        body.setLayoutSize(bodyWidth, bodyHeight);
+        body.layout(bodyWidth, bodyHeight);
+    }
+    
+    private int calloutWidth(int availableWidth) {
+        return Math.min(Math.max(1, availableWidth), Math.max(120, (int) (availableWidth * 0.8f)));
     }
     
     @Override
@@ -38,12 +75,11 @@ public class CalloutWidget extends FlowWidget {
         var tr = MinecraftClient.getInstance().textRenderer;
         var title = Text.literal(StringUtils.capitalize(variant)).formatted(Formatting.WHITE);
         int textW = tr.getWidth(title);
-        int padX = 6, padY = 3;
-        int chipW = textW + padX * 2;
-        int chipH = tr.fontHeight + padY * 2;
-        int chipX = x; // anchor top-left of widget
-        int chipY = y;
-        WikiSurface.BEDROCK_PANEL_PRESSED.render(context, chipX, chipY, chipW, chipH);
-        context.drawText(tr, title, chipX + padX, chipY + padY, 0xFFFFFFFF, false);
+        int chipW = textW + 12;
+        int chipH = tr.fontHeight + 9;
+        int chipX = body.getX();
+        int chipY = body.getY();
+        WikiSurface.BEDROCK_PANEL_PRESSED.render(context, chipX -6, chipY -6, chipW, chipH);
+        context.drawText(tr, title, chipX, chipY, 0xFFFFFFFF, false);
     }
 }
