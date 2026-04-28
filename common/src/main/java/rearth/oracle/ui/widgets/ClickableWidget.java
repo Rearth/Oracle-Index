@@ -46,6 +46,10 @@ public class ClickableWidget extends UIComponent {
         return this;
     }
     
+    public UIComponent getChild() {
+        return child;
+    }
+    
     public ClickableWidget centerChild() {
         this.centerChild = true;
         return this;
@@ -102,10 +106,10 @@ public class ClickableWidget extends UIComponent {
         if (child != null) child.render(context, mouseX, mouseY, delta);
     }
     
-    private WikiSurface currentSurface(int mouseX, int mouseY) {
+    public WikiSurface currentSurface(int mouseX, int mouseY) {
         if (!enabled) return disabledSurface;
         if (pressed) return pressedSurface;
-        if (isInBounds(mouseX, mouseY)) return hoverSurface;
+        if (isInBounds(mouseX, mouseY) && !selected) return hoverSurface;
         return selected ? selectedSurface : normalSurface;
     }
     

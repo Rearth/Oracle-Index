@@ -139,21 +139,35 @@ public class OracleScreen extends WikiBaseScreen {
         if (wikiIds.isEmpty()) return FlowWidget.horizontal();
         if (activeWiki == null || !wikiIds.contains(activeWiki)) activeWiki = wikiIds.get(0);
         
-        var row = FlowWidget.horizontal().gap(4);
-        row.verticalAlignment(FlowWidget.VerticalAlignment.CENTER);
-        wikiTitleLabel = new LabelWidget(wikiTitleText()).scale(1.35f);
-        row.child(wikiTitleLabel);
-        row.child(new LabelWidget(Text.literal("v").formatted(Formatting.DARK_GRAY)));
+        wikiTitleLabel = new LabelWidget(wikiTitleText().copy().append(Text.literal(" >"))).scale(1.35f);
         
-        var header = new ClickableWidget(row, b -> {
+        var header = new ClickableWidget(wikiTitleLabel, b -> {
             if (modDropdown != null) {
                 modDropdown.setVisible(!modDropdown.isVisible());
                 requestLayout();
             }
-        }).fillWidth().fixedHeight(WIKI_HEADER_HEIGHT)
+        }) {
+            @Override
+            public int getPreferredHeight(int widthHint) {
+                return super.getPreferredHeight(widthHint) - 8;
+            }
+            
+            @Override
+            public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+                if (!visible) return;
+                context.getMatrices().push();
+                var offset = leftPanel.getWidth() * 0f - this.getWidth() * 0f;
+                context.getMatrices().translate(offset, 0, 10);
+                var surface = currentSurface(mouseX, mouseY);
+                surface.render(context, x - 5, y, width + 10, height);
+                getChild().render(context, mouseX, mouseY, delta);
+                context.getMatrices().pop();
+            }
+        }.fixedHeight(WIKI_HEADER_HEIGHT)
                        .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
                          WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_DISABLED);
-        header.setPadding(Insets.of(4, 8));
+        header.setPadding(Insets.of(8, 4, 4, 8));
+        header.centerChild();
         return header;
     }
     
@@ -173,13 +187,15 @@ public class OracleScreen extends WikiBaseScreen {
         dropdown.clearChildren();
         var wikiIds = OracleClient.LOADED_WIKIS.stream().sorted().toList();
         for (var wikiId : wikiIds) {
-            var label = new LabelWidget(Text.translatable(Oracle.MOD_ID + ".title." + wikiId).formatted(Formatting.WHITE));
+            var label = new LabelWidget(Text.translatable(Oracle.MOD_ID + ".title." + wikiId).formatted(wikiId.equals(activeWiki) ? Formatting.WHITE : Formatting.DARK_GRAY));
+            label.setPadding(Insets.of(4, 3));
             var row = new ClickableWidget(label, b -> selectWiki(wikiId))
-                        .fillWidth().fixedHeight(NAV_ROW_HEIGHT)
+                        .fillWidth()
                         .selected(wikiId.equals(activeWiki))
-                        .surfaces(WikiSurface.NONE, WikiSurface.BEDROCK_PANEL_HOVER, WikiSurface.BEDROCK_PANEL_PRESSED,
-                          WikiSurface.BEDROCK_PANEL, WikiSurface.NONE);
-            row.setPadding(Insets.of(2, 5));
+                        .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER, WikiSurface.BEDROCK_PANEL_PRESSED,
+                          WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_DISABLED);
+            row.setPadding(Insets.of(7, 5));
+            row.enabled(!wikiId.equals(activeWiki));
             dropdown.child(row);
         }
     }
@@ -193,7 +209,7 @@ public class OracleScreen extends WikiBaseScreen {
             navigationHistory.clear();
             if (backAction != null) backAction.setVisible(false);
             if (contentContainer != null) contentContainer.clearChildren();
-            if (wikiTitleLabel != null) wikiTitleLabel.text(wikiTitleText());
+            if (wikiTitleLabel != null) wikiTitleLabel.text(wikiTitleText().copy().append(Text.literal(" >")));
             if (modDropdown != null) rebuildModDropdown(modDropdown);
             buildNavigationTree();
         }
@@ -218,25 +234,24 @@ public class OracleScreen extends WikiBaseScreen {
         int usedGap = leftPanel.gap() * visibleTopRows;
         leftScroll.setLayoutSize(sidebarWidth, Math.max(40, leftPrefH - headerHeight - dropdownHeight - usedGap));
         
-        // content size
-        int contentW;
-        boolean wideEnough = this.width >= 650;
-        // compute tentative wide layout
-        int wideContentPx = (int) (this.width * (WIDE_CONTENT_WIDTH_PCT / 100f));
-        int wideLeftEdge = this.width / 2 - wideContentPx / 2;
-        if (leftOffset + sidebarWidth + 30 > wideLeftEdge) wideEnough = false;
+        int panelY = (this.height - leftPrefH) / 2;
+        leftPanel.setPosition(leftOffset, panelY);
         
-        if (wideEnough) {
-            contentW = wideContentPx;
-            leftPanel.setPosition(leftOffset, (this.height - leftPrefH) / 2);
-            contentScroll.setPosition(wideLeftEdge, (this.height - leftPrefH) / 2);
-            contentScroll.setLayoutSize(contentW, leftPrefH);
+        int contentAreaLeft = leftOffset + sidebarWidth + 10;
+        int contentAreaRight = this.width - leftOffset;
+        int contentAreaWidth = Math.max(120, contentAreaRight - contentAreaLeft);
+        int desiredContentWidth = (int) (this.width * (WIDE_CONTENT_WIDTH_PCT / 100f));
+        int contentW;
+        int contentX;
+        if (this.width >= 650) {
+            contentW = Math.min(desiredContentWidth, contentAreaWidth);
+            contentX = (int) (contentAreaLeft + Math.max(0, (contentAreaWidth - contentW) / 2) * 0.8);
         } else {
-            contentW = this.width - sidebarWidth - leftOffset - 20;
-            leftPanel.setPosition(leftOffset, (this.height - leftPrefH) / 2);
-            contentScroll.setPosition(leftPanel.getX() + sidebarWidth + 10, (this.height - leftPrefH) / 2);
-            contentScroll.setLayoutSize(contentW, leftPrefH);
+            contentW = contentAreaWidth;
+            contentX = contentAreaLeft;
         }
+        contentScroll.setPosition(contentX, panelY);
+        contentScroll.setLayoutSize(contentW, leftPrefH);
         
         leftPanel.layout(leftPanel.getWidth(), leftPrefH);
         contentScroll.layout(contentW, leftPrefH);
@@ -406,7 +421,7 @@ public class OracleScreen extends WikiBaseScreen {
     }
     
     private FlowWidget buildModeSelector() {
-        var row = FlowWidget.horizontal().gap(2);
+        var row = FlowWidget.horizontal().gap(-1);
         row.size(SIDEBAR_WIDTH - 10, 0);
         row.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
         row.child(makeModeButton("docs"));
@@ -418,7 +433,7 @@ public class OracleScreen extends WikiBaseScreen {
         boolean selected = activeWikiMode.equals(mode);
         var text = Text.translatable("oracle_index.button." + mode).formatted(selected ? Formatting.WHITE : Formatting.DARK_GRAY);
         var label = new LabelWidget(text);
-        return new ClickableWidget(label, b -> {
+        var widget = new ClickableWidget(label, b -> {
             if (!selected) {
                 activeWikiMode = mode;
                 activeEntry = null;
@@ -429,9 +444,13 @@ public class OracleScreen extends WikiBaseScreen {
                 buildNavigationTree();
                 requestLayout();
             }
-        }).fixedSize(60, 16).centerChild().selected(selected)
+        }).centerChild().selected(selected)
                  .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
-                   WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_DARK, WikiSurface.BEDROCK_PANEL_DISABLED);
+                   WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_DISABLED);
+        
+        widget.setPadding(Insets.of(5, 12));
+        
+        return widget;
     }
     
     private String getWikiMode(String wikiId) {
