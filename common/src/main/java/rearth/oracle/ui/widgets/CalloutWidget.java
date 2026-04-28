@@ -31,10 +31,6 @@ public class CalloutWidget extends FlowWidget {
         return this;
     }
     
-    public FlowWidget body() {
-        return body;
-    }
-    
     @Override
     protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
         super.renderContent(context, mouseX, mouseY, delta);

@@ -1,6 +1,7 @@
 package rearth.oracle.util;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.item.ItemStack;
@@ -70,7 +71,7 @@ public class MarkdownParser {
         document.accept(visitor);
         
         var widgets = new ArrayList<UIComponent>();
-        widgets.add(buildTitlePanel(linkHandler, frontMatter, currentPath));
+        widgets.add(buildTitlePanel(linkHandler, frontMatter, currentPath, contentWidthPx));
         widgets.addAll(visitor.results());
         
         if (frontMatter.containsKey("id")) {
@@ -108,7 +109,7 @@ public class MarkdownParser {
         
         private void flushBuffer() {
             if (buffer == null || buffer.getString().isEmpty()) return;
-            var label = new LabelWidget(buffer).linkHandler(linkHandler).lineSpacing(1);
+            var label = new LabelWidget(buffer).linkHandler(linkHandler).lineSpacing(1).fillWidth();
             label.setPadding(Insets.of(0, 0, currentIndentation * 6, 0));
             components.add(label);
             buffer = Text.empty();
@@ -129,7 +130,7 @@ public class MarkdownParser {
             visitChildren(heading);
             currentStyle = oldStyle;
             
-            var label = new LabelWidget(buffer).linkHandler(linkHandler);
+            var label = new LabelWidget(buffer).linkHandler(linkHandler).fillWidth();
             label.scale(Math.max(1.0f, 2.0f - heading.getLevel() * 0.2f));
             label.setPadding(Insets.of(10, 5, 0, 0));
             components.add(label);
@@ -298,57 +299,79 @@ public class MarkdownParser {
         return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, "No title found");
     }
     
-    private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter, Identifier pageId) {
-        var row = FlowWidget.horizontal().gap(6);
-        row.setPadding(Insets.of(15, 5, 2, 2));
+    private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter, Identifier pageId, int contentWidthPx) {
+        var row = FlowWidget.horizontal().gap(10);
+        row.setSurface(WikiSurface.BEDROCK_PANEL);
+        row.setPadding(Insets.of(8, 10));
+        row.verticalAlignment(FlowWidget.VerticalAlignment.CENTER);
         
         var iconId = frontMatter.getOrDefault("icon", "");
         if (iconId.isBlank()) iconId = frontMatter.getOrDefault("id", "");
         if (Identifier.validate(iconId).isSuccess() && Registries.ITEM.containsId(Identifier.of(iconId))) {
             var iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
-            var iconPanel = FlowWidget.horizontal();
-            iconPanel.setSurface(WikiSurface.BEDROCK_PANEL);
-            iconPanel.setPadding(Insets.of(6));
-            // simulate the original 48-px item
             var icon = new ItemWidget(iconStack);
             icon.size(48, 48);
-            iconPanel.child(icon);
-            row.child(iconPanel);
+            row.child(icon);
         }
         
         var titleStr = getTitle(frontMatter, pageId);
-        var titlePanel = FlowWidget.horizontal();
-        titlePanel.setSurface(WikiSurface.BEDROCK_PANEL);
-        titlePanel.setPadding(Insets.of(10));
         var titleLabel = new LabelWidget(Text.literal(titleStr).formatted(Formatting.DARK_GRAY))
-            .scale(2f).linkHandler(linkHandler);
-        titlePanel.child(titleLabel);
-        row.child(titlePanel);
+            .scale(2f)
+            .wrapWidth(Math.max(80, contentWidthPx - 90))
+            .linkHandler(linkHandler);
+        row.child(titleLabel);
         
         return row;
     }
     
     private static UIComponent buildPropertiesPanel(Map<String, Text> properties, int contentWidthPx) {
-        int innerWidth = (int) (contentWidthPx * 0.8f);
+        var tr = MinecraftClient.getInstance().textRenderer;
+        int titleWidth = tr.getWidth("Details");
+        int keyWidth = 0;
+        int valueWidth = 0;
+        for (var entry : properties.entrySet()) {
+            keyWidth = Math.max(keyWidth, tr.getWidth(entry.getKey()));
+            valueWidth = Math.max(valueWidth, tr.getWidth(entry.getValue()));
+        }
+        int innerWidth = Math.min(contentWidthPx, Math.max(160, Math.max(titleWidth, keyWidth + valueWidth + 28) + 20));
         var outer = FlowWidget.vertical().gap(2);
         outer.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
         outer.setPadding(Insets.of(10));
-        outer.setSize(innerWidth, 0);
+        outer.size(innerWidth, 0);
         outer.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
         outer.child(new LabelWidget(Text.literal("Details").formatted(Formatting.BOLD, Formatting.GRAY)));
         
         for (var entry : properties.entrySet()) {
-            var rowFlow = FlowWidget.horizontal();
-            rowFlow.setSize(innerWidth - 20, 0);
-            var key = new LabelWidget(Text.literal(entry.getKey()).formatted(Formatting.GOLD));
-            var value = new LabelWidget(entry.getValue());
-            // approx: key on left, push value to right via a spacer
-            rowFlow.child(key);
-            rowFlow.child(SpacerWidget.horizontal(1));
-            rowFlow.child(value);
-            outer.child(rowFlow);
+            outer.child(new PropertyRowWidget(Text.literal(entry.getKey()).formatted(Formatting.GOLD), entry.getValue()));
         }
         return outer;
+    }
+    
+    private static class PropertyRowWidget extends UIComponent {
+        private final Text key;
+        private final Text value;
+        
+        PropertyRowWidget(Text key, Text value) {
+            this.key = key;
+            this.value = value;
+        }
+        
+        @Override
+        public int getPreferredWidth(int widthHint) {
+            return widthHint > 0 ? widthHint : MinecraftClient.getInstance().textRenderer.getWidth(key) + 28 + MinecraftClient.getInstance().textRenderer.getWidth(value);
+        }
+        
+        @Override
+        public int getPreferredHeight(int widthHint) {
+            return MinecraftClient.getInstance().textRenderer.fontHeight;
+        }
+        
+        @Override
+        protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+            var tr = MinecraftClient.getInstance().textRenderer;
+            context.drawText(tr, key, x, y, 0xFFFFFFFF, false);
+            context.drawText(tr, value, x + width - tr.getWidth(value), y, 0xFFFFFFFF, false);
+        }
     }
     
     public static UIComponent buildRecipe(List<String> inputs, String resultId, int resultCount) {

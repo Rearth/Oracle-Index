@@ -28,6 +28,8 @@ public class SearchScreen extends WikiBaseScreen {
     
     private static final String MATH_EXPR_REGEX = "^[\\d\\s+\\-*/%().]+$";
     private static final int PANEL_WIDTH = 350;
+    private static final int SEARCH_HEADER_HEIGHT = 44;
+    private static final int RESULT_PANEL_PADDING = 6;
     
     private final Screen parent;
     private FlowWidget mainContainer;
@@ -51,18 +53,20 @@ public class SearchScreen extends WikiBaseScreen {
         
         // header row: oracle icon + search bar background panel
         oracleIcon = new TextureWidget(Identifier.of(Oracle.MOD_ID, "textures/oracle-index-icon.png"), 256, 256);
-        oracleIcon.size(50, 50);
-        oracleIcon.setZIndex(2);
+        oracleIcon.size(42, 42);
         searchPanelBg = FlowWidget.horizontal();
         searchPanelBg.setSurface(WikiSurface.BEDROCK_PANEL);
-        searchPanelBg.setPadding(Insets.of(8));
-        searchPanelBg.size(PANEL_WIDTH - 50 - 4, 28);
-        var headerRow = FlowWidget.horizontal().gap(4);
+        searchPanelBg.setPadding(Insets.of(5, 7));
+        searchPanelBg.size(PANEL_WIDTH - 42 - 6, 26);
+        var headerRow = FlowWidget.horizontal().gap(6);
+        headerRow.verticalAlignment(FlowWidget.VerticalAlignment.CENTER);
+        headerRow.size(PANEL_WIDTH, SEARCH_HEADER_HEIGHT);
         headerRow.child(oracleIcon).child(searchPanelBg);
         mainContainer.child(headerRow);
         
         // results
         resultsPanel = FlowWidget.vertical().gap(2);
+        resultsPanel.setPadding(Insets.of(RESULT_PANEL_PADDING, RESULT_PANEL_PADDING, RESULT_PANEL_PADDING, RESULT_PANEL_PADDING));
         resultsScroll = new ScrollWidget(resultsPanel);
         mainContainer.child(resultsScroll);
         
@@ -83,20 +87,18 @@ public class SearchScreen extends WikiBaseScreen {
     @Override
     protected void layoutWidgets() {
         int contentH = (int) (this.height * 0.95f);
-        mainContainer.setSize(PANEL_WIDTH, contentH);
+        mainContainer.setLayoutSize(PANEL_WIDTH, contentH);
         mainContainer.setPosition((this.width - PANEL_WIDTH) / 2, (this.height - contentH) / 2);
         
-        // header occupies the top
-        int headerH = 50;
         // place results scroll under header
-        resultsScroll.setSize(PANEL_WIDTH, contentH - headerH - 8);
+        resultsScroll.setLayoutSize(PANEL_WIDTH, contentH - SEARCH_HEADER_HEIGHT - 8);
         
         mainContainer.layout(PANEL_WIDTH, contentH);
         
         // Position vanilla text field on top of the searchPanelBg interior
-        int fieldX = searchPanelBg.getX() + 6;
+        int fieldX = searchPanelBg.getX() + searchPanelBg.getPadding().left();
         int fieldY = searchPanelBg.getY() + (searchPanelBg.getHeight() - 14) / 2;
-        int fieldW = searchPanelBg.getWidth() - 12;
+        int fieldW = searchPanelBg.getWidth() - searchPanelBg.getPadding().horizontal();
         searchField.setX(fieldX);
         searchField.setY(fieldY);
         searchField.setWidth(fieldW);
@@ -149,6 +151,7 @@ public class SearchScreen extends WikiBaseScreen {
                       .orElseGet(() -> OracleClient.getOrCreateSearch().search(query));
         
         for (var result : results) {
+            int rowWidth = resultsContentWidth();
             var contentId = Identifier.of(Oracle.MOD_ID, String.format("%s/%s/%s",
                 ROOT_DIR, result.id().getNamespace(), result.id().getPath()));
             
@@ -162,7 +165,7 @@ public class SearchScreen extends WikiBaseScreen {
             var titleRow = FlowWidget.horizontal().gap(4);
             titleRow.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
             titleRow.setPadding(Insets.of(6, 7, 6, 8));
-            titleRow.setZIndex(2);
+            titleRow.size(rowWidth, 0);
             if (result.iconName() != null && Registries.ITEM.containsId(Identifier.of(result.iconName()))) {
                 var iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(result.iconName())));
                 var icon = new ItemWidget(iconStack);
@@ -175,11 +178,11 @@ public class SearchScreen extends WikiBaseScreen {
             var body = FlowWidget.vertical().gap(1);
             body.setSurface(WikiSurface.BEDROCK_PANEL);
             body.setPadding(Insets.of(7, 8, 4, 4));
-            body.size(PANEL_WIDTH - 8, 0);
+            body.size(rowWidth, 0);
             
             for (var text : result.texts()) {
                 var widgets = MarkdownParser.parseMarkdownToWidgets(text, result.id().getNamespace(),
-                    result.id(), s -> false, PANEL_WIDTH - 20);
+                    result.id(), s -> false, rowWidth - 16);
                 boolean hadContent = false;
                 for (var w : widgets) {
                     if (w instanceof LabelWidget label && label.scale() == 1f) {
@@ -194,30 +197,44 @@ public class SearchScreen extends WikiBaseScreen {
             var openTarget = contentId;
             var openWiki = result.id().getNamespace();
             var resultRow = new SearchResultRow(titleRow, body, openWiki, openTarget);
+            resultRow.fillWidth();
             resultsPanel.child(resultRow);
         }
         requestLayout();
     }
     
+    private int resultsContentWidth() {
+        int scrollWidth = resultsScroll != null && resultsScroll.getWidth() > 0 ? resultsScroll.getWidth() : PANEL_WIDTH;
+        return Math.max(80, scrollWidth - RESULT_PANEL_PADDING * 2 - 8);
+    }
+    
     /** Two stacked panels (title + body) that open the linked entry on click. */
-    private class SearchResultRow extends FlowWidget {
-        private final String wikiId;
-        private final Identifier target;
+    private class SearchResultRow extends ClickableWidget {
+        private final FlowWidget titleRow;
+        private final FlowWidget body;
+        
         SearchResultRow(FlowWidget titleRow, FlowWidget body, String wikiId, Identifier target) {
-            super(Direction.VERTICAL);
-            this.wikiId = wikiId;
-            this.target = target;
-            child(titleRow);
-            if (!body.children().isEmpty()) child(body);
+            super(buildResultContent(titleRow, body), b -> OracleClient.openScreen(wikiId, target, SearchScreen.this));
+            this.titleRow = titleRow;
+            this.body = body;
+            surfaces(WikiSurface.NONE, WikiSurface.BEDROCK_PANEL_HOVER, WikiSurface.BEDROCK_PANEL_PRESSED,
+                WikiSurface.NONE, WikiSurface.NONE);
         }
+        
         @Override
-        public boolean handleClick(double mx, double my, int button) {
-            if (button == 0 && isInBounds(mx, my)) {
-                OracleClient.openScreen(wikiId, target, SearchScreen.this);
-                return true;
-            }
-            return super.handleClick(mx, my, button);
+        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+            boolean hovered = isInBounds(mouseX, mouseY);
+            titleRow.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_PRESSED : WikiSurface.BEDROCK_PANEL_DARK);
+            body.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_HOVER : WikiSurface.BEDROCK_PANEL);
+            super.render(context, mouseX, mouseY, delta);
         }
+    }
+    
+    private static FlowWidget buildResultContent(FlowWidget titleRow, FlowWidget body) {
+        var content = FlowWidget.vertical().gap(0);
+        content.child(titleRow);
+        if (!body.children().isEmpty()) content.child(body);
+        return content;
     }
     
     private Optional<SemanticSearch.SearchResult> tryProcessExpression(String input) {

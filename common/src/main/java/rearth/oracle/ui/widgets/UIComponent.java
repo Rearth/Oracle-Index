@@ -11,8 +11,7 @@ import java.util.List;
  * Base class for every wiki UI widget.
  *
  * <p>Each widget owns an absolute position + size, an optional {@link WikiSurface}
- * background drawn underneath the content, padding that expands the surface
- * outward, a tooltip, and a z-index.
+ * background drawn underneath the content, padding for containers, and a tooltip.
  *
  * <p>Containers are responsible for laying out their children and may call
  * {@link #layout(int, int)} on each child. Leaf widgets only need to override
@@ -21,9 +20,9 @@ import java.util.List;
 public abstract class UIComponent {
     
     protected int x, y, width, height;
+    protected int preferredWidth = -1, preferredHeight = -1;
     protected Insets padding = Insets.NONE;
     protected WikiSurface surface = WikiSurface.NONE;
-    protected int zIndex = 0;
     protected boolean visible = true;
     
     private List<Text> tooltip;
@@ -39,19 +38,16 @@ public abstract class UIComponent {
         this.y = y;
         this.width = width;
         this.height = height;
+        this.preferredWidth = width;
+        this.preferredHeight = height;
     }
     
     /** Fluent setter for size. */
     public UIComponent size(int width, int height) {
         this.width = width;
         this.height = height;
-        return this;
-    }
-    
-    /** Fluent setter for position. */
-    public UIComponent position(int x, int y) {
-        this.x = x;
-        this.y = y;
+        this.preferredWidth = width;
+        this.preferredHeight = height;
         return this;
     }
     
@@ -70,11 +66,7 @@ public abstract class UIComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!visible) return;
         
-        if (!surface.isNone()) {
-            surface.render(context,
-              x - padding.left(), y - padding.top(),
-              width + padding.horizontal(), height + padding.vertical());
-        }
+        if (!surface.isNone()) surface.render(context, x, y, width, height);
         
         renderContent(context, mouseX, mouseY, delta);
     }
@@ -99,12 +91,12 @@ public abstract class UIComponent {
      * Default returns the current explicit width.
      */
     public int getPreferredWidth(int widthHint) {
-        return width;
+        return preferredWidth >= 0 ? preferredWidth : width;
     }
     
     /** Preferred height. Width hint already resolved. -1 = no constraint. */
     public int getPreferredHeight(int widthHint) {
-        return height;
+        return preferredHeight >= 0 ? preferredHeight : height;
     }
     
     /**
@@ -122,11 +114,7 @@ public abstract class UIComponent {
     // --------------------------------------------------------------- mouse
     
     public boolean isMouseOver(double mouseX, double mouseY) {
-        int px = x - padding.left();
-        int py = y - padding.top();
-        int pw = width + padding.horizontal();
-        int ph = height + padding.vertical();
-        return mouseX >= px && mouseX < px + pw && mouseY >= py && mouseY < py + ph;
+        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
     
     public boolean handleClick(double mouseX, double mouseY, int button) { return false; }
@@ -141,38 +129,15 @@ public abstract class UIComponent {
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public Insets getPadding() { return padding; }
-    public WikiSurface getSurface() { return surface; }
-    public int getZIndex() { return zIndex; }
     public boolean isVisible() { return visible; }
     
-    public void setX(int x) { this.x = x; }
-    public void setY(int y) { this.y = y; }
     public void setPosition(int x, int y) { this.x = x; this.y = y; }
-    public void setWidth(int width) { this.width = width; }
-    public void setHeight(int height) { this.height = height; }
-    public void setSize(int width, int height) { this.width = width; this.height = height; }
+    public void setLayoutSize(int width, int height) { this.width = width; this.height = height; }
     public void setPadding(Insets padding) { this.padding = padding; }
     public void setSurface(WikiSurface surface) { this.surface = surface; }
-    public void setZIndex(int zIndex) { this.zIndex = zIndex; }
     public void setVisible(boolean visible) { this.visible = visible; }
     
-    // Content-area helpers (currently identical to widget bounds; padding sits outside)
-    public int contentX() { return x; }
-    public int contentY() { return y; }
-    public int contentWidth() { return width; }
-    public int contentHeight() { return height; }
-    
-    public int paddedX() { return x - padding.left(); }
-    public int paddedY() { return y - padding.top(); }
-    public int paddedWidth() { return width + padding.horizontal(); }
-    public int paddedHeight() { return height + padding.vertical(); }
-    
     // --------------------------------------------------------------- fluent
-    
-    public UIComponent withSurface(WikiSurface surface) { this.surface = surface; return this; }
-    public UIComponent withPadding(Insets padding) { this.padding = padding; return this; }
-    public UIComponent withZIndex(int zIndex) { this.zIndex = zIndex; return this; }
-    public UIComponent withVisible(boolean visible) { this.visible = visible; return this; }
     
     public UIComponent withTooltip(Text... lines) {
         this.tooltip = splitNewlines(List.of(lines));
@@ -183,10 +148,6 @@ public abstract class UIComponent {
         this.tooltip = splitNewlines(lines);
         return this;
     }
-    
-    public boolean hasTooltip() { return tooltip != null && !tooltip.isEmpty(); }
-    public List<Text> getTooltip() { return tooltip; }
-    public void setTooltip(@Nullable List<Text> tooltip) { this.tooltip = tooltip != null ? splitNewlines(tooltip) : null; }
     
     private static List<Text> splitNewlines(List<Text> lines) {
         var result = new ArrayList<Text>();

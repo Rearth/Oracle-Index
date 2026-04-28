@@ -4,7 +4,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.ClickEvent;
-import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -19,20 +18,19 @@ import java.util.function.Predicate;
  * no wrap is set) and reports {@link #getPreferredWidth(int)} /
  * {@link #getPreferredHeight(int)} based on the wrapped layout.
  *
- * <p>Supports a render-time {@link #scale}, {@link #color}, optional
- * {@link #shadow}, and click-handling for {@link ClickEvent#OPEN_URL} styles
- * via a {@link Predicate} that can veto navigation.</p>
+ * <p>Supports a render-time {@link #scale}, {@link #color}, and click-handling
+ * for {@link ClickEvent#OPEN_URL} styles via a {@link Predicate} that can veto
+ * navigation.</p>
  */
 public class LabelWidget extends UIComponent {
     
     private Text text;
     private float scale = 1.0f;
     private int color = 0xFFFFFFFF;
-    private boolean shadow = false;
     private int lineSpacing = 0;
-    /** -1 means "use my explicit width". */
+    /** -1 means "use the layout-supplied hint". */
     private int wrapWidth = -1;
-    private HorizontalAlignment horizontalAlignment = HorizontalAlignment.LEFT;
+    private boolean fillWidth = false;
     
     private Predicate<String> linkHandler;
     
@@ -71,11 +69,6 @@ public class LabelWidget extends UIComponent {
         return this;
     }
     
-    public LabelWidget shadow(boolean shadow) {
-        this.shadow = shadow;
-        return this;
-    }
-    
     public LabelWidget lineSpacing(int lineSpacing) {
         this.lineSpacing = lineSpacing;
         invalidateWrap();
@@ -89,8 +82,8 @@ public class LabelWidget extends UIComponent {
         return this;
     }
     
-    public LabelWidget horizontalAlignment(HorizontalAlignment alignment) {
-        this.horizontalAlignment = alignment;
+    public LabelWidget fillWidth() {
+        this.fillWidth = true;
         return this;
     }
     
@@ -113,7 +106,6 @@ public class LabelWidget extends UIComponent {
     private int effectiveWrapWidthPx(int widthHint) {
         int avail;
         if (wrapWidth > 0) avail = wrapWidth;
-        else if (width > 0) avail = width;
         else if (widthHint > 0) avail = widthHint;
         else avail = Integer.MAX_VALUE / 2;
         // wrap is done in the unscaled font space, so undo the scale
@@ -134,7 +126,8 @@ public class LabelWidget extends UIComponent {
     
     @Override
     public int getPreferredWidth(int widthHint) {
-        if (width > 0) return width;
+        if (preferredWidth > 0) return preferredWidth;
+        if (fillWidth && widthHint > 0) return widthHint;
         var lines = wrap(widthHint);
         int max = 0;
         for (var line : lines) max = Math.max(max, textRenderer().getWidth(line));
@@ -143,7 +136,7 @@ public class LabelWidget extends UIComponent {
     
     @Override
     public int getPreferredHeight(int widthHint) {
-        if (height > 0) return height;
+        if (preferredHeight > 0) return preferredHeight;
         var lines = wrap(widthHint);
         int n = lines.size();
         int total = n * textRenderer().fontHeight + Math.max(0, n - 1) * lineSpacing;
@@ -170,17 +163,9 @@ public class LabelWidget extends UIComponent {
         int baseX = scaled ? 0 : x;
         int baseY = scaled ? 0 : y;
         int lineHeight = tr.fontHeight + lineSpacing;
-        int boxWidthPx = scaled ? (int) Math.floor((width > 0 ? width : Integer.MAX_VALUE / 2) / scale) : (width > 0 ? width : Integer.MAX_VALUE / 2);
         for (int i = 0; i < lines.size(); i++) {
             var line = lines.get(i);
-            int lx = baseX;
-            if (horizontalAlignment != HorizontalAlignment.LEFT && width > 0) {
-                int lw = tr.getWidth(line);
-                int slack = boxWidthPx - lw;
-                if (horizontalAlignment == HorizontalAlignment.CENTER) lx = baseX + slack / 2;
-                else if (horizontalAlignment == HorizontalAlignment.RIGHT) lx = baseX + slack;
-            }
-            context.drawText(tr, line, lx, baseY + i * lineHeight, color, shadow);
+            context.drawText(tr, line, baseX, baseY + i * lineHeight, color, false);
         }
         if (scaled) matrices.pop();
     }
@@ -210,10 +195,4 @@ public class LabelWidget extends UIComponent {
         return tr.getTextHandler().getStyleAt(lines.get(lineIndex), MathHelper.floor(localX));
     }
     
-    public enum HorizontalAlignment { LEFT, CENTER, RIGHT }
-    
-    /** Convenience for plain {@link MutableText}. */
-    public static LabelWidget of(MutableText text) {
-        return new LabelWidget(text);
-    }
 }

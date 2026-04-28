@@ -3,7 +3,6 @@ package rearth.oracle.ui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
 import rearth.oracle.ui.widgets.UIComponent;
@@ -32,16 +31,6 @@ public abstract class WikiBaseScreen extends Screen {
         widget.setLayoutRequester(this::requestLayout);
         rootWidgets.add(widget);
         needsLayout = true;
-    }
-    
-    protected void removeRoot(UIComponent widget) {
-        widget.setLayoutRequester(null);
-        rootWidgets.remove(widget);
-        needsLayout = true;
-    }
-    
-    protected List<UIComponent> rootWidgets() {
-        return rootWidgets;
     }
     
     public void requestLayout() {

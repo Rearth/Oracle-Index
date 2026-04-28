@@ -12,6 +12,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 import org.jetbrains.annotations.NotNull;
+import org.lwjgl.glfw.GLFW;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
 import rearth.oracle.progress.OracleProgressAPI;
@@ -37,6 +38,10 @@ public class OracleScreen extends WikiBaseScreen {
     public static String activeWiki;
     
     private static final int WIDE_CONTENT_WIDTH_PCT = 50;
+    private static final int SIDEBAR_WIDTH = 168;
+    private static final int MIN_SIDEBAR_WIDTH = 132;
+    private static final int NAV_ROW_HEIGHT = 16;
+    private static final int WIKI_HEADER_HEIGHT = 25;
     
     private final Screen parent;
     private final Stack<Identifier> navigationHistory = new Stack<>();
@@ -47,11 +52,17 @@ public class OracleScreen extends WikiBaseScreen {
     private ScrollWidget leftScroll;
     private ScrollWidget contentScroll;
     private FlowWidget actionHub;
-    private ButtonWidget backAction;
+    private FlowWidget modDropdown;
+    private UIComponent wikiTitleHeader;
+    private LabelWidget wikiTitleLabel;
+    private ClickableWidget backAction;
     
     private boolean inHistory = false;
     
-    public OracleScreen() { this(null); }
+    public OracleScreen() {
+        this(null);
+    }
+    
     public OracleScreen(Screen parent) {
         super(Text.translatable("oracle_index.title.screen"));
         this.parent = parent;
@@ -72,38 +83,41 @@ public class OracleScreen extends WikiBaseScreen {
     protected void buildRoots() {
         // navigation bar (the inner content of the left scroll)
         navigationBar = FlowWidget.vertical().gap(2);
-        navigationBar.setPadding(Insets.of(9, 5, 5, 5));
+        navigationBar.setPadding(Insets.of(7, 5, 5, 5));
         
         leftScroll = new ScrollWidget(navigationBar);
         leftScroll.scrollSpeed(15);
         // surface frames the viewport (stays fixed while content scrolls inside)
         leftScroll.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
         
-        leftPanel = FlowWidget.vertical().gap(4);
-        leftPanel.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
-        leftPanel.child(buildWikiTitleHeader());
+        leftPanel = FlowWidget.vertical().gap(3);
+        wikiTitleHeader = buildWikiTitleHeader();
+        leftPanel.child(wikiTitleHeader);
+        modDropdown = buildModDropdown();
+        modDropdown.setVisible(false);
+        leftPanel.child(modDropdown);
         leftPanel.child(leftScroll);
         
         // content area
         contentContainer = FlowWidget.vertical().gap(4);
-        contentContainer.setPadding(Insets.of(20, 25, 0, 0));
+        contentContainer.setPadding(Insets.of(20, 0, 0, 0));
         contentScroll = new ScrollWidget(contentContainer);
         contentScroll.scrollSpeed(20);
         
         // action hub (back / search / close)
         actionHub = FlowWidget.horizontal().gap(2);
         backAction = makeHubAction(Text.translatable("tooltip.oracle_index.back"),
-            Identifier.ofVanilla("textures/gui/sprites/widget/page_backward.png"), 23, 13, 24, 20,
-            b -> back());
+          Identifier.ofVanilla("textures/gui/sprites/widget/page_backward.png"), 23, 13, 24, 20,
+          b -> back());
         backAction.setVisible(!navigationHistory.isEmpty());
         var searchAction = makeHubAction(Text.translatable("tooltip.oracle_index.open_search",
-                OracleClient.ORACLE_WIKI.getBoundKeyLocalizedText(),
-                OracleClient.ORACLE_SEARCH.getBoundKeyLocalizedText()),
-            Identifier.ofVanilla("textures/gui/sprites/icon/search.png"), 16, 16, 24, 24,
-            b -> MinecraftClient.getInstance().setScreen(new SearchScreen(this)));
+            OracleClient.ORACLE_WIKI.getBoundKeyLocalizedText(),
+            OracleClient.ORACLE_SEARCH.getBoundKeyLocalizedText()),
+          Identifier.ofVanilla("textures/gui/sprites/icon/search.png"), 16, 16, 24, 24,
+          b -> MinecraftClient.getInstance().setScreen(new SearchScreen(this)));
         var closeAction = makeHubAction(Text.translatable("tooltip.oracle_index.close_screen"),
-            Identifier.ofVanilla("textures/gui/sprites/container/beacon/cancel.png"), 13, 13, 20, 20,
-            b -> fullClose());
+          Identifier.ofVanilla("textures/gui/sprites/container/beacon/cancel.png"), 13, 13, 20, 20,
+          b -> fullClose());
         actionHub.child(backAction).child(searchAction).child(closeAction);
         
         addRoot(leftPanel);
@@ -112,69 +126,78 @@ public class OracleScreen extends WikiBaseScreen {
         
         buildNavigationTree();
         if (activeEntry != null) {
-            try { loadContent(activeEntry, activeWiki); }
-            catch (IOException e) { Oracle.LOGGER.error("Failed to reload active entry: {}", e.getMessage()); }
+            try {
+                loadContent(activeEntry, activeWiki);
+            } catch (IOException e) {
+                Oracle.LOGGER.error("Failed to reload active entry: {}", e.getMessage());
+            }
         }
     }
     
-    private FlowWidget buildWikiTitleHeader() {
-        // Picks active wiki and shows it; clicking cycles through loaded wikis.
+    private UIComponent buildWikiTitleHeader() {
         var wikiIds = OracleClient.LOADED_WIKIS.stream().sorted().toList();
         if (wikiIds.isEmpty()) return FlowWidget.horizontal();
-        if (activeWiki == null) activeWiki = wikiIds.get(0);
+        if (activeWiki == null || !wikiIds.contains(activeWiki)) activeWiki = wikiIds.get(0);
         
-        var wrapper = FlowWidget.horizontal();
-        wrapper.setSurface(WikiSurface.BEDROCK_PANEL);
-        wrapper.setPadding(Insets.of(8));
-        var label = new LabelWidget(
-            Text.translatable(Oracle.MOD_ID + ".title." + activeWiki).formatted(Formatting.DARK_GRAY)
-                .append(Text.literal(" >").formatted(Formatting.DARK_GRAY))
-        ).scale(1.5f);
-        wrapper.child(label);
-        wrapper.setZIndex(5);
+        var row = FlowWidget.horizontal().gap(4);
+        row.verticalAlignment(FlowWidget.VerticalAlignment.CENTER);
+        wikiTitleLabel = new LabelWidget(wikiTitleText()).scale(1.35f);
+        row.child(wikiTitleLabel);
+        row.child(new LabelWidget(Text.literal("v").formatted(Formatting.DARK_GRAY)));
         
-        var titleButton = new ButtonWidget(Text.empty(), b -> {
-            int idx = wikiIds.indexOf(activeWiki);
-            activeWiki = wikiIds.get((idx + 1) % wikiIds.size());
-            activeEntry = null;
-            requestLayout();
-            // rebuild widget tree on next init; force by re-init
-            init(MinecraftClient.getInstance(), this.width, this.height);
-        });
-        // make the button bound the wrapper area; use an overlay approach: place button after wrapper at same coords
-        // simpler — replace the wrapper's surface logic: the wrapper acts as the click target.
-        // We pretend the wrapper is the button: attach a click handler via an invisible button child.
-        // For brevity, return wrapper plus invisible click button stacked; but FlowWidget doesn't support absolute
-        // positioning. So instead: subclass FlowWidget? No — too much code. Use a dedicated holder widget below.
-        return new ClickableHolder(wrapper, titleButton);
+        var header = new ClickableWidget(row, b -> {
+            if (modDropdown != null) {
+                modDropdown.setVisible(!modDropdown.isVisible());
+                requestLayout();
+            }
+        }).fillWidth().fixedHeight(WIKI_HEADER_HEIGHT)
+                       .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
+                         WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_DISABLED);
+        header.setPadding(Insets.of(4, 8));
+        return header;
     }
     
-    /**
-     * Tiny composite that renders a wrapper and forwards clicks to a button
-     * sized to the wrapper's bounds. Used so we can keep the visual wrapper
-     * style while making it interactive.
-     */
-    private static class ClickableHolder extends FlowWidget {
-        private final ButtonWidget proxyButton;
-        ClickableHolder(UIComponent visual, ButtonWidget proxyButton) {
-            super(Direction.HORIZONTAL);
-            this.proxyButton = proxyButton;
-            child(visual);
+    private Text wikiTitleText() {
+        return Text.translatable(Oracle.MOD_ID + ".title." + activeWiki).formatted(Formatting.DARK_GRAY);
+    }
+    
+    private FlowWidget buildModDropdown() {
+        var dropdown = FlowWidget.vertical().gap(1);
+        dropdown.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
+        dropdown.setPadding(Insets.of(3));
+        rebuildModDropdown(dropdown);
+        return dropdown;
+    }
+    
+    private void rebuildModDropdown(FlowWidget dropdown) {
+        dropdown.clearChildren();
+        var wikiIds = OracleClient.LOADED_WIKIS.stream().sorted().toList();
+        for (var wikiId : wikiIds) {
+            var label = new LabelWidget(Text.translatable(Oracle.MOD_ID + ".title." + wikiId).formatted(Formatting.WHITE));
+            var row = new ClickableWidget(label, b -> selectWiki(wikiId))
+                        .fillWidth().fixedHeight(NAV_ROW_HEIGHT)
+                        .selected(wikiId.equals(activeWiki))
+                        .surfaces(WikiSurface.NONE, WikiSurface.BEDROCK_PANEL_HOVER, WikiSurface.BEDROCK_PANEL_PRESSED,
+                          WikiSurface.BEDROCK_PANEL, WikiSurface.NONE);
+            row.setPadding(Insets.of(2, 5));
+            dropdown.child(row);
         }
-        @Override
-        public void layout(int parentWidthHint, int parentHeightHint) {
-            super.layout(parentWidthHint, parentHeightHint);
-            proxyButton.setPosition(getX(), getY());
-            proxyButton.setSize(getWidth(), getHeight());
+    }
+    
+    private void selectWiki(String wikiId) {
+        if (modDropdown != null) modDropdown.setVisible(false);
+        if (!wikiId.equals(activeWiki)) {
+            activeWiki = wikiId;
+            activeWikiMode = getWikiMode(activeWiki);
+            activeEntry = null;
+            navigationHistory.clear();
+            if (backAction != null) backAction.setVisible(false);
+            if (contentContainer != null) contentContainer.clearChildren();
+            if (wikiTitleLabel != null) wikiTitleLabel.text(wikiTitleText());
+            if (modDropdown != null) rebuildModDropdown(modDropdown);
+            buildNavigationTree();
         }
-        @Override
-        public boolean handleClick(double mx, double my, int button) {
-            if (proxyButton.isInBounds(mx, my)) {
-                proxyButton.handleClick(mx, my, button);
-                return true;
-            }
-            return super.handleClick(mx, my, button);
-        }
+        requestLayout();
     }
     
     // ---------------------------------------------------------------- layout
@@ -183,15 +206,17 @@ public class OracleScreen extends WikiBaseScreen {
     protected void layoutWidgets() {
         int leftOffset = Math.max(15, this.width / 20);
         int actionMargin = 4;
+        int sidebarWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(SIDEBAR_WIDTH, this.width / 3));
         
-        // determine left panel preferred size
-        int leftPrefW = leftPanel.getPreferredWidth(-1);
         int leftPrefH = (int) (this.height * 0.95f);
-        leftPanel.setSize(Math.min(leftPrefW, this.width / 2), leftPrefH);
+        leftPanel.setLayoutSize(sidebarWidth, leftPrefH);
         
         // give the inner left scroll an explicit size: remaining height under header
-        int headerHeight = (leftPanel.children().isEmpty()) ? 0 : leftPanel.children().get(0).getPreferredHeight(leftPanel.getWidth());
-        leftScroll.setSize(leftPanel.getWidth() - 4, leftPrefH - headerHeight - 12);
+        int headerHeight = wikiTitleHeader == null ? 0 : wikiTitleHeader.getPreferredHeight(sidebarWidth);
+        int dropdownHeight = modDropdown != null && modDropdown.isVisible() ? modDropdown.getPreferredHeight(sidebarWidth) : 0;
+        int visibleTopRows = modDropdown != null && modDropdown.isVisible() ? 2 : 1;
+        int usedGap = leftPanel.gap() * visibleTopRows;
+        leftScroll.setLayoutSize(sidebarWidth, Math.max(40, leftPrefH - headerHeight - dropdownHeight - usedGap));
         
         // content size
         int contentW;
@@ -199,18 +224,18 @@ public class OracleScreen extends WikiBaseScreen {
         // compute tentative wide layout
         int wideContentPx = (int) (this.width * (WIDE_CONTENT_WIDTH_PCT / 100f));
         int wideLeftEdge = this.width / 2 - wideContentPx / 2;
-        if (leftOffset + leftPanel.getWidth() + 30 > wideLeftEdge) wideEnough = false;
+        if (leftOffset + sidebarWidth + 30 > wideLeftEdge) wideEnough = false;
         
         if (wideEnough) {
             contentW = wideContentPx;
             leftPanel.setPosition(leftOffset, (this.height - leftPrefH) / 2);
             contentScroll.setPosition(wideLeftEdge, (this.height - leftPrefH) / 2);
-            contentScroll.setSize(contentW, leftPrefH);
+            contentScroll.setLayoutSize(contentW, leftPrefH);
         } else {
-            contentW = this.width - leftPanel.getWidth() - leftOffset - 20;
+            contentW = this.width - sidebarWidth - leftOffset - 20;
             leftPanel.setPosition(leftOffset, (this.height - leftPrefH) / 2);
-            contentScroll.setPosition(leftPanel.getX() + leftPanel.getWidth() + 10, (this.height - leftPrefH) / 2);
-            contentScroll.setSize(contentW, leftPrefH);
+            contentScroll.setPosition(leftPanel.getX() + sidebarWidth + 10, (this.height - leftPrefH) / 2);
+            contentScroll.setLayoutSize(contentW, leftPrefH);
         }
         
         leftPanel.layout(leftPanel.getWidth(), leftPrefH);
@@ -219,9 +244,8 @@ public class OracleScreen extends WikiBaseScreen {
         // action hub bottom-right
         int hubW = actionHub.getPreferredWidth(-1);
         int hubH = actionHub.getPreferredHeight(hubW);
-        actionHub.setSize(hubW, hubH);
+        actionHub.setLayoutSize(hubW, hubH);
         actionHub.setPosition(this.width - hubW - actionMargin, this.height - hubH - actionMargin);
-        actionHub.setZIndex(50);
         actionHub.layout(hubW, hubH);
     }
     
@@ -236,22 +260,45 @@ public class OracleScreen extends WikiBaseScreen {
         }
     }
     
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && isModDropdownOpen()
+              && !modDropdown.isInBounds(mouseX, mouseY)
+              && (wikiTitleHeader == null || !wikiTitleHeader.isInBounds(mouseX, mouseY))) {
+            closeModDropdown();
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+    
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && isModDropdownOpen()) {
+            closeModDropdown();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+    
+    private boolean isModDropdownOpen() {
+        return modDropdown != null && modDropdown.isVisible();
+    }
+    
+    private void closeModDropdown() {
+        modDropdown.setVisible(false);
+        requestLayout();
+    }
+    
     // ---------------------------------------------------------------- hub button
     
-    private ButtonWidget makeHubAction(Text tooltip, Identifier iconTexture, int texW, int texH, int w, int h, Consumer<ButtonWidget> onPress) {
-        var button = new ButtonWidget(Text.empty(), onPress);
-        button.size(w, h);
+    private ClickableWidget makeHubAction(Text tooltip, Identifier iconTexture, int texW, int texH, int w, int h, Consumer<ClickableWidget> onPress) {
+        var icon = new TextureWidget(iconTexture, texW, texH);
+        var button = new ClickableWidget(icon, onPress)
+                       .fixedSize(w, h)
+                       .centerChild()
+                       .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
+                         WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_DISABLED);
         button.withTooltip(tooltip);
-        button.renderer((btn, ctx, mx, my, d) -> {
-            // surface
-            WikiSurface s = !btn.enabled() ? WikiSurface.BEDROCK_PANEL_DISABLED
-                : btn.isHovered(mx, my) ? WikiSurface.BEDROCK_PANEL_HOVER : WikiSurface.BEDROCK_PANEL;
-            s.render(ctx, btn.getX(), btn.getY(), btn.getWidth(), btn.getHeight());
-            int ix = btn.getX() + (btn.getWidth() - texW) / 2 + 1;
-            int iy = btn.getY() + (btn.getHeight() - texH) / 2 - 1;
-            if (btn.isHovered(mx, my)) iy++;
-            ctx.drawTexture(iconTexture, ix, iy, 0, 0, texW, texH, texW, texH);
-        });
         return button;
     }
     
@@ -264,12 +311,17 @@ public class OracleScreen extends WikiBaseScreen {
             inHistory = true;
             loadContent(target, activeWiki);
             inHistory = false;
-        } catch (IOException e) { Oracle.LOGGER.error("unable to open page from history: {}", e.getMessage()); }
+        } catch (IOException e) {
+            Oracle.LOGGER.error("unable to open page from history: {}", e.getMessage());
+        }
         backAction.setVisible(!navigationHistory.isEmpty());
     }
     
     private int currentContentWidth() {
-        if (contentScroll != null && contentScroll.getWidth() > 0) return contentScroll.getWidth();
+        if (contentScroll != null && contentScroll.getWidth() > 0) {
+            int padding = contentContainer != null ? contentContainer.getPadding().horizontal() : 0;
+            return Math.max(80, contentScroll.contentWidth() - padding);
+        }
         if (this.width >= 650) return (int) (this.width * (WIDE_CONTENT_WIDTH_PCT / 100f));
         return Math.max(200, this.width / 2);
     }
@@ -296,7 +348,7 @@ public class OracleScreen extends WikiBaseScreen {
         var fileContent = new String(rc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         final var finalPath = filePath;
         var widgets = MarkdownParser.parseMarkdownToWidgets(fileContent, wikiId, filePath,
-            link -> onLinkClicked(wikiId, link, finalPath), currentContentWidth());
+          link -> onLinkClicked(wikiId, link, finalPath), currentContentWidth());
         for (var w : widgets) {
             if (w != null) contentContainer.child(w);
         }
@@ -308,12 +360,19 @@ public class OracleScreen extends WikiBaseScreen {
         try {
             if (link.startsWith("https")) return tryOpenWebLink(link);
             var ingameTarget = MarkdownParser.getLinkTarget(link, wikiId, sourceEntryPath);
-            if (ingameTarget != null) { loadContent(ingameTarget, wikiId); return true; }
+            if (ingameTarget != null) {
+                loadContent(ingameTarget, wikiId);
+                return true;
+            }
             if (link.startsWith("@") || link.contains(":")) {
                 var id = link.startsWith("@") ? link.substring(1) : link;
                 if (id.startsWith("minecraft") || !id.contains(":")) {
                     var webLink = "https://minecraft.wiki/w/" + id.replace("minecraft:", "");
-                    try { return tryOpenWebLink(webLink); } catch (URISyntaxException e) { return false; }
+                    try {
+                        return tryOpenWebLink(webLink);
+                    } catch (URISyntaxException e) {
+                        return false;
+                    }
                 }
             }
             return false;
@@ -338,6 +397,7 @@ public class OracleScreen extends WikiBaseScreen {
     
     private void buildNavigationTree() {
         navigationBar.clearChildren();
+        activeWikiMode = getWikiMode(activeWiki);
         if (canSwitchWikiMode(activeWiki)) {
             navigationBar.child(buildModeSelector());
         }
@@ -347,31 +407,38 @@ public class OracleScreen extends WikiBaseScreen {
     
     private FlowWidget buildModeSelector() {
         var row = FlowWidget.horizontal().gap(2);
+        row.size(SIDEBAR_WIDTH - 10, 0);
         row.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
         row.child(makeModeButton("docs"));
         row.child(makeModeButton("content"));
         return row;
     }
     
-    private ButtonWidget makeModeButton(String mode) {
-        boolean isInactive = !activeWikiMode.equals(mode);
-        var text = Text.translatable("oracle_index.button." + mode).formatted(isInactive ? Formatting.DARK_GRAY : Formatting.WHITE);
-        var btn = new ButtonWidget(text, b -> {
-            if (!activeWikiMode.equals(mode)) {
+    private ClickableWidget makeModeButton(String mode) {
+        boolean selected = activeWikiMode.equals(mode);
+        var text = Text.translatable("oracle_index.button." + mode).formatted(selected ? Formatting.WHITE : Formatting.DARK_GRAY);
+        var label = new LabelWidget(text);
+        return new ClickableWidget(label, b -> {
+            if (!selected) {
                 activeWikiMode = mode;
                 activeEntry = null;
+                navigationHistory.clear();
+                if (backAction != null) backAction.setVisible(false);
+                contentContainer.clearChildren();
+                leftScroll.scrollTo(0);
                 buildNavigationTree();
                 requestLayout();
             }
-        });
-        btn.size(60, 16);
-        btn.enabled(isInactive); // mirror the prior behaviour: active mode is unclickable
-        return btn;
+        }).fixedSize(60, 16).centerChild().selected(selected)
+                 .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
+                   WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_DARK, WikiSurface.BEDROCK_PANEL_DISABLED);
     }
     
     private String getWikiMode(String wikiId) {
         var modes = OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs"));
         if (modes.contains(activeWikiMode)) return activeWikiMode;
+        if (modes.contains("docs")) return "docs";
+        if (modes.contains("content")) return "content";
         return modes.stream().findFirst().orElse("docs");
     }
     
@@ -379,7 +446,9 @@ public class OracleScreen extends WikiBaseScreen {
         return OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs")).size() > 1;
     }
     
-    /** @return true if any entry under this path is unlocked. */
+    /**
+     * @return true if any entry under this path is unlocked.
+     */
     private boolean buildNavigationEntries(String wikiId, String path, FlowWidget container) {
         var rm = MinecraftClient.getInstance().getResourceManager();
         var metaPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/_meta.json");
@@ -442,20 +511,14 @@ public class OracleScreen extends WikiBaseScreen {
                         isUnlocked = OracleProgressAPI.IsUnlocked(wikiId, labelPath.getPath(), unlockData.getLeft(), unlockData.getRight());
                     }
                     
-                    var label = new LabelWidget(labelText.copy().formatted(Formatting.UNDERLINE));
-                    label.setPadding(Insets.of(3, 2, 5, 2));
+                    var label = new LabelWidget(labelText.copy());
                     if (isUnlocked) {
                         anyUnlocked = true;
-                        label.linkHandler(s -> {
-                            try { loadContent(labelPath, wikiId); return true; }
-                            catch (IOException e) { Oracle.LOGGER.error(e.getMessage()); return false; }
-                        });
-                        // give it a baseline click handler since we have no real link href
                         label.text(labelText.copy());
                     } else {
                         label.text(labelText.copy().formatted(Formatting.OBFUSCATED));
                     }
-                    container.child(new NavigationLink(labelPath, wikiId, label, isUnlocked));
+                    container.child(new NavigationLink(labelPath, wikiId, label, labelText, isUnlocked));
                 }
             }
             
@@ -473,23 +536,57 @@ public class OracleScreen extends WikiBaseScreen {
         return anyUnlocked;
     }
     
-    /** Wraps a label with a click-to-open behaviour for sidebar entries. */
-    private class NavigationLink extends FlowWidget {
+    /**
+     * Wraps a label with click, hover, and current-page state for sidebar entries.
+     */
+    private class NavigationLink extends ClickableWidget {
         private final Identifier target;
-        private final String wikiId;
+        private final LabelWidget label;
+        private final Text labelText;
         private final boolean unlocked;
-        NavigationLink(Identifier target, String wikiId, LabelWidget label, boolean unlocked) {
-            super(Direction.HORIZONTAL);
+        private boolean wasSelected;
+        private boolean wasHovered;
+        
+        NavigationLink(Identifier target, String wikiId, LabelWidget label, Text labelText, boolean unlocked) {
+            super(label, b -> {
+                try {
+                    loadContent(target, wikiId);
+                } catch (IOException e) {
+                    Oracle.LOGGER.error(e.getMessage());
+                }
+            });
             this.target = target;
-            this.wikiId = wikiId;
+            this.label = label;
+            this.labelText = labelText;
             this.unlocked = unlocked;
-            child(label);
+            fillWidth().enabled(unlocked)
+              .surfaces(WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE);
+            setPadding(Insets.of(2, 5));
+            updateText(false, false);
         }
+        
         @Override
-        public boolean handleClick(double mx, double my, int button) {
-            if (!unlocked || button != 0 || !isInBounds(mx, my)) return super.handleClick(mx, my, button);
-            try { loadContent(target, wikiId); return true; }
-            catch (IOException e) { Oracle.LOGGER.error(e.getMessage()); return false; }
+        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+            boolean selected = target.equals(activeEntry);
+            boolean hovered = isInBounds(mouseX, mouseY);
+            if (selected != wasSelected || hovered != wasHovered) updateText(selected, hovered);
+            super.render(context, mouseX, mouseY, delta);
+        }
+        
+        private void updateText(boolean selected, boolean hovered) {
+            wasSelected = selected;
+            wasHovered = hovered;
+            if (!unlocked) {
+                label.text(labelText.copy().formatted(Formatting.OBFUSCATED));
+            } else if (selected && hovered) {
+                label.text(labelText.copy().formatted(Formatting.UNDERLINE, Formatting.GRAY));
+            } else if (selected) {
+                label.text(labelText.copy().formatted(Formatting.UNDERLINE));
+            } else if (hovered) {
+                label.text(labelText.copy().formatted(Formatting.GRAY));
+            } else {
+                label.text(labelText.copy());
+            }
         }
     }
     
@@ -521,5 +618,6 @@ public class OracleScreen extends WikiBaseScreen {
         return resolved.toString().replace("\\", "/");
     }
     
-    public record MetaJsonEntry(String id, String name, boolean directory) {}
+    public record MetaJsonEntry(String id, String name, boolean directory) {
+    }
 }

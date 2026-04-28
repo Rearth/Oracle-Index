@@ -22,9 +22,11 @@ public class ScrollWidget extends UIComponent {
     private static final int FADE_HEIGHT = 6;
     private static final int SCROLL_BAR_WIDTH = 4;
     private static final int SCROLL_BAR_VISIBLE_TICKS = 25; // ~1.25s
+    private static final float SCROLL_LERP = 0.25f;
     
     private UIComponent child;
-    private int scrollOffset = 0;
+    private float scrollOffset = 0;
+    private int targetScrollOffset = 0;
     private int contentHeight = 0;
     private int scrollBarVisibleFrames = 0;
     private int scrollSpeed = 12;
@@ -36,15 +38,8 @@ public class ScrollWidget extends UIComponent {
     public ScrollWidget child(UIComponent child) {
         this.child = child;
         scrollOffset = 0;
+        targetScrollOffset = 0;
         return this;
-    }
-    
-    public UIComponent child() {
-        return child;
-    }
-    
-    public int scrollOffset() {
-        return scrollOffset;
     }
     
     public ScrollWidget scrollSpeed(int linesPerNotch) {
@@ -53,12 +48,23 @@ public class ScrollWidget extends UIComponent {
     }
     
     public void scrollTo(int offset) {
-        scrollOffset = clampOffset(offset);
+        targetScrollOffset = clampOffset(offset);
+    }
+    
+    public int contentWidth() {
+        return Math.max(1, width - SCROLL_BAR_WIDTH - 2);
     }
     
     private int clampOffset(int requested) {
-        int max = Math.max(0, contentHeight - height);
-        return MathHelper.clamp(requested, 0, max);
+        return MathHelper.clamp(requested, 0, maxOffset());
+    }
+    
+    private int maxOffset() {
+        return Math.max(0, contentHeight - height);
+    }
+    
+    private int visibleOffset() {
+        return Math.round(scrollOffset);
     }
     
     // ---------------------------------------------------------------- layout
@@ -70,32 +76,32 @@ public class ScrollWidget extends UIComponent {
         if (child == null) return;
         
         // child gets the full inner width minus scroll bar gutter
-        int innerW = width - SCROLL_BAR_WIDTH - 2;
-        int childW = child.getPreferredWidth(innerW);
-        if (childW > innerW) childW = innerW;
-        if (childW <= 0) childW = innerW;
+        int innerW = contentWidth();
+        int childW = innerW;
         int childH = child.getPreferredHeight(childW);
         
         // child is laid out at our origin; scroll offset is applied at render time
         // via matrix translate so deep grandchildren do not need re-layout per scroll.
-        child.setSize(childW, childH);
+        child.setLayoutSize(childW, childH);
         child.setPosition(x, y);
         child.layout(childW, childH);
         
         contentHeight = childH;
-        scrollOffset = clampOffset(scrollOffset);
+        targetScrollOffset = clampOffset(targetScrollOffset);
+        scrollOffset = MathHelper.clamp(scrollOffset, 0, maxOffset());
     }
     
     @Override
     public int getPreferredWidth(int widthHint) {
-        if (width > 0) return width;
+        if (preferredWidth > 0) return preferredWidth;
         if (child == null) return widthHint > 0 ? widthHint : 0;
-        return child.getPreferredWidth(widthHint) + SCROLL_BAR_WIDTH + 2;
+        int childHint = widthHint > 0 ? Math.max(1, widthHint - SCROLL_BAR_WIDTH - 2) : -1;
+        return child.getPreferredWidth(childHint) + SCROLL_BAR_WIDTH + 2;
     }
     
     @Override
     public int getPreferredHeight(int widthHint) {
-        return height;
+        return preferredHeight > 0 ? preferredHeight : height;
     }
     
     // ---------------------------------------------------------------- render
@@ -105,35 +111,47 @@ public class ScrollWidget extends UIComponent {
         if (!visible || child == null) return;
         
         if (!surface.isNone()) {
-            surface.render(context, paddedX(), paddedY(), paddedWidth(), paddedHeight());
+            surface.render(context, x, y, width, height);
         }
         
         boolean hovered = isInBounds(mouseX, mouseY);
         if (hovered) scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
+        updateScrollOffset();
+        int visibleOffset = visibleOffset();
         
         // Clip viewport, then translate to apply scroll offset
         context.enableScissor(x, y, x + width, y + height);
         context.getMatrices().push();
-        context.getMatrices().translate(0, -scrollOffset, 0);
-        child.render(context, mouseX, mouseY + scrollOffset, delta);
+        context.getMatrices().translate(0, -visibleOffset, 0);
+        child.render(context, mouseX, mouseY + visibleOffset, delta);
         context.getMatrices().pop();
         context.disableScissor();
         
-        renderEdgeFades(context);
-        renderScrollBar(context);
+        renderEdgeFades(context, visibleOffset);
+        renderScrollBar(context, visibleOffset);
         
         if (scrollBarVisibleFrames > 0) scrollBarVisibleFrames--;
     }
     
-    private void renderEdgeFades(DrawContext context) {
+    private void updateScrollOffset() {
+        targetScrollOffset = clampOffset(targetScrollOffset);
+        float distance = targetScrollOffset - scrollOffset;
+        if (Math.abs(distance) < 0.5f) {
+            scrollOffset = targetScrollOffset;
+        } else {
+            scrollOffset += distance * SCROLL_LERP;
+        }
+    }
+    
+    private void renderEdgeFades(DrawContext context, int visibleOffset) {
         // Top fade — only if scrolled away from top
-        if (scrollOffset > 0) {
-            int top = Math.min(scrollOffset, FADE_HEIGHT);
+        if (visibleOffset > 0) {
+            int top = Math.min(visibleOffset, FADE_HEIGHT);
             int alpha = MathHelper.clamp(top * 32, 0, 0xC0);
             context.fillGradient(x, y, x + width - SCROLL_BAR_WIDTH - 2, y + top, (alpha << 24) | 0x000000, 0x00000000);
         }
         // Bottom fade — only if more content below
-        int hidden = Math.max(0, contentHeight - height - scrollOffset);
+        int hidden = Math.max(0, contentHeight - height - visibleOffset);
         if (hidden > 0) {
             int bot = Math.min(hidden, FADE_HEIGHT);
             int alpha = MathHelper.clamp(bot * 32, 0, 0xC0);
@@ -141,7 +159,7 @@ public class ScrollWidget extends UIComponent {
         }
     }
     
-    private void renderScrollBar(DrawContext context) {
+    private void renderScrollBar(DrawContext context, int visibleOffset) {
         if (contentHeight <= height) return;
         if (scrollBarVisibleFrames <= 0) return;
         
@@ -156,7 +174,7 @@ public class ScrollWidget extends UIComponent {
         context.fill(barX, barY, barX + SCROLL_BAR_WIDTH, barY + barH, (trackAlpha << 24) | 0x000000);
         // thumb
         int thumbH = Math.max(15, (int) (barH * (height / (float) contentHeight)));
-        int thumbY = barY + (int) ((barH - thumbH) * (scrollOffset / (float) Math.max(1, contentHeight - height)));
+        int thumbY = barY + (int) ((barH - thumbH) * (visibleOffset / (float) Math.max(1, contentHeight - height)));
         context.fill(barX + 1, thumbY, barX + SCROLL_BAR_WIDTH - 1, thumbY + thumbH, (thumbAlpha << 24) | 0xFFFFFF);
     }
     
@@ -177,7 +195,7 @@ public class ScrollWidget extends UIComponent {
         if (!isInBounds(mouseX, mouseY)) return false;
         if (contentHeight <= height) return false;
         int delta = -(int) scrollDelta * scrollSpeed;
-        scrollOffset = clampOffset(scrollOffset + delta);
+        targetScrollOffset = clampOffset(targetScrollOffset + delta);
         scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
         return true;
     }
@@ -185,25 +203,25 @@ public class ScrollWidget extends UIComponent {
     @Override
     public boolean handleClick(double mouseX, double mouseY, int button) {
         if (!isInBounds(mouseX, mouseY) || child == null) return false;
-        return child.handleClick(mouseX, mouseY + scrollOffset, button);
+        return child.handleClick(mouseX, mouseY + visibleOffset(), button);
     }
     
     @Override
     public boolean handleDrag(double mouseX, double mouseY, double dx, double dy, int button) {
         if (child == null) return false;
-        return child.handleDrag(mouseX, mouseY + scrollOffset, dx, dy, button);
+        return child.handleDrag(mouseX, mouseY + visibleOffset(), dx, dy, button);
     }
     
     @Override
     public boolean handleMouseRelease(double mouseX, double mouseY, int button) {
         if (child == null) return false;
-        return child.handleMouseRelease(mouseX, mouseY + scrollOffset, button);
+        return child.handleMouseRelease(mouseX, mouseY + visibleOffset(), button);
     }
     
     @Override
     public List<Text> tooltip(int mouseX, int mouseY) {
         if (child != null && isInBounds(mouseX, mouseY)) {
-            int virtualY = mouseY + scrollOffset;
+            int virtualY = mouseY + visibleOffset();
             if (child.isInBounds(mouseX, virtualY)) {
                 var t = child.tooltip(mouseX, virtualY);
                 if (t != null && !t.isEmpty()) return t;

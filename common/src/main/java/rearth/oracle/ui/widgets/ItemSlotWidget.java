@@ -26,7 +26,7 @@ public class ItemSlotWidget extends UIComponent {
     public void layout(int parentWidthHint, int parentHeightHint) {
         // place the item centered (16x16 inside an 18x18 slot)
         item.setPosition(x + 1, y + 1);
-        item.setSize(16, 16);
+        item.setLayoutSize(16, 16);
         item.layout(16, 16);
     }
     

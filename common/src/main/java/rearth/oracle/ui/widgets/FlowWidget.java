@@ -4,7 +4,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,16 +49,6 @@ public class FlowWidget extends UIComponent {
         return this;
     }
     
-    public FlowWidget children(UIComponent... cs) {
-        Collections.addAll(children, cs);
-        return this;
-    }
-    
-    public FlowWidget removeChild(UIComponent child) {
-        children.remove(child);
-        return this;
-    }
-    
     public FlowWidget clearChildren() {
         children.clear();
         return this;
@@ -73,6 +62,7 @@ public class FlowWidget extends UIComponent {
     
     @Override
     public int getPreferredWidth(int widthHint) {
+        if (preferredWidth > 0) return preferredWidth;
         // Always derive from children rather than caching: when collapsibles expand
         // or content changes, the prior `width` would otherwise stick.
         int innerHint = widthHint > 0 ? widthHint - padding.horizontal() : -1;
@@ -94,6 +84,7 @@ public class FlowWidget extends UIComponent {
     
     @Override
     public int getPreferredHeight(int widthHint) {
+        if (preferredHeight > 0) return preferredHeight;
         int innerWidth = (widthHint > 0 ? widthHint : getPreferredWidth(-1)) - padding.horizontal();
         if (direction == Direction.VERTICAL) {
             int total = padding.vertical();
@@ -139,12 +130,26 @@ public class FlowWidget extends UIComponent {
                     case RIGHT -> innerX + innerW - cw;
                 };
                 c.setPosition(cx, cy);
-                c.setSize(cw, ch);
+                c.setLayoutSize(cw, ch);
                 c.layout(cw, ch);
                 cy += ch + gap;
             }
         } else {
-            int cx = innerX;
+            int usedW = 0;
+            int visibleCount = 0;
+            for (var c : children) {
+                if (!c.isVisible()) continue;
+                int cw = c.getPreferredWidth(-1);
+                if (cw <= 0) cw = c.getWidth();
+                usedW += cw;
+                visibleCount++;
+            }
+            if (visibleCount > 1) usedW += gap * (visibleCount - 1);
+            int cx = switch (horizontalAlignment) {
+                case LEFT -> innerX;
+                case CENTER -> innerX + Math.max(0, (innerW - usedW) / 2);
+                case RIGHT -> innerX + Math.max(0, innerW - usedW);
+            };
             for (var c : children) {
                 if (!c.isVisible()) continue;
                 int cw = c.getPreferredWidth(-1);
@@ -158,7 +163,7 @@ public class FlowWidget extends UIComponent {
                     case BOTTOM -> innerY + innerH - ch;
                 };
                 c.setPosition(cx, cy);
-                c.setSize(cw, ch);
+                c.setLayoutSize(cw, ch);
                 c.layout(cw, ch);
                 cx += cw + gap;
             }

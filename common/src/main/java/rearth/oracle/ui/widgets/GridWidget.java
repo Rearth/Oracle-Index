@@ -38,10 +38,6 @@ public class GridWidget extends UIComponent {
         return this;
     }
     
-    public UIComponent get(int row, int column) {
-        return cells[row * columns + column];
-    }
-    
     @Override
     public int getPreferredWidth(int widthHint) {
         return columns * cellWidth + Math.max(0, columns - 1) * gapX + padding.horizontal();
@@ -65,8 +61,7 @@ public class GridWidget extends UIComponent {
                 int cx = baseX + c * (cellWidth + gapX);
                 int cy = baseY + r * (cellHeight + gapY);
                 child.setPosition(cx, cy);
-                if (child.getWidth() == 0)  child.setWidth(cellWidth);
-                if (child.getHeight() == 0) child.setHeight(cellHeight);
+                child.setLayoutSize(cellWidth, cellHeight);
                 child.layout(cellWidth, cellHeight);
             }
         }

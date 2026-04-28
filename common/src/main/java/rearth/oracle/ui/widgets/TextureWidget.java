@@ -31,12 +31,6 @@ public class TextureWidget extends UIComponent {
         return this;
     }
     
-    public TextureWidget textureSize(int textureWidth, int textureHeight) {
-        this.textureWidth = textureWidth;
-        this.textureHeight = textureHeight;
-        return this;
-    }
-    
     @Override
     protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
         if (width == regionWidth && height == regionHeight) {
