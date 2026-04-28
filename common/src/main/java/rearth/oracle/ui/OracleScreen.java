@@ -40,9 +40,7 @@ public class OracleScreen extends WikiBaseScreen {
     private static final int WIDE_CONTENT_WIDTH_PCT = 50;
     private static final int SIDEBAR_WIDTH = 168;
     private static final int MIN_SIDEBAR_WIDTH = 132;
-    private static final int NAV_ROW_HEIGHT = 16;
     private static final int WIKI_HEADER_HEIGHT = 25;
-    private static final int TITLE_NAV_OVERLAP = 4;
     
     private final Screen parent;
     private final Stack<Identifier> navigationHistory = new Stack<>();

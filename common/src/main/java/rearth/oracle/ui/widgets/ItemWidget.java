@@ -16,6 +16,7 @@ public class ItemWidget extends UIComponent {
     
     private final ItemStack stack;
     private boolean hideItemTooltip;
+    private boolean hideItemDecorations;
     
     public ItemWidget(ItemStack stack) {
         this.stack = stack;
@@ -34,12 +35,16 @@ public class ItemWidget extends UIComponent {
         matrices.translate(drawX, drawY, 0);
         matrices.scale(scale, scale, 1f);
         context.drawItem(stack, 0, 0);
-        context.drawItemInSlot(mc.textRenderer, stack, 0, 0);
+        if (!hideItemDecorations) context.drawItemInSlot(mc.textRenderer, stack, 0, 0);
         matrices.pop();
     }
     
     public void setHideItemTooltip(boolean hideItemTooltip) {
         this.hideItemTooltip = hideItemTooltip;
+    }
+    
+    public void setHideItemDecorations(boolean hideItemDecorations) {
+        this.hideItemDecorations = hideItemDecorations;
     }
     
     @Override

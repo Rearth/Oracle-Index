@@ -330,7 +330,10 @@ public class MarkdownParser {
         PageTitleWidget(Text title, ItemStack iconStack, Predicate<String> linkHandler, int contentWidthPx) {
             this.titleLabel = new LabelWidget(title).scale(2f).linkHandler(linkHandler);
             this.icon = iconStack.isEmpty() ? null : new ItemWidget(iconStack);
-            if (icon != null) icon.setHideItemTooltip(true);
+            if (icon != null) {
+                icon.setHideItemTooltip(true);
+                icon.setHideItemDecorations(true);
+            }
             this.contentWidthPx = contentWidthPx;
         }
         
@@ -505,6 +508,7 @@ public class MarkdownParser {
             int displaySize = Math.max(16, (int) (budget * widthRatio));
             var itemWidget = new ItemWidget(new ItemStack(Registries.ITEM.get(itemIdCandidate)));
             itemWidget.size(displaySize, displaySize);
+            itemWidget.setHideItemDecorations(true);
             return itemWidget;
         }
         

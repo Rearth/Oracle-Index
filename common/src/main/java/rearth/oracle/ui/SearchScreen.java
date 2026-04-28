@@ -28,16 +28,25 @@ public class SearchScreen extends WikiBaseScreen {
     
     private static final String MATH_EXPR_REGEX = "^[\\d\\s+\\-*/%().]+$";
     private static final int PANEL_WIDTH = 350;
-    private static final int SEARCH_HEADER_HEIGHT = 44;
+    private static final int SEARCH_HEADER_HEIGHT = 64;
+    private static final int SEARCH_BAR_HEIGHT = 38;
+    private static final int ORACLE_ICON_SIZE = 58;
     private static final int RESULT_PANEL_PADDING = 6;
+    private static final int RESULT_TITLE_OVERLAP = 7;
+    private static final int RESULT_BODY_INSET = 4;
+    private static final int SEARCH_BAR_OVERLAP = 16;
+    private static final int SEARCH_PANEL_PAD = 5;
     
     private final Screen parent;
     private FlowWidget mainContainer;
     private FlowWidget resultsPanel;
     private ScrollWidget resultsScroll;
     private TextureWidget oracleIcon;
-    private FlowWidget searchPanelBg;
     private TextFieldWidget searchField;
+    private int searchBarX;
+    private int searchBarY;
+    private int searchBarW;
+    private int searchBarH;
     private int waitFrames = 0;
     
     public SearchScreen(Screen parent) {
@@ -48,24 +57,14 @@ public class SearchScreen extends WikiBaseScreen {
     
     @Override
     protected void buildRoots() {
-        mainContainer = FlowWidget.vertical().gap(4);
+        mainContainer = FlowWidget.vertical().gap(6);
         mainContainer.size(PANEL_WIDTH, 0); // height resolved at layout
         
-        // header row: oracle icon + search bar background panel
         oracleIcon = new TextureWidget(Identifier.of(Oracle.MOD_ID, "textures/oracle-index-icon.png"), 256, 256);
-        oracleIcon.size(42, 42);
-        searchPanelBg = FlowWidget.horizontal();
-        searchPanelBg.setSurface(WikiSurface.BEDROCK_PANEL);
-        searchPanelBg.setPadding(Insets.of(5, 7));
-        searchPanelBg.size(PANEL_WIDTH - 42 - 6, 26);
-        var headerRow = FlowWidget.horizontal().gap(6);
-        headerRow.verticalAlignment(FlowWidget.VerticalAlignment.CENTER);
-        headerRow.size(PANEL_WIDTH, SEARCH_HEADER_HEIGHT);
-        headerRow.child(oracleIcon).child(searchPanelBg);
-        mainContainer.child(headerRow);
+        oracleIcon.size(ORACLE_ICON_SIZE, ORACLE_ICON_SIZE);
         
         // results
-        resultsPanel = FlowWidget.vertical().gap(2);
+        resultsPanel = FlowWidget.vertical().gap(6);
         resultsPanel.setPadding(Insets.of(RESULT_PANEL_PADDING, RESULT_PANEL_PADDING, RESULT_PANEL_PADDING, RESULT_PANEL_PADDING));
         resultsScroll = new ScrollWidget(resultsPanel);
         mainContainer.child(resultsScroll);
@@ -87,20 +86,29 @@ public class SearchScreen extends WikiBaseScreen {
     @Override
     protected void layoutWidgets() {
         int contentH = (int) (this.height * 0.95f);
-        mainContainer.setLayoutSize(PANEL_WIDTH, contentH);
-        mainContainer.setPosition((this.width - PANEL_WIDTH) / 2, (this.height - contentH) / 2);
+        int panelX = (this.width - PANEL_WIDTH) / 2;
+        int panelY = (this.height - contentH) / 2;
+        mainContainer.setLayoutSize(PANEL_WIDTH, contentH - SEARCH_HEADER_HEIGHT);
+        mainContainer.setPosition(panelX, panelY + SEARCH_HEADER_HEIGHT);
         
-        // place results scroll under header
-        resultsScroll.setLayoutSize(PANEL_WIDTH, contentH - SEARCH_HEADER_HEIGHT - 8);
+        resultsScroll.setLayoutSize(PANEL_WIDTH, contentH - SEARCH_HEADER_HEIGHT);
         
-        mainContainer.layout(PANEL_WIDTH, contentH);
+        mainContainer.layout(PANEL_WIDTH, contentH - SEARCH_HEADER_HEIGHT);
         
-        // Position vanilla text field on top of the searchPanelBg interior
-        int fieldX = searchPanelBg.getX() + searchPanelBg.getPadding().left();
-        int fieldY = searchPanelBg.getY() + (searchPanelBg.getHeight() - 14) / 2;
-        int fieldW = searchPanelBg.getWidth() - searchPanelBg.getPadding().horizontal();
+        var barHeight = SEARCH_BAR_HEIGHT;
+        
+        searchBarX = panelX + ORACLE_ICON_SIZE - SEARCH_BAR_OVERLAP - 7;
+        searchBarY = panelY + (SEARCH_HEADER_HEIGHT - barHeight) / 2;
+        searchBarW = PANEL_WIDTH - ORACLE_ICON_SIZE + SEARCH_BAR_OVERLAP;
+        searchBarH = 20;
+        oracleIcon.setPosition(panelX, searchBarY + (barHeight - ORACLE_ICON_SIZE) / 2);
+        oracleIcon.setLayoutSize(ORACLE_ICON_SIZE, ORACLE_ICON_SIZE);
+        oracleIcon.layout(ORACLE_ICON_SIZE, ORACLE_ICON_SIZE);
+        int fieldX = searchBarX + 26;
+        int fieldY = searchBarY + (searchBarH - 14) / 2;
+        int fieldW = searchBarW - 14;
         searchField.setX(fieldX);
-        searchField.setY(fieldY);
+        searchField.setY(fieldY + 3);
         searchField.setWidth(fieldW);
     }
     
@@ -134,6 +142,19 @@ public class SearchScreen extends WikiBaseScreen {
         }
         
         super.render(context, mouseX, mouseY, delta);
+        renderSearchHeader(context, mouseX, mouseY, delta);
+    }
+    
+    private void renderSearchHeader(DrawContext context, int mouseX, int mouseY, float delta) {
+        WikiSurface.BEDROCK_PANEL.render(context,
+          searchBarX - SEARCH_PANEL_PAD,
+          searchBarY - SEARCH_PANEL_PAD,
+          searchBarW + SEARCH_PANEL_PAD * 2,
+          searchBarH + SEARCH_PANEL_PAD * 2);
+        context.fill(searchBarX + 19, searchBarY, searchBarX + searchBarW, searchBarY + searchBarH, 0xFFFFFFFF);
+        context.fill(searchBarX + 19 + 1, searchBarY + 1, searchBarX + searchBarW - 1, searchBarY + searchBarH - 1, 0xFF000000);
+        searchField.render(context, mouseX, mouseY, delta);
+        oracleIcon.render(context, mouseX, mouseY, delta);
     }
     
     private void onSearchTyped(String query) {
@@ -147,29 +168,31 @@ public class SearchScreen extends WikiBaseScreen {
         if (expr.isEmpty() && query.matches(MATH_EXPR_REGEX)) return;
         
         resultsPanel.clearChildren();
-        results = expr.<List<SemanticSearch.SearchResult>>map(List::of)
-                      .orElseGet(() -> OracleClient.getOrCreateSearch().search(query));
+        results = expr.map(List::of)
+                    .orElseGet(() -> OracleClient.getOrCreateSearch().search(query));
         
         for (var result : results) {
             int rowWidth = resultsContentWidth();
             var contentId = Identifier.of(Oracle.MOD_ID, String.format("%s/%s/%s",
-                ROOT_DIR, result.id().getNamespace(), result.id().getPath()));
+              ROOT_DIR, result.id().getNamespace(), result.id().getPath()));
             
             // gate by unlocks
             if (OracleClient.UNLOCK_CRITERIONS.containsKey(contentId.getPath())) {
                 var unlock = OracleClient.UNLOCK_CRITERIONS.get(contentId.getPath());
-                if (!OracleProgressAPI.IsUnlocked(result.id().getNamespace(), result.id().getPath(), unlock.getLeft(), unlock.getRight())) continue;
+                if (!OracleProgressAPI.IsUnlocked(result.id().getNamespace(), result.id().getPath(), unlock.getLeft(), unlock.getRight()))
+                    continue;
             }
             
             // title bar
             var titleRow = FlowWidget.horizontal().gap(4);
             titleRow.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
-            titleRow.setPadding(Insets.of(6, 7, 6, 8));
-            titleRow.size(rowWidth, 0);
+            titleRow.setPadding(Insets.of(6, 7, 4, 8));
             if (result.iconName() != null && Registries.ITEM.containsId(Identifier.of(result.iconName()))) {
                 var iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(result.iconName())));
                 var icon = new ItemWidget(iconStack);
-                icon.size(14, 14);
+                icon.size(12, 12);
+                icon.setHideItemTooltip(true);
+                icon.setHideItemDecorations(true);
                 titleRow.child(icon);
             }
             titleRow.child(new LabelWidget(Text.literal(result.title()).formatted(Formatting.BOLD)));
@@ -177,16 +200,16 @@ public class SearchScreen extends WikiBaseScreen {
             // body preview
             var body = FlowWidget.vertical().gap(1);
             body.setSurface(WikiSurface.BEDROCK_PANEL);
-            body.setPadding(Insets.of(7, 8, 4, 4));
-            body.size(rowWidth, 0);
+            body.setPadding(Insets.of(14, 8, 4, 4));
             
             for (var text : result.texts()) {
                 var widgets = MarkdownParser.parseMarkdownToWidgets(text, result.id().getNamespace(),
-                    result.id(), s -> false, rowWidth - 16);
+                  result.id(), s -> false, rowWidth - 16);
                 boolean hadContent = false;
                 for (var w : widgets) {
                     if (w instanceof LabelWidget label && label.scale() == 1f) {
                         label.lineSpacing(0);
+                        label.color(0xFF555555);
                         body.child(label);
                         hadContent = true;
                     }
@@ -197,7 +220,6 @@ public class SearchScreen extends WikiBaseScreen {
             var openTarget = contentId;
             var openWiki = result.id().getNamespace();
             var resultRow = new SearchResultRow(titleRow, body, openWiki, openTarget);
-            resultRow.fillWidth();
             resultsPanel.child(resultRow);
         }
         requestLayout();
@@ -208,33 +230,83 @@ public class SearchScreen extends WikiBaseScreen {
         return Math.max(80, scrollWidth - RESULT_PANEL_PADDING * 2 - 8);
     }
     
-    /** Two stacked panels (title + body) that open the linked entry on click. */
-    private class SearchResultRow extends ClickableWidget {
+    /**
+     * Result preview with a title chip overlapping the body preview panel.
+     */
+    private class SearchResultRow extends UIComponent {
         private final FlowWidget titleRow;
         private final FlowWidget body;
+        private final String wikiId;
+        private final Identifier target;
+        private boolean pressed;
         
         SearchResultRow(FlowWidget titleRow, FlowWidget body, String wikiId, Identifier target) {
-            super(buildResultContent(titleRow, body), b -> OracleClient.openScreen(wikiId, target, SearchScreen.this));
             this.titleRow = titleRow;
             this.body = body;
-            surfaces(WikiSurface.NONE, WikiSurface.BEDROCK_PANEL_HOVER, WikiSurface.BEDROCK_PANEL_PRESSED,
-                WikiSurface.NONE, WikiSurface.NONE);
+            this.wikiId = wikiId;
+            this.target = target;
         }
         
         @Override
-        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            boolean hovered = isInBounds(mouseX, mouseY);
-            titleRow.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_PRESSED : WikiSurface.BEDROCK_PANEL_DARK);
-            body.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_HOVER : WikiSurface.BEDROCK_PANEL);
-            super.render(context, mouseX, mouseY, delta);
+        public int getPreferredWidth(int widthHint) {
+            return widthHint > 0 ? widthHint : PANEL_WIDTH;
         }
-    }
-    
-    private static FlowWidget buildResultContent(FlowWidget titleRow, FlowWidget body) {
-        var content = FlowWidget.vertical().gap(0);
-        content.child(titleRow);
-        if (!body.children().isEmpty()) content.child(body);
-        return content;
+        
+        @Override
+        public int getPreferredHeight(int widthHint) {
+            int bodyWidth = bodyWidth(widthHint > 0 ? widthHint : PANEL_WIDTH);
+            int titleHeight = titleRow.getPreferredHeight(-1);
+            int bodyHeight = body.children().isEmpty() ? 0 : body.getPreferredHeight(bodyWidth);
+            return body.children().isEmpty() ? titleHeight : titleHeight + bodyHeight - RESULT_TITLE_OVERLAP;
+        }
+        
+        @Override
+        public void layout(int parentWidthHint, int parentHeightHint) {
+            width = parentWidthHint > 0 ? parentWidthHint : PANEL_WIDTH;
+            int bodyWidth = bodyWidth(width);
+            int titleWidth = Math.min(width - RESULT_BODY_INSET, titleRow.getPreferredWidth(-1));
+            int titleHeight = titleRow.getPreferredHeight(titleWidth);
+            int bodyHeight = body.children().isEmpty() ? 0 : body.getPreferredHeight(bodyWidth);
+            titleRow.setPosition(x, y);
+            titleRow.setLayoutSize(titleWidth, titleHeight);
+            titleRow.layout(titleWidth, titleHeight);
+            if (!body.children().isEmpty()) {
+                body.setPosition(x + RESULT_BODY_INSET, y + titleHeight - RESULT_TITLE_OVERLAP);
+                body.setLayoutSize(bodyWidth, bodyHeight);
+                body.layout(bodyWidth, bodyHeight);
+            }
+            height = body.children().isEmpty() ? titleHeight : titleHeight + bodyHeight - RESULT_TITLE_OVERLAP;
+        }
+        
+        @Override
+        protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+            boolean hovered = isInBounds(mouseX, mouseY);
+            body.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_HOVER : WikiSurface.BEDROCK_PANEL);
+            titleRow.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_PRESSED : WikiSurface.BEDROCK_PANEL_DARK);
+            if (!body.children().isEmpty()) body.render(context, mouseX, mouseY, delta);
+            titleRow.render(context, mouseX, mouseY, delta);
+        }
+        
+        @Override
+        public boolean handleClick(double mouseX, double mouseY, int button) {
+            if (button != 0 || !isInBounds(mouseX, mouseY)) return false;
+            pressed = true;
+            OracleClient.openScreen(wikiId, target, SearchScreen.this);
+            return true;
+        }
+        
+        @Override
+        public boolean handleMouseRelease(double mouseX, double mouseY, int button) {
+            if (button == 0 && pressed) {
+                pressed = false;
+                return true;
+            }
+            return false;
+        }
+        
+        private int bodyWidth(int rowWidth) {
+            return Math.max(80, rowWidth - RESULT_BODY_INSET);
+        }
     }
     
     private Optional<SemanticSearch.SearchResult> tryProcessExpression(String input) {
@@ -244,11 +316,12 @@ public class SearchScreen extends WikiBaseScreen {
             if (valid.isValid()) {
                 var n = expression.evaluate();
                 var calc = String.format("%s = **%s**", input.replace("*", "x"),
-                    new DecimalFormat("#.####").format(n));
+                  new DecimalFormat("#.####").format(n));
                 return Optional.of(new SemanticSearch.SearchResult(List.of(calc), 1, "Calculation: ",
-                    Identifier.of(Oracle.MOD_ID, "expression"), "minecraft:comparator"));
+                  Identifier.of(Oracle.MOD_ID, "expression"), "minecraft:comparator"));
             }
-        } catch (RuntimeException ignored) {}
+        } catch (RuntimeException ignored) {
+        }
         return Optional.empty();
     }
     
