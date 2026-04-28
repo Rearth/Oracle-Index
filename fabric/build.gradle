@@ -43,9 +43,6 @@ dependencies {
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
 
-    // owo lib
-    modImplementation "io.wispforest:owo-lib:0.12.11+1.21"
-
     // included libs
     // jsoup for html parsing
     implementation(include(api('org.jsoup:jsoup:1.17.2')))
@@ -69,7 +66,7 @@ dependencies {
     compileOnly "net.fabricmc:fabric-loader-junit:${rootProject.fabric_loader_version}"
 
     modRuntimeOnly "teamreborn:energy:4.1.0"
-    // modImplementation "curse.maven:oritech-1030830:6520539" // oritech 0.15.5
+    modImplementation "curse.maven:oritech-1030830:7938775" // oritech 1.2.2
     modRuntimeOnly "curse.maven:architectury-api-419699:5786326"
     modRuntimeOnly "curse.maven:athena-841890:5629396"
     modRuntimeOnly "curse.maven:geckolib-388172:5605709"
@@ -77,9 +74,9 @@ dependencies {
     // modRuntimeOnly "curse.maven:jei-238222:6516055"
 
     // simply swords for more oracle lib usage
-    modImplementation "curse.maven:simply-swords-659887:6383325"
-    modImplementation "curse.maven:fzzy-config-1005914:6405201"
-    modImplementation("net.fabricmc:fabric-language-kotlin:1.13.3+kotlin.2.1.21")
+//    modImplementation "curse.maven:simply-swords-659887:6383325"
+//    modImplementation "curse.maven:fzzy-config-1005914:6405201"
+//    modImplementation("net.fabricmc:fabric-language-kotlin:1.13.3+kotlin.2.1.21")
 }
 
 test {
@@ -230,7 +227,6 @@ publishMods {
         projectId = "J8MMsNrL"
         minecraftVersions.add("1.21.1")
 
-        requires("owo-lib")
         requires("architectury-api")
 
         announcementTitle = "Fabric Version on Modrinth"
@@ -241,7 +237,6 @@ publishMods {
         projectId = "1206582"
         minecraftVersions.add("1.21.1")
 
-        requires("owo-lib")
         requires("architectury-api")
 
         javaVersions.add(JavaVersion.VERSION_21)

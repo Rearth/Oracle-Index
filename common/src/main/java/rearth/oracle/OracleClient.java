@@ -3,7 +3,7 @@ package rearth.oracle;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.ReloadListenerRegistry;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
-import io.wispforest.owo.ui.util.Delta;
+// Delta.compute replaced inline below
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
@@ -86,7 +86,7 @@ public final class OracleClient {
         
         ClientTickEvent.CLIENT_POST.register(client -> {
             if (Screen.hasAltDown()) return;
-            openEntryProgress += Delta.compute(openEntryProgress, 0, 0.13f);
+            openEntryProgress += (0f - openEntryProgress) * 0.13f;
         });
         
     }

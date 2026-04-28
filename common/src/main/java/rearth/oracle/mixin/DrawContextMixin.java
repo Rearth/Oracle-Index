@@ -2,13 +2,6 @@ package rearth.oracle.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
-import io.wispforest.owo.ui.base.BaseOwoTooltipComponent;
-import io.wispforest.owo.ui.component.Components;
-import io.wispforest.owo.ui.container.Containers;
-import io.wispforest.owo.ui.core.Color;
-import io.wispforest.owo.ui.core.Insets;
-import io.wispforest.owo.ui.core.Sizing;
-import io.wispforest.owo.ui.util.Delta;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -42,17 +35,10 @@ public class DrawContextMixin {
 				
 				OracleClient.tooltipStack = null;
 				
-				var separator = new BaseOwoTooltipComponent<>(() -> {
-						var container =  Containers.horizontalFlow(Sizing.content(), Sizing.content());
-						var box = Components.box(Sizing.fixed(100), Sizing.fixed(1));
-						box.margins(Insets.of(4, 4, 2, 2));
-						box.color(new Color(0.5f, 0.5f, 0.5f));
-						container.child(box);
-						return container;
-				}) { };
-				
 				var modifiableComponents = new ArrayList<>(components);
 				
+				// vanilla-friendly separator: dim dashes line
+				var separator = TooltipComponent.of(Text.literal("─".repeat(20)).formatted(Formatting.DARK_GRAY).asOrderedText());
 				modifiableComponents.add(separator);
 				
 				var stackLink = OracleClient.ITEM_LINKS.get(stackId);
@@ -62,7 +48,8 @@ public class DrawContextMixin {
 				modifiableComponents.add(tooltip);
 				
 				if (Screen.hasAltDown()) {
-						OracleClient.openEntryProgress += (float) Delta.compute(OracleClient.openEntryProgress, 1.25, MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration() * .125f);
+						var dt = MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration() * .125f;
+						OracleClient.openEntryProgress += (1.25f - OracleClient.openEntryProgress) * dt;
 						var progressSteps = 40;
 						var progress = (int) (OracleClient.openEntryProgress * progressSteps);
 						progress = Math.clamp(progress, 0, 40);
@@ -72,7 +59,6 @@ public class DrawContextMixin {
 						modifiableComponents.add(altTooltip);
 						
 						if (OracleClient.openEntryProgress > 0.95f) {
-								// open screen
 								OracleClient.openScreen(stackLink.wikiId(), stackLink.linkTarget(), MinecraftClient.getInstance().currentScreen);
 						}
 						

@@ -48,14 +48,6 @@ dependencies {
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
 
-    // owo lib
-    modImplementation "io.wispforest:owo-lib-neoforge:0.12.15-beta.9+1.21"
-    forgeRuntimeLibrary(include(api("io.wispforest:endec:0.1.8")))
-    forgeRuntimeLibrary(include(api("io.wispforest.endec:netty:0.1.4")))
-    forgeRuntimeLibrary(include(api("io.wispforest.endec:gson:0.1.5")))
-    forgeRuntimeLibrary(include(api("io.wispforest.endec:jankson:0.1.5")))
-    forgeRuntimeLibrary(include(api("blue.endless:jankson:1.2.2")))
-
     // included libs
     forgeRuntimeLibrary(include(api("dev.langchain4j:langchain4j:1.0.0")))
     forgeRuntimeLibrary(include(api("dev.langchain4j:langchain4j-core:1.0.0")))
@@ -224,7 +216,6 @@ publishMods {
         projectId = "J8MMsNrL"
         minecraftVersions.add("1.21.1")
 
-        requires("owo-lib")
         requires("architectury-api")
 
         announcementTitle = "Neoforge Version on Modrinth"
@@ -235,7 +226,6 @@ publishMods {
         projectId = "1206582"
         minecraftVersions.add("1.21.1")
 
-        requires("owo-lib")
         requires("architectury-api")
 
         javaVersions.add(JavaVersion.VERSION_21)

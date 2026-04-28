@@ -41,11 +41,6 @@ subprojects {
 
         mavenCentral()
 
-        maven {
-            name = 'Owo'
-            url 'https://maven.wispforest.io/releases/'
-        }
-
         maven { // FFAPI
             name = "Sinytra"
             url "https://maven.su5ed.dev/releases"
