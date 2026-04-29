@@ -1,0 +1,3 @@
+- Remove owo lib dependency
+- Rework entire UI to use custom widgets / frontend code
+- Minor bugfixes
