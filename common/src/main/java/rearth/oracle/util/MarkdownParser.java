@@ -381,7 +381,8 @@ public class MarkdownParser {
             titleH = labelH + TITLE_PAD_Y * 2;
             titleX = x + leadingWidth();
             titleY = y + (height - titleH) / 2;
-            titleLabel.setPosition(titleX + TITLE_PAD_X, titleY + TITLE_PAD_Y);
+            int offset = icon != null ? TITLE_PAD_X / 2 : 0;
+            titleLabel.setPosition(titleX + TITLE_PAD_X + offset, titleY + TITLE_PAD_Y);
             titleLabel.setLayoutSize(labelW, labelH);
             titleLabel.layout(labelW, labelH);
             if (icon != null) {
