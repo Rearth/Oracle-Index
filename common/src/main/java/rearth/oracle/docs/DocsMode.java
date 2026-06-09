@@ -1,4 +1,4 @@
-package rearth.oracle.format;
+package rearth.oracle.docs;
 
 public enum DocsMode {
     DOCS,

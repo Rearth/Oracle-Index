@@ -1,15 +1,12 @@
 package rearth.oracle;
 
-import com.google.common.base.Suppliers;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.ReloadListenerRegistry;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.resource.language.I18n;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
 import net.minecraft.resource.SynchronousResourceReloader;
@@ -19,18 +16,15 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import rearth.oracle.format.DocsMode;
+import rearth.oracle.docs.DocsFormat;
+import rearth.oracle.docs.DocsIndexer;
+import rearth.oracle.docs.DocsMode;
 import rearth.oracle.progress.AdvancementProgressValidator;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.SearchScreen;
-import rearth.oracle.util.MarkdownParser;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 public final class OracleClient {
@@ -40,7 +34,7 @@ public final class OracleClient {
     public static final KeyBinding ORACLE_WIKI = new KeyBinding("key.oracle_index.open", GLFW.GLFW_KEY_H, "key.categories.oracle");
     public static final KeyBinding ORACLE_SEARCH = new KeyBinding("key.oracle_index.search", -1, "key.categories.oracle");
     
-    public static final Set<String> LOADED_WIKIS = new HashSet<>(); // just keeps a set of loaded wiki ids
+    public static final Map<String, DocsFormat> LOADED_WIKIS = new HashMap<>(); // map of loaded wiki ids to formats (specifies directory layout)
     public static final HashMap<Identifier, ItemArticleRef> ITEM_LINKS = new HashMap<>();   // items that have a corresponding wiki page (docs or content)
     public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
     public static final HashMap<String, Set<DocsMode>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
@@ -150,82 +144,47 @@ public final class OracleClient {
         return CONTENT_ID_MAP.containsKey(assetId.toString());
     }
     
+    public static DocsMode getDocsModeForPage(Identifier pageId) {
+        String path = pageId.getPath();
+        String modId = Objects.requireNonNull(DocsIndexer.extractModid(path), "modid must be extracted");
+        DocsFormat format = getWikiFormat(modId);
+        return format.isContentPath(path) ? DocsMode.CONTENT : DocsMode.DOCS;
+    }
+
+    public static DocsFormat getWikiFormat(String wikiId) {
+        return Objects.requireNonNull(LOADED_WIKIS.get(wikiId), "unknown wiki id");
+    }
+
     private static void findAllResourceEntries(ResourceManager manager) {
-        var resources = manager.findResources(ROOT_DIR, path -> path.getPath().endsWith(".mdx"));
-        
+        DocsIndexer indexer = new DocsIndexer();
+        indexer.findAllResourceEntries(manager);
+
         LOADED_WIKIS.clear();
+        LOADED_WIKIS.putAll(indexer.getLoadedWikis());
+
         ITEM_LINKS.clear();
+        ITEM_LINKS.putAll(indexer.getItemLinks());
+
         UNLOCK_CRITERIONS.clear();
+        UNLOCK_CRITERIONS.putAll(indexer.getUnlockCriterions());
+
         CONTENT_ID_MAP.clear();
+        CONTENT_ID_MAP.putAll(indexer.getContentIds());
+
         AVAILABLE_MODES.clear();
-        
-        for (var entry : resources.entrySet()) {
-            var resourceId = entry.getKey();
-            var path = resourceId.getPath(); // e.g., "books/oritech/.content/machines/laser.mdx"
-            
-            // extract mode + mod id
-            var segments = path.split("/");
-            if (segments.length < 2) continue;
-            
-            var modId = segments[1]; // e.g., "oritech"
-            LOADED_WIKIS.add(modId);
-            
-            if (path.contains(".translated")) continue; // skip / don't support translations for now in indexing
-            
-            // check docs or content
-            var isContent = path.contains("/.content/");
-            var mode = isContent ? DocsMode.CONTENT : DocsMode.DOCS;
-            AVAILABLE_MODES.computeIfAbsent(modId, k -> new HashSet<>()).add(mode);
-            
-            // parse frontmatter
-            try (var inputStream = entry.getValue().getInputStream()) {
-                var fileContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-                var frontmatter = MarkdownParser.parseFrontmatter(fileContent);
-                
-                // map game id for content links
-                if (isContent && frontmatter.containsKey("id")) {
-                    var id = frontmatter.get("id").trim();
-                    CONTENT_ID_MAP.put(id, resourceId);
-                    var itemId = Identifier.of(id);
-                    
-                    Supplier<String> lazyTitle = null;
-                    var title = frontmatter.getOrDefault("title", "missing");
-                    if (title.equals("missing") && Registries.ITEM.containsId(itemId)) {
-                        // Translations may not be available at this time yet
-                        lazyTitle = Suppliers.memoize(() -> I18n.translate(Registries.ITEM.get(itemId).getTranslationKey()));
-                    } else {
-                        lazyTitle = () -> title;
-                    }
-                    ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, lazyTitle, modId));
-                }
-                
-                // frontmatter custom item links indexing
-                if (frontmatter.containsKey("related_items")) {
-                    var baseString = frontmatter.get("related_items").replace("[", "").replace("]", "").replace("\"", "");
-                    for (var itemString : baseString.split(", ")) {
-                        var itemId = Identifier.of(itemString.trim());
-                        var title = frontmatter.getOrDefault("title", "missing");
-                        ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, () -> title, modId));
-                    }
-                }
-                
-                if (frontmatter.containsKey("unlock")) {
-                    var unlockText = frontmatter.get("unlock");
-                    var parts = unlockText.split(":", 2);
-                    if (parts.length == 2) {
-                        UNLOCK_CRITERIONS.put(path, new Pair<>(parts[0], parts[1]));
-                    }
-                }
-                
-            } catch (IOException e) {
-                Oracle.LOGGER.error("Unable to load book entry: {}", resourceId, e);
-            }
-        }
+        AVAILABLE_MODES.putAll(indexer.getAvailableModes());
     }
     
     public static SemanticSearch getOrCreateSearch() {
         
-        if (searchInstance == null) searchInstance = new SemanticSearch();
+        if (searchInstance == null) {
+            BiPredicate<String, String> filter = (modId, path) -> {
+              DocsFormat format = getWikiFormat(modId);
+              return !format.isTranslatedPath(path);
+            };
+
+            searchInstance = new SemanticSearch(filter);
+        }
         
         return searchInstance;
     }
@@ -240,7 +199,9 @@ public final class OracleClient {
         var resourceManager = MinecraftClient.getInstance().getResourceManager();
         
         if (!languageCode.startsWith("en_")) {
-            var translatedPath = Identifier.of(identifier.getNamespace(), identifier.getPath().replace(ROOT_DIR + "/" + wikiId, ROOT_DIR + "/" + wikiId + "/.translated/" + languageCode));
+            var format = getWikiFormat(wikiId);
+            var translatedDir = format.getTranslatedDir(languageCode);
+            var translatedPath = Identifier.of(identifier.getNamespace(), identifier.getPath().replace(ROOT_DIR + "/" + wikiId, ROOT_DIR + "/" + wikiId + translatedDir));
             
             if (resourceManager.getResource(translatedPath).isPresent()) {
                 return Optional.of(translatedPath);

@@ -292,7 +292,8 @@ public class MarkdownParser {
             var id = link.startsWith("@") ? link.substring(1) : link;
             targetFile = OracleClient.CONTENT_ID_MAP.get(id);
         } else if (link.startsWith("$")) {
-            var p = "books/" + activeWikiId + "/" + link.substring(1);
+            var format = OracleClient.getWikiFormat(activeWikiId);
+            var p = "books/" + activeWikiId + "/" + format.getDocsPagePath(link.substring(1));
             if (!p.endsWith(".mdx")) p += ".mdx";
             targetFile = Identifier.of(Oracle.MOD_ID, p);
         } else {
@@ -530,14 +531,15 @@ public class MarkdownParser {
         }
         
         // case 2: texture path
+        String assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
         Identifier searchPath;
         if (isModAsset) {
             var parts = location.split(":", 2);
             var imageModId = parts.length > 0 ? parts[0] : wikiId;
             var imagePath = parts.length > 1 ? parts[1] : location;
-            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/.assets/" + imageModId + "/" + imagePath + ".png");
+            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + ".png");
         } else {
-            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/.assets/" + wikiId + "/" + location + ".png");
+            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + wikiId + "/" + location + ".png");
         }
         
         var rm = MinecraftClient.getInstance().getResourceManager();

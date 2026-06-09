@@ -15,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
-import rearth.oracle.format.DocsMode;
+import rearth.oracle.docs.DocsMode;
 import rearth.oracle.progress.OracleProgressAPI;
 import rearth.oracle.ui.widgets.*;
 import rearth.oracle.util.MarkdownParser;
@@ -125,9 +125,7 @@ public class OracleScreen extends WikiBaseScreen {
         addRoot(actionHub);
         
         if (activeEntry != null) {
-            var isContent = activeEntry.getPath().contains("/.content/");
-            var mode = isContent ? DocsMode.CONTENT : DocsMode.DOCS;
-            activeWikiMode = mode;
+            activeWikiMode = OracleClient.getDocsModeForPage(activeEntry);
         }
         buildNavigationTree();
         if (activeEntry != null) {
@@ -140,7 +138,7 @@ public class OracleScreen extends WikiBaseScreen {
     }
     
     private UIComponent buildWikiTitleHeader() {
-        var wikiIds = OracleClient.LOADED_WIKIS.stream().sorted().toList();
+        var wikiIds = OracleClient.LOADED_WIKIS.keySet().stream().sorted().toList();
         if (wikiIds.isEmpty()) return FlowWidget.horizontal();
         if (activeWiki == null || !wikiIds.contains(activeWiki)) activeWiki = wikiIds.get(0);
         
@@ -190,7 +188,7 @@ public class OracleScreen extends WikiBaseScreen {
     
     private void rebuildModDropdown(FlowWidget dropdown) {
         dropdown.clearChildren();
-        var wikiIds = OracleClient.LOADED_WIKIS.stream().sorted().toList();
+        var wikiIds = OracleClient.LOADED_WIKIS.keySet().stream().sorted().toList();
         for (var wikiId : wikiIds) {
             var label = new LabelWidget(Text.translatable(Oracle.MOD_ID + ".title." + wikiId).formatted(wikiId.equals(activeWiki) ? Formatting.WHITE : Formatting.DARK_GRAY));
             label.setPadding(Insets.of(4, 3));
@@ -435,7 +433,8 @@ public class OracleScreen extends WikiBaseScreen {
         if (canSwitchWikiMode(activeWiki)) {
             navigationBar.child(buildModeSelector());
         }
-        var path = activeWikiMode.equals(DocsMode.DOCS) ? "" : "/.content";
+        var format = OracleClient.getWikiFormat(activeWiki);
+        var path = format.getDocsRoot(activeWikiMode);
         buildNavigationEntries(activeWiki, path, navigationBar, new Stack<>());
     }
     

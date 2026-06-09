@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiPredicate;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
@@ -33,7 +34,7 @@ public class SemanticSearch {
     public static AtomicBoolean EMBEDDING_ERRORED = new AtomicBoolean(false);
     public static AtomicBoolean FINISHED = new AtomicBoolean(false);
     
-    public SemanticSearch() {
+    public SemanticSearch(BiPredicate<String, String> filter) {
         
         // do this in background to avoid freezing main
         new Thread(() -> {
@@ -73,7 +74,7 @@ public class SemanticSearch {
                     var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
                     var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
                     
-                    if (entryDirectory.contains(".translated")) continue; // skip / don't support translations for now
+                    if (!filter.test(modId, entryDirectory)) continue; // skip / don't support translations for now
                     
                     try {
                         var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
