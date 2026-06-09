@@ -15,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
+import rearth.oracle.format.DocsMode;
 import rearth.oracle.progress.OracleProgressAPI;
 import rearth.oracle.ui.widgets.*;
 import rearth.oracle.util.MarkdownParser;
@@ -33,7 +34,7 @@ public class OracleScreen extends WikiBaseScreen {
     
     public static final HashMap<Identifier, String> PAGE_FALLBACK_NAMES = new HashMap<>();
     
-    public static String activeWikiMode = "docs";
+    public static DocsMode activeWikiMode = DocsMode.DOCS;
     public static Identifier activeEntry;
     public static String activeWiki;
     
@@ -123,6 +124,11 @@ public class OracleScreen extends WikiBaseScreen {
         addRoot(contentScroll);
         addRoot(actionHub);
         
+        if (activeEntry != null) {
+            var isContent = activeEntry.getPath().contains("/.content/");
+            var mode = isContent ? DocsMode.CONTENT : DocsMode.DOCS;
+            activeWikiMode = mode;
+        }
         buildNavigationTree();
         if (activeEntry != null) {
             try {
@@ -429,7 +435,7 @@ public class OracleScreen extends WikiBaseScreen {
         if (canSwitchWikiMode(activeWiki)) {
             navigationBar.child(buildModeSelector());
         }
-        var path = activeWikiMode.equals("docs") ? "" : "/.content";
+        var path = activeWikiMode.equals(DocsMode.DOCS) ? "" : "/.content";
         buildNavigationEntries(activeWiki, path, navigationBar);
     }
     
@@ -437,14 +443,14 @@ public class OracleScreen extends WikiBaseScreen {
         var row = FlowWidget.horizontal().gap(-1);
         row.size(SIDEBAR_WIDTH - 10, 0);
         row.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
-        row.child(makeModeButton("docs"));
-        row.child(makeModeButton("content"));
+        row.child(makeModeButton(DocsMode.DOCS));
+        row.child(makeModeButton(DocsMode.CONTENT));
         return row;
     }
     
-    private ClickableWidget makeModeButton(String mode) {
+    private ClickableWidget makeModeButton(DocsMode mode) {
         boolean selected = activeWikiMode.equals(mode);
-        var text = Text.translatable("oracle_index.button." + mode).formatted(selected ? Formatting.WHITE : Formatting.DARK_GRAY);
+        var text = Text.translatable("oracle_index.button." + mode.name().toLowerCase(Locale.ROOT)).formatted(selected ? Formatting.WHITE : Formatting.DARK_GRAY);
         var label = new LabelWidget(text);
         var widget = new ClickableWidget(label, b -> {
             if (!selected) {
@@ -466,16 +472,16 @@ public class OracleScreen extends WikiBaseScreen {
         return widget;
     }
     
-    private String getWikiMode(String wikiId) {
-        var modes = OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs"));
+    private DocsMode getWikiMode(String wikiId) {
+        var modes = OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of(DocsMode.DOCS));
         if (modes.contains(activeWikiMode)) return activeWikiMode;
-        if (modes.contains("docs")) return "docs";
-        if (modes.contains("content")) return "content";
-        return modes.stream().findFirst().orElse("docs");
+        if (modes.contains(DocsMode.DOCS)) return DocsMode.DOCS;
+        if (modes.contains(DocsMode.CONTENT)) return DocsMode.CONTENT;
+        return modes.stream().findFirst().orElse(DocsMode.DOCS);
     }
     
     private boolean canSwitchWikiMode(String wikiId) {
-        return OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs")).size() > 1;
+        return OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of(DocsMode.DOCS)).size() > 1;
     }
     
     /**

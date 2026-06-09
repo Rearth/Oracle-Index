@@ -18,6 +18,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import rearth.oracle.format.DocsMode;
 import rearth.oracle.progress.AdvancementProgressValidator;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.SearchScreen;
@@ -40,7 +41,7 @@ public final class OracleClient {
     public static final Set<String> LOADED_WIKIS = new HashSet<>(); // just keeps a set of loaded wiki ids
     public static final HashMap<Identifier, ItemArticleRef> ITEM_LINKS = new HashMap<>();   // items that have a corresponding wiki page (docs or content)
     public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
-    public static final HashMap<String, Set<String>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
+    public static final HashMap<String, Set<DocsMode>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
     public static final HashMap<String, Identifier> CONTENT_ID_MAP = new HashMap<>();// item / block id -> resource path (e.g., "oritech:enderic_laser" -> "oracle_index:books/oritech/.content/machines/laser.mdx")
     
     public static ItemStack tooltipStack;
@@ -171,7 +172,7 @@ public final class OracleClient {
             
             // check docs or content
             var isContent = path.contains("/.content/");
-            var mode = isContent ? "content" : "docs";
+            var mode = isContent ? DocsMode.CONTENT : DocsMode.DOCS;
             AVAILABLE_MODES.computeIfAbsent(modId, k -> new HashSet<>()).add(mode);
             
             // parse frontmatter
