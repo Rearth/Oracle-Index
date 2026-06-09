@@ -43,7 +43,7 @@ public class DrawContextMixin {
         
         var stackLink = OracleClient.ITEM_LINKS.get(stackId);
         
-        var tooltipText = Text.literal("\uD83D\uDCD5 ").append(Text.literal(stackLink.wikiId() + ": ").formatted(Formatting.ITALIC)).append(Text.literal(stackLink.entryName()));
+        var tooltipText = Text.literal("\uD83D\uDCD5 ").append(Text.literal(stackLink.wikiId() + ": ").formatted(Formatting.ITALIC)).append(Text.literal(stackLink.entryName().get()));
         var tooltip = TooltipComponent.of(tooltipText.formatted(Formatting.GRAY).asOrderedText());
         modifiableComponents.add(tooltip);
         

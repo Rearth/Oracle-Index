@@ -1,5 +1,6 @@
 package rearth.oracle;
 
+import com.google.common.base.Suppliers;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.ReloadListenerRegistry;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 public final class OracleClient {
     
@@ -185,10 +187,16 @@ public final class OracleClient {
                     var id = frontmatter.get("id").trim();
                     CONTENT_ID_MAP.put(id, resourceId);
                     var itemId = Identifier.of(id);
+                    
+                    Supplier<String> lazyTitle = null;
                     var title = frontmatter.getOrDefault("title", "missing");
-                    if (title.equals("missing") && Registries.ITEM.containsId(itemId))
-                        title = I18n.translate(Registries.ITEM.get(itemId).getTranslationKey());
-                    ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, title, modId));
+                    if (title.equals("missing") && Registries.ITEM.containsId(itemId)) {
+                        // Translations may not be available at this time yet
+                        lazyTitle = Suppliers.memoize(() -> I18n.translate(Registries.ITEM.get(itemId).getTranslationKey()));
+                    } else {
+                        lazyTitle = () -> title;
+                    }
+                    ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, lazyTitle, modId));
                 }
                 
                 // frontmatter custom item links indexing
@@ -196,7 +204,8 @@ public final class OracleClient {
                     var baseString = frontmatter.get("related_items").replace("[", "").replace("]", "").replace("\"", "");
                     for (var itemString : baseString.split(", ")) {
                         var itemId = Identifier.of(itemString.trim());
-                        ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, frontmatter.getOrDefault("title", "missing"), modId));
+                        var title = frontmatter.getOrDefault("title", "missing");
+                        ITEM_LINKS.put(itemId, new ItemArticleRef(resourceId, () -> title, modId));
                     }
                 }
                 
@@ -242,7 +251,7 @@ public final class OracleClient {
         return Optional.empty();
     }
     
-    public record ItemArticleRef(Identifier linkTarget, String entryName, String wikiId) {
+    public record ItemArticleRef(Identifier linkTarget, Supplier<String> entryName, String wikiId) {
     }
     
 }
