@@ -15,9 +15,9 @@ public class MdxBlockFactory extends AbstractBlockParserFactory {
         if (line.startsWith("<CraftingRecipe")) {
             return startLeaf(new MdxComponentBlock.CraftingRecipeBlock(), "CraftingRecipe", line, state);
         } else if (line.startsWith("<ModAsset")) {
-            return startLeaf(new MdxComponentBlock.AssetBlock(true), "ModAsset", line, state);
+            return startLeaf(new MdxComponentBlock.AssetBlock("ModAsset"), "ModAsset", line, state);
         } else if (line.startsWith("<Asset")) {
-            return startLeaf(new MdxComponentBlock.AssetBlock(false), "Asset", line, state);
+            return startLeaf(new MdxComponentBlock.AssetBlock("Asset"), "Asset", line, state);
         } else if (line.startsWith("<PrefabObtaining")) {
             return startLeaf(new MdxComponentBlock.PrefabObtainingBlock(), "PrefabObtaining", line, state);
         }

@@ -193,7 +193,7 @@ public class MarkdownParser {
             if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock recipe) {
                 components.add(buildRecipe(recipe.slots, recipe.result, recipe.count));
             } else if (customBlock instanceof MdxComponentBlock.AssetBlock image) {
-                components.add(buildImage(image.location, image.width, this.wikiId, image.isModAsset(), contentWidthPx));
+                components.add(buildImage(image.location, image.width, this.wikiId, contentWidthPx));
             } else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
                 var oldComponents = this.components;
                 var inner = new ArrayList<UIComponent>();
@@ -211,7 +211,7 @@ public class MarkdownParser {
         @Override
         public void visit(Image image) {
             flushBuffer();
-            components.add(buildImage(image.getDestination(), "60%", wikiId, true, contentWidthPx));
+            components.add(buildImage(image.getDestination(), "60%", wikiId, contentWidthPx));
         }
         
         @Override
@@ -510,7 +510,7 @@ public class MarkdownParser {
         return panel;
     }
     
-    public static UIComponent buildImage(String location, String widthSource, String wikiId, boolean isModAsset, int contentWidthPx) {
+    public static UIComponent buildImage(String location, String widthSource, String wikiId, int contentWidthPx) {
         float widthRatio = convertImageWidth(widthSource);
         if (widthRatio <= 0) widthRatio = 0.5f;
         if (location.startsWith("@")) location = location.substring(1);
@@ -533,14 +533,11 @@ public class MarkdownParser {
         // case 2: texture path
         String assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
         Identifier searchPath;
-        if (isModAsset) {
-            var parts = location.split(":", 2);
-            var imageModId = parts.length > 0 ? parts[0] : wikiId;
-            var imagePath = parts.length > 1 ? parts[1] : location;
-            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + ".png");
-        } else {
-            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + wikiId + "/" + location + ".png");
-        }
+        var parts = location.split(":", 2);
+        var imageModId = parts.length > 0 ? parts[0] : wikiId;
+        var imagePath = parts.length > 1 ? parts[1] : location;
+        var extension = imagePath.contains(".") ? "" : ".png";
+        searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + extension);
         
         var rm = MinecraftClient.getInstance().getResourceManager();
         var resource = rm.getResource(searchPath);

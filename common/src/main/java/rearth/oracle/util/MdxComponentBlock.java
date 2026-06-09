@@ -93,21 +93,16 @@ public abstract class MdxComponentBlock extends CustomBlock {
     }
     
     public static class AssetBlock extends MdxComponentBlock {
-        private final boolean isModAsset;
+        private final String tagName;
         public String location;
         public String width = "50%";
         
-        public AssetBlock(boolean isModAsset) {
-            this.isModAsset = isModAsset;
-        }
-        
-        public boolean isModAsset() {
-            return isModAsset;
+        public AssetBlock(String tagName) {
+            this.tagName = tagName;
         }
         
         @Override
         void parseContent() {
-            var tagName = isModAsset ? "ModAsset" : "Asset";
             var el = Jsoup.parseBodyFragment(rawContent).selectFirst(tagName);
             if (el != null) {
                 this.location = el.attr("location");
@@ -120,8 +115,7 @@ public abstract class MdxComponentBlock extends CustomBlock {
         @Override
         public String toString() {
             return "AssetBlock{" +
-                     "isModAsset=" + isModAsset +
-                     ", location='" + location + '\'' +
+                     "location='" + location + '\'' +
                      ", width='" + width + '\'' +
                      ", rawContent='" + rawContent + '\'' +
                      '}';
