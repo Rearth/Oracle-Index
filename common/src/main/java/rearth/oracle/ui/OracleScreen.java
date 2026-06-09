@@ -436,7 +436,7 @@ public class OracleScreen extends WikiBaseScreen {
             navigationBar.child(buildModeSelector());
         }
         var path = activeWikiMode.equals(DocsMode.DOCS) ? "" : "/.content";
-        buildNavigationEntries(activeWiki, path, navigationBar);
+        buildNavigationEntries(activeWiki, path, navigationBar, new Stack<>());
     }
     
     private FlowWidget buildModeSelector() {
@@ -487,7 +487,7 @@ public class OracleScreen extends WikiBaseScreen {
     /**
      * @return true if any entry under this path is unlocked.
      */
-    private boolean buildNavigationEntries(String wikiId, String path, FlowWidget container) {
+    private boolean buildNavigationEntries(String wikiId, String path, FlowWidget container, Stack<CollapsibleWidget> hierarchy) {
         var rm = MinecraftClient.getInstance().getResourceManager();
         var metaPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/_meta.json");
         var translated = OracleClient.getTranslatedPath(metaPath, wikiId);
@@ -507,9 +507,15 @@ public class OracleScreen extends WikiBaseScreen {
             var levelContainers = new ArrayList<CollapsibleWidget>();
             
             for (var entry : entries) {
+                final var labelPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
+
                 if (entry.directory) {
-                    var directory = new CollapsibleWidget(Text.translatable(entry.name()).formatted(Formatting.WHITE), false);
-                    boolean childrenUnlocked = buildNavigationEntries(wikiId, path + "/" + entry.id(), directory.body());
+                    boolean expanded = activeEntry != null && activeEntry.getPath().startsWith(labelPath.getPath());
+
+                    var directory = new CollapsibleWidget(Text.translatable(entry.name()).formatted(Formatting.WHITE), expanded);
+                    hierarchy.push(directory);
+                    boolean childrenUnlocked = buildNavigationEntries(wikiId, path + "/" + entry.id(), directory.body(), hierarchy);
+                    hierarchy.pop();
                     if (childrenUnlocked) anyUnlocked = true;
                     
                     final var captured = directory;
@@ -526,8 +532,6 @@ public class OracleScreen extends WikiBaseScreen {
                         levelContainers.add(directory);
                     }
                 } else {
-                    final var labelPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
-                    
                     var shownName = entry.name;
                     if (shownName.isBlank()) {
                         var contentRc = rm.getResource(labelPath);
@@ -566,6 +570,10 @@ public class OracleScreen extends WikiBaseScreen {
                     var firstPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + first.get().id());
                     loadContent(firstPath, wikiId);
                     activeEntry = firstPath;
+
+                    for (CollapsibleWidget parent : hierarchy) {
+                        parent.setExpanded(true);
+                    }
                 }
             }
         } catch (IOException e) {
