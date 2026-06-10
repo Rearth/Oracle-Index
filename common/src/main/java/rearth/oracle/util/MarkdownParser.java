@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.texture.NativeImage;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.ClickEvent;
@@ -243,7 +244,7 @@ public class MarkdownParser {
 
             if (link.getFirstChild() == null && (link.getTitle() == null || link.getTitle().isBlank())) {
                 var linkTitle = getLinkText(link.getDestination(), wikiId, contentPath);
-                buffer.append(Text.literal(linkTitle).setStyle(currentStyle));
+                buffer.append(linkTitle.setStyle(currentStyle));
             }
             visitChildren(link);
             currentStyle = old;
@@ -269,7 +270,21 @@ public class MarkdownParser {
 
     // ---------------------------------------------------------------- helpers
 
-    public static String getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+    public static MutableText getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+        if (link.startsWith("@")) {
+            Identifier id = Identifier.tryParse(link.substring(1));
+            if (id != null && id.getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
+                Item item = Registries.ITEM.get(id);
+                if (item != null) {
+                    return Text.translatable(item.getTranslationKey());
+                }
+            }
+        }
+
+        return Text.literal(getLinkTextLiteral(link, activeWikiId, sourceEntryPath));
+    }
+
+    public static String getLinkTextLiteral(String link, String activeWikiId, Identifier sourceEntryPath) {
         var linkTarget = getLinkTarget(link, activeWikiId, sourceEntryPath);
         if (linkTarget == null) return "<invalid link>";
         var rm = MinecraftClient.getInstance().getResourceManager();
@@ -614,7 +629,7 @@ public class MarkdownParser {
         public List<String> getAll(String key) {
             return this.map.get(key);
         }
-        
+
         @Nullable
         public String getOne(String key) {
             List<String> values = this.map.get(key);
