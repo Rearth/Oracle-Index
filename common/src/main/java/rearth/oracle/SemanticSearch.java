@@ -12,6 +12,7 @@ import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 import rearth.oracle.util.MarkdownParser;
+import rearth.oracle.util.MarkdownParser.Frontmatter;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -78,9 +79,13 @@ public class SemanticSearch {
                     
                     try {
                         var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                        var fileComponents = MarkdownParser.parseFrontmatter(fileContent);
-                        
+                        var frontmatter = MarkdownParser.parseFrontmatter(fileContent);
+
                         // generate embeddings
+                        var fileComponents = new HashMap<String, String>();
+                        frontmatter.map().forEach((k, v) -> {
+                            if (v.size() == 1) fileComponents.put(k, v.getFirst());
+                        });
                         this.queueEmbeddingsJob(modId, entryDirectory, entryFileName, fileComponents, fileContent);
                         
                         
@@ -128,12 +133,12 @@ public class SemanticSearch {
             var id = match.embedded().metadata().getString("wiki") + ":" + match.embedded().metadata().getString("category") + match.embedded().metadata().getString("fileName");
             var title = match.embedded().metadata().getString("title");
             if (title == null) {
-                var frontmatter = new HashMap<String, String>();
+                var frontmatter = new HashMap<String, List<String>>();
                 for (var data : match.embedded().metadata().toMap().entrySet()) {
                     if (data.getValue() instanceof String value)
-                        frontmatter.put(data.getKey(), value);
+                        frontmatter.put(data.getKey(), List.of(value));
                 }
-                title = MarkdownParser.getTitle(frontmatter, Identifier.of(id));
+                title = MarkdownParser.getTitle(new Frontmatter(frontmatter), Identifier.of(id));
             }
             
             // check if id already exists, add it to alt texts

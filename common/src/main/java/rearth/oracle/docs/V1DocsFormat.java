@@ -33,4 +33,9 @@ public class V1DocsFormat implements DocsFormat {
     public String getDocsPagePath(String slug) {
         return "docs/" + slug;
     }
+
+    @Override
+    public String stripContentPrefix(String path) {
+        return path.split("/content/")[1];
+    }
 }

@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient.ItemArticleRef;
 import rearth.oracle.util.MarkdownParser;
+import rearth.oracle.util.MarkdownParser.Frontmatter;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -30,12 +31,13 @@ public class DocsIndexer {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new Gson();
-    
+
     private final Map<String, DocsFormat> loadedWikis;
     private final Map<Identifier, ItemArticleRef> itemLinks;
     private final Map<String, Pair<String, String>> unlockCriterions;
     private final Map<String, Set<DocsMode>> availableModes;
     private final Map<String, Identifier> contentIds;
+    private final Map<String, Identifier> contentRefs;
 
     public DocsIndexer() {
         this.loadedWikis = new HashMap<>();
@@ -43,6 +45,7 @@ public class DocsIndexer {
         this.unlockCriterions = new HashMap<>();
         this.availableModes = new HashMap<>();
         this.contentIds = new HashMap<>();
+        this.contentRefs = new HashMap<>();
     }
 
     public Map<String, DocsFormat> getLoadedWikis() {
@@ -63,6 +66,10 @@ public class DocsIndexer {
 
     public Map<String, Identifier> getContentIds() {
         return contentIds;
+    }
+
+    public Map<String, Identifier> getContentRefs() {
+        return contentRefs;
     }
 
     public void findAllResourceEntries(ResourceManager manager) {
@@ -111,25 +118,35 @@ public class DocsIndexer {
             var frontmatter = MarkdownParser.parseFrontmatter(fileContent);
 
             // map game id for content links
-            if (isContent && frontmatter.containsKey("id")) {
-                var id = frontmatter.get("id").trim();
-                this.contentIds.put(id, resourceId);
-                var itemId = Identifier.of(id);
+            if (isContent) {
+                List<String> ids = frontmatter.getAll("id");
+                String ref = computePageRef(resourceId, format, frontmatter, ids);
+                this.contentRefs.put(ref, resourceId);
 
-                Supplier<String> lazyTitle = null;
-                var title = frontmatter.getOrDefault("title", "missing");
-                if (title.equals("missing") && Registries.ITEM.containsId(itemId)) {
-                    // Translations may not be available at this time yet
-                    lazyTitle = Suppliers.memoize(() -> I18n.translate(Registries.ITEM.get(itemId).getTranslationKey()));
-                } else {
-                    lazyTitle = () -> title;
+                if (frontmatter.containsKey("id")) {
+                    for (String id : ids) {
+                        this.contentIds.put(id, resourceId);
+
+                        var itemId = Identifier.of(id);
+
+                        Supplier<String> lazyTitle;
+                        var title = frontmatter.getOrDefault("title", "missing");
+                        if (title.equals("missing") && Registries.ITEM.containsId(itemId)) {
+                            // Use supplier as translations may not be available at this time yet
+                            lazyTitle = Suppliers.memoize(() -> I18n.translate(Registries.ITEM.get(itemId).getTranslationKey()));
+                        } else {
+                            lazyTitle = () -> title;
+                        }
+
+                        // TODO Pick best page for item
+                        this.itemLinks.put(itemId, new ItemArticleRef(resourceId, lazyTitle, modId));
+                    }
                 }
-                this.itemLinks.put(itemId, new ItemArticleRef(resourceId, lazyTitle, modId));
             }
 
             // frontmatter custom item links indexing
             if (frontmatter.containsKey("related_items")) {
-                var baseString = frontmatter.get("related_items").replace("[", "").replace("]", "").replace("\"", "");
+                var baseString = frontmatter.getOne("related_items").replace("[", "").replace("]", "").replace("\"", "");
                 for (var itemString : baseString.split(", ")) {
                     var itemId = Identifier.of(itemString.trim());
                     var title = frontmatter.getOrDefault("title", "missing");
@@ -138,7 +155,7 @@ public class DocsIndexer {
             }
 
             if (frontmatter.containsKey("unlock")) {
-                var unlockText = frontmatter.get("unlock");
+                var unlockText = frontmatter.getOne("unlock");
                 var parts = unlockText.split(":", 2);
                 if (parts.length == 2) {
                     this.unlockCriterions.put(path, new Pair<>(parts[0], parts[1]));
@@ -161,6 +178,41 @@ public class DocsIndexer {
         }
 
         return new LegacyDocsFormat();
+    }
+
+    /**
+     * Compute page ref using the same process as the wiki web
+     */
+    @Nullable
+    private String computePageRef(Identifier resourceId, DocsFormat format, Frontmatter frontmatter, List<String> ids) {
+        // 1. Try using user-specified ref
+        var userRef = frontmatter.getOne("ref");
+        if (userRef != null && !this.contentRefs.containsKey(userRef)) {
+            return userRef;
+        }
+
+        // 2. Try deriving the ref from a single specified item ID
+        if (ids.size() == 1) {
+            var id = Identifier.tryParse(ids.getFirst());
+            if (id != null) {
+                var primaryRef = id.getPath().replace("/", "_");
+                if (!this.contentRefs.containsKey(primaryRef)) {
+                    return primaryRef;
+                }
+            }
+        }
+
+        // 3. Try deriving from the page file name
+        var relativePath = format.stripContentPrefix(resourceId.getPath());
+        var stripped = List.of(relativePath.split("\\.")).getLast();
+        var fileName = List.of(stripped.split("/")).getLast();
+        var normalized = fileName.replace("/", "_");
+        if (!this.contentRefs.containsKey(normalized)) {
+            return normalized;
+        }
+
+        // 4. Use the full path
+        return stripped.replace("/", "_");
     }
 
     @Nullable

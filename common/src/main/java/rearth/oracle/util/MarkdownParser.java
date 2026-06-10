@@ -36,21 +36,21 @@ import static rearth.oracle.OracleClient.ROOT_DIR;
  * Replaces the previous owo-lib-based parser.
  */
 public class MarkdownParser {
-    
+
     private static final String[] removedLines = {"<center>", "</center>", "<div>", "</div>", "<span>", "</span>"};
-    
+
     private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create());
     private static final Set<Class<? extends Block>> ENABLED_BLOCKS = Set.of(
-      Heading.class, HtmlBlock.class, ThematicBreak.class,
-      FencedCodeBlock.class, BlockQuote.class, ListBlock.class
+        Heading.class, HtmlBlock.class, ThematicBreak.class,
+        FencedCodeBlock.class, BlockQuote.class, ListBlock.class
     );
-    
+
     private static final Parser PARSER = Parser.builder()
-                                           .enabledBlockTypes(ENABLED_BLOCKS)
-                                           .extensions(EXTENSIONS)
-                                           .customBlockParserFactory(new MdxBlockFactory())
-                                           .build();
-    
+        .enabledBlockTypes(ENABLED_BLOCKS)
+        .extensions(EXTENSIONS)
+        .customBlockParserFactory(new MdxBlockFactory())
+        .build();
+
     /**
      * Parse markdown and produce a list of top-level widgets.
      *
@@ -60,55 +60,55 @@ public class MarkdownParser {
     public static List<UIComponent> parseMarkdownToWidgets(String markdown, String wikiId, Identifier currentPath,
                                                            Predicate<String> linkHandler, int contentWidthPx) {
         for (var toRemove : removedLines) markdown = markdown.replace(toRemove, "");
-        
+
         var document = PARSER.parse(markdown);
         var yamlVisitor = new YamlFrontMatterVisitor();
         document.accept(yamlVisitor);
-        
+
         var frontMatter = parseFrontmatter(markdown);
-        
+
         var visitor = new WikiMarkdownVisitor(linkHandler, wikiId, currentPath, contentWidthPx);
         document.accept(visitor);
-        
+
         var widgets = new ArrayList<UIComponent>();
         widgets.add(buildTitlePanel(linkHandler, frontMatter, currentPath, contentWidthPx));
         widgets.addAll(visitor.results());
-        
+
         if (frontMatter.containsKey("id")) {
-            var gameId = frontMatter.get("id");
+            var gameId = frontMatter.getOne("id");
             var id = Identifier.of(gameId);
             if (Registries.ITEM.containsId(id) || Registries.BLOCK.containsId(id))
                 widgets.add(buildPropertiesPanel(ContentProperties.getProperties(gameId), contentWidthPx));
         }
-        
+
         return widgets;
     }
-    
+
     // ---------------------------------------------------------------- visitor
-    
+
     private static class WikiMarkdownVisitor extends AbstractVisitor {
-        
+
         private final Predicate<String> linkHandler;
         private final String wikiId;
         private final Identifier contentPath;
         private final int contentWidthPx;
-        
+
         private List<UIComponent> components = new ArrayList<>();
         private MutableText buffer = Text.empty();
         private Style currentStyle = Style.EMPTY;
         private int currentIndentation = 0;
-        
+
         WikiMarkdownVisitor(Predicate<String> linkHandler, String wikiId, Identifier contentPath, int contentWidthPx) {
             this.linkHandler = linkHandler;
             this.wikiId = wikiId;
             this.contentPath = contentPath;
             this.contentWidthPx = contentWidthPx;
         }
-        
+
         List<UIComponent> results() {
             return components;
         }
-        
+
         private void flushBuffer() {
             if (buffer == null || buffer.getString().isEmpty()) return;
             var label = new LabelWidget(buffer).linkHandler(linkHandler).lineSpacing(1).fillWidth();
@@ -117,13 +117,13 @@ public class MarkdownParser {
             buffer = Text.empty();
             currentIndentation = 0;
         }
-        
+
         @Override
         public void visit(Paragraph paragraph) {
             visitChildren(paragraph);
             flushBuffer();
         }
-        
+
         @Override
         public void visit(Heading heading) {
             buffer = Text.empty();
@@ -131,14 +131,14 @@ public class MarkdownParser {
             currentStyle = currentStyle.withColor(Formatting.GRAY);
             visitChildren(heading);
             currentStyle = oldStyle;
-            
+
             var label = new LabelWidget(buffer).linkHandler(linkHandler).fillWidth();
             label.scale(Math.max(1.0f, 2.0f - heading.getLevel() * 0.2f));
             label.setPadding(Insets.of(10, 5, 0, 0));
             components.add(label);
             buffer = Text.empty();
         }
-        
+
         @Override
         public void visit(FencedCodeBlock codeBlock) {
             flushBuffer();
@@ -149,17 +149,17 @@ public class MarkdownParser {
             panel.child(new LabelWidget(text));
             components.add(panel);
         }
-        
+
         @Override
         public void visit(BulletList l) {
             visitChildren(l);
         }
-        
+
         @Override
         public void visit(OrderedList l) {
             visitChildren(l);
         }
-        
+
         @Override
         public void visit(ListItem listItem) {
             var parent = listItem.getParent();
@@ -170,7 +170,7 @@ public class MarkdownParser {
                 ancestor = ancestor.getParent();
             }
             this.currentIndentation = depth - 1;
-            
+
             if (parent instanceof BulletList) {
                 buffer.append(Text.literal("• ").formatted(Formatting.DARK_GRAY));
             } else if (parent instanceof OrderedList orderedList) {
@@ -187,7 +187,7 @@ public class MarkdownParser {
             flushBuffer();
             this.currentIndentation = 0;
         }
-        
+
         @Override
         public void visit(CustomBlock customBlock) {
             if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock recipe) {
@@ -201,24 +201,24 @@ public class MarkdownParser {
                 visitChildren(callout);
                 flushBuffer();
                 this.components = oldComponents;
-                
+
                 var widget = new CalloutWidget(callout.variant);
                 for (var c : inner) widget.addBodyChild(c);
                 components.add(widget);
             }
         }
-        
+
         @Override
         public void visit(Image image) {
             flushBuffer();
             components.add(buildImage(image.getDestination(), "60%", wikiId, contentWidthPx));
         }
-        
+
         @Override
         public void visit(org.commonmark.node.Text text) {
             if (buffer != null) buffer.append(Text.literal(text.getLiteral()).setStyle(currentStyle));
         }
-        
+
         @Override
         public void visit(StrongEmphasis e) {
             var old = currentStyle;
@@ -226,7 +226,7 @@ public class MarkdownParser {
             visitChildren(e);
             currentStyle = old;
         }
-        
+
         @Override
         public void visit(Emphasis e) {
             var old = currentStyle;
@@ -234,13 +234,13 @@ public class MarkdownParser {
             visitChildren(e);
             currentStyle = old;
         }
-        
+
         @Override
         public void visit(Link link) {
             var old = currentStyle;
             var clickEvent = new ClickEvent(ClickEvent.Action.OPEN_URL, link.getDestination());
             currentStyle = currentStyle.withColor(Formatting.BLUE).withUnderline(true).withClickEvent(clickEvent);
-            
+
             if (link.getFirstChild() == null && (link.getTitle() == null || link.getTitle().isBlank())) {
                 var linkTitle = getLinkText(link.getDestination(), wikiId, contentPath);
                 buffer.append(Text.literal(linkTitle).setStyle(currentStyle));
@@ -248,27 +248,27 @@ public class MarkdownParser {
             visitChildren(link);
             currentStyle = old;
         }
-        
+
         @Override
         public void visit(Code inlineCode) {
             if (buffer != null) {
                 buffer.append(Text.literal(inlineCode.getLiteral()).formatted(Formatting.RED));
             }
         }
-        
+
         @Override
         public void visit(SoftLineBreak n) {
             if (buffer != null) buffer.append(Text.literal(" "));
         }
-        
+
         @Override
         public void visit(HardLineBreak n) {
             if (buffer != null) buffer.append(Text.literal("\n"));
         }
     }
-    
+
     // ---------------------------------------------------------------- helpers
-    
+
     public static String getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
         var linkTarget = getLinkTarget(link, activeWikiId, sourceEntryPath);
         if (linkTarget == null) return "<invalid link>";
@@ -284,7 +284,7 @@ public class MarkdownParser {
             return "<invalid link>";
         }
     }
-    
+
     @Nullable
     public static Identifier getLinkTarget(String link, String activeWikiId, Identifier sourceEntryPath) {
         Identifier targetFile;
@@ -296,6 +296,9 @@ public class MarkdownParser {
             var p = "books/" + activeWikiId + "/" + format.getDocsPagePath(link.substring(1));
             if (!p.endsWith(".mdx")) p += ".mdx";
             targetFile = Identifier.of(Oracle.MOD_ID, p);
+        } else if (link.startsWith("+")) {
+            var id = link.substring(1);
+            targetFile = OracleClient.CONTENT_REF_MAP.get(id);
         } else {
             var p = OracleScreen.parsePathLink(link, sourceEntryPath);
             if (!p.endsWith(".mdx")) p += ".mdx";
@@ -303,20 +306,23 @@ public class MarkdownParser {
         }
         return targetFile;
     }
-    
-    public static String getTitle(Map<String, String> frontMatter, Identifier pagePath) {
-        if (frontMatter.containsKey("title")) return frontMatter.get("title");
-        if (frontMatter.containsKey("id")) {
-            var item = frontMatter.get("id");
+
+    public static String getTitle(Frontmatter frontMatter, Identifier pagePath) {
+        String title = frontMatter.getOne("title");
+        if (title != null) return title;
+
+        String item = frontMatter.getOne("id");
+        if (item != null) {
             if (Identifier.validate(item).isSuccess() && Registries.ITEM.containsId(Identifier.of(item))) {
                 return I18n.translate(Registries.ITEM.get(Identifier.of(item)).getTranslationKey());
             }
             return item;
         }
+
         return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, "No title found");
     }
-    
-    private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter, Identifier pageId, int contentWidthPx) {
+
+    private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Frontmatter frontMatter, Identifier pageId, int contentWidthPx) {
         ItemStack iconStack = ItemStack.EMPTY;
         var iconId = frontMatter.getOrDefault("icon", "");
         if (iconId.isBlank()) iconId = frontMatter.getOrDefault("id", "");
@@ -325,25 +331,25 @@ public class MarkdownParser {
         }
         return new PageTitleWidget(Text.literal(getTitle(frontMatter, pageId)).formatted(Formatting.DARK_GRAY), iconStack, linkHandler, contentWidthPx);
     }
-    
+
     private static class PageTitleWidget extends UIComponent {
         private static final int ICON_PANEL_SIZE = 58;
         private static final int ICON_ITEM_SIZE = 50;
         private static final int TITLE_OVERLAP = 12;
         private static final int TITLE_PAD_X = 14;
         private static final int TITLE_PAD_Y = 9;
-        
+
         private final LabelWidget titleLabel;
         private final ItemWidget icon;
         private final int contentWidthPx;
-        
+
         private int titleX;
         private int titleY;
         private int titleW;
         private int titleH;
         private int iconX;
         private int iconY;
-        
+
         PageTitleWidget(Text title, ItemStack iconStack, Predicate<String> linkHandler, int contentWidthPx) {
             this.titleLabel = new LabelWidget(title).scale(2f).linkHandler(linkHandler);
             this.icon = iconStack.isEmpty() ? null : new ItemWidget(iconStack);
@@ -353,7 +359,7 @@ public class MarkdownParser {
             }
             this.contentWidthPx = contentWidthPx;
         }
-        
+
         @Override
         public int getPreferredWidth(int widthHint) {
             int maxWidth = widthHint > 0 ? widthHint : contentWidthPx;
@@ -362,7 +368,7 @@ public class MarkdownParser {
             int titlePanelWidth = titleLabel.getPreferredWidth(labelMaxWidth) + TITLE_PAD_X * 2;
             return leadingWidth() + titlePanelWidth;
         }
-        
+
         @Override
         public int getPreferredHeight(int widthHint) {
             int maxWidth = widthHint > 0 ? widthHint : contentWidthPx;
@@ -371,7 +377,7 @@ public class MarkdownParser {
             int titlePanelHeight = titleLabel.getPreferredHeight(labelMaxWidth) + TITLE_PAD_Y * 2;
             return Math.max(icon == null ? 0 : ICON_PANEL_SIZE, titlePanelHeight);
         }
-        
+
         @Override
         public void layout(int parentWidthHint, int parentHeightHint) {
             int labelMaxWidth = Math.max(80, width - leadingWidth() - TITLE_PAD_X * 2);
@@ -394,7 +400,7 @@ public class MarkdownParser {
                 icon.layout(ICON_ITEM_SIZE, ICON_ITEM_SIZE);
             }
         }
-        
+
         @Override
         protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
             WikiSurface.BEDROCK_PANEL.render(context, titleX, titleY, titleW, titleH);
@@ -404,22 +410,22 @@ public class MarkdownParser {
                 icon.render(context, mouseX, mouseY, delta);
             }
         }
-        
+
         @Override
         public List<Text> tooltip(int mouseX, int mouseY) {
             if (icon != null && icon.isInBounds(mouseX, mouseY)) return icon.tooltip(mouseX, mouseY);
             return super.tooltip(mouseX, mouseY);
         }
-        
+
         private int leadingWidth() {
             return icon == null ? 0 : ICON_PANEL_SIZE - TITLE_OVERLAP;
         }
-        
+
         private int labelMaxWidth(int maxWidth) {
             return Math.max(80, maxWidth - leadingWidth() - TITLE_PAD_X * 2);
         }
     }
-    
+
     private static UIComponent buildPropertiesPanel(Map<String, Text> properties, int contentWidthPx) {
         var tr = MinecraftClient.getInstance().textRenderer;
         int titleWidth = tr.getWidth("Details");
@@ -436,32 +442,32 @@ public class MarkdownParser {
         outer.size(innerWidth, 0);
         outer.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
         outer.child(new LabelWidget(Text.literal("Details").formatted(Formatting.BOLD, Formatting.GRAY)));
-        
+
         for (var entry : properties.entrySet()) {
             outer.child(new PropertyRowWidget(Text.literal(entry.getKey()).formatted(Formatting.GOLD), entry.getValue()));
         }
         return outer;
     }
-    
+
     private static class PropertyRowWidget extends UIComponent {
         private final Text key;
         private final Text value;
-        
+
         PropertyRowWidget(Text key, Text value) {
             this.key = key;
             this.value = value;
         }
-        
+
         @Override
         public int getPreferredWidth(int widthHint) {
             return widthHint > 0 ? widthHint : MinecraftClient.getInstance().textRenderer.getWidth(key) + 28 + MinecraftClient.getInstance().textRenderer.getWidth(value);
         }
-        
+
         @Override
         public int getPreferredHeight(int widthHint) {
             return MinecraftClient.getInstance().textRenderer.fontHeight;
         }
-        
+
         @Override
         protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
             var tr = MinecraftClient.getInstance().textRenderer;
@@ -469,12 +475,12 @@ public class MarkdownParser {
             context.drawText(tr, value, x + width - tr.getWidth(value), y, 0xFFFFFFFF, false);
         }
     }
-    
+
     public static UIComponent buildRecipe(List<String> inputs, String resultId, int resultCount) {
         if (inputs.size() != 9) {
             return new LabelWidget(Text.literal("Invalid crafting recipe data: expected 9 inputs").formatted(Formatting.RED));
         }
-        
+
         // Layered: a 3x3 grid of slots with items overlaid on top.
         var grid = new GridWidget(3, 3, ItemSlotWidget.SLOT_SIZE, ItemSlotWidget.SLOT_SIZE).gap(0, 0);
         grid.setPadding(Insets.of(3));
@@ -488,18 +494,18 @@ public class MarkdownParser {
             var item = new ItemWidget(stack);
             grid.set(i / 3, i % 3, new ItemSlotWidget(item));
         }
-        
+
         // → arrow
         var arrow = new TextureWidget(Identifier.of(Oracle.MOD_ID, "textures/arrow_empty.png"), 29, 16);
-        
+
         // result slot
         var resultIdObj = Identifier.of(resultId);
         var resultStack = Registries.ITEM.containsId(resultIdObj)
-                            ? new ItemStack(Registries.ITEM.get(resultIdObj), resultCount)
-                            : ItemStack.EMPTY;
+            ? new ItemStack(Registries.ITEM.get(resultIdObj), resultCount)
+            : ItemStack.EMPTY;
         var result = new ItemWidget(resultStack);
         var resultSlot = new ItemSlotWidget(result);
-        
+
         var panel = FlowWidget.horizontal().gap(8);
         panel.setSurface(WikiSurface.BEDROCK_PANEL);
         panel.setPadding(Insets.of(8));
@@ -509,15 +515,15 @@ public class MarkdownParser {
         panel.child(resultSlot);
         return panel;
     }
-    
+
     public static UIComponent buildImage(String location, String widthSource, String wikiId, int contentWidthPx) {
         float widthRatio = convertImageWidth(widthSource);
         if (widthRatio <= 0) widthRatio = 0.5f;
         if (location.startsWith("@")) location = location.substring(1);
-        
+
         // available pixel budget after scrollbar gutter + a tiny breathing margin
         int budget = Math.max(16, contentWidthPx - 12);
-        
+
         // case 1: ingame item → render as ItemWidget
         var itemIdCandidate = Identifier.of(location);
         if (Registries.ITEM.containsId(itemIdCandidate)) {
@@ -529,7 +535,7 @@ public class MarkdownParser {
             itemWidget.setHideItemDecorations(true);
             return itemWidget;
         }
-        
+
         // case 2: texture path
         String assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
         Identifier searchPath;
@@ -538,7 +544,7 @@ public class MarkdownParser {
         var imagePath = parts.length > 1 ? parts[1] : location;
         var extension = imagePath.contains(".") ? "" : ".png";
         searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + extension);
-        
+
         var rm = MinecraftClient.getInstance().getResourceManager();
         var resource = rm.getResource(searchPath);
         if (resource.isEmpty()) {
@@ -557,25 +563,25 @@ public class MarkdownParser {
             return new LabelWidget(Text.literal("Error reading image: " + location).formatted(Formatting.RED));
         }
     }
-    
-    public static Map<String, String> parseFrontmatter(String markdown) {
+
+    public static Frontmatter parseFrontmatter(String markdown) {
         var document = PARSER.parse(markdown);
         var yamlVisitor = new YamlFrontMatterVisitor();
         document.accept(yamlVisitor);
         var frontmatter = yamlVisitor.getData();
         try {
-            var simple = new HashMap<String, String>();
+            var inner = new HashMap<String, List<String>>();
             for (var pair : frontmatter.entrySet()) {
                 if (pair.getValue().isEmpty()) continue;
-                simple.put(pair.getKey(), pair.getValue().getFirst().trim());
+                inner.put(pair.getKey(), pair.getValue().stream().map(String::trim).toList());
             }
-            return simple;
+            return new Frontmatter(inner);
         } catch (RuntimeException ex) {
             Oracle.LOGGER.warn("Error parsing markdown frontmatter: {} in {}", ex, markdown);
-            return new HashMap<>();
+            return new Frontmatter(Map.of());
         }
     }
-    
+
     public static float convertImageWidth(String input) {
         if (input == null || input.isEmpty()) return 0.0f;
         var trimmed = input.trim();
@@ -601,5 +607,30 @@ public class MarkdownParser {
             }
         }
         return 0.0f;
+    }
+
+    public record Frontmatter(Map<String, List<String>> map) {
+        @Nullable
+        public List<String> getAll(String key) {
+            return this.map.get(key);
+        }
+        
+        @Nullable
+        public String getOne(String key) {
+            List<String> values = this.map.get(key);
+            if (values == null) {
+                return null;
+            }
+            return values.size() == 1 ? values.getFirst() : null;
+        }
+
+        public String getOrDefault(String key, String _default) {
+            String value = getOne(key);
+            return value != null ? value : _default;
+        }
+
+        public boolean containsKey(String key) {
+            return this.map.containsKey(key);
+        }
     }
 }

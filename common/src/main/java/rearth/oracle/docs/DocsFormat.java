@@ -12,4 +12,6 @@ public interface DocsFormat {
     String getAssetsRoot();
     
     String getDocsPagePath(String slug);
+
+    String stripContentPrefix(String path);
 }

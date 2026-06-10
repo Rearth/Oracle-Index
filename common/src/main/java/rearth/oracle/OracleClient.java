@@ -39,6 +39,7 @@ public final class OracleClient {
     public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
     public static final HashMap<String, Set<DocsMode>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
     public static final HashMap<String, Identifier> CONTENT_ID_MAP = new HashMap<>();// item / block id -> resource path (e.g., "oritech:enderic_laser" -> "oracle_index:books/oritech/.content/machines/laser.mdx")
+    public static final HashMap<String, Identifier> CONTENT_REF_MAP = new HashMap<>();// page ref -> resource path (e.g., "colored_cables" -> "oracle_index:books/oritech/.content/cabling/colored_cables.mdx")
     
     public static ItemStack tooltipStack;
     public static float openEntryProgress = 0;
@@ -170,6 +171,9 @@ public final class OracleClient {
 
         CONTENT_ID_MAP.clear();
         CONTENT_ID_MAP.putAll(indexer.getContentIds());
+        
+        CONTENT_REF_MAP.clear();
+        CONTENT_REF_MAP.putAll(indexer.getContentRefs());
 
         AVAILABLE_MODES.clear();
         AVAILABLE_MODES.putAll(indexer.getAvailableModes());

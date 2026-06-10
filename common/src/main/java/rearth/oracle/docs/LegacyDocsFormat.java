@@ -33,4 +33,9 @@ public class LegacyDocsFormat implements DocsFormat {
     public String getDocsPagePath(String slug) {
         return slug;
     }
+
+    @Override
+    public String stripContentPrefix(String path) {
+        return path.split("/\\.content/")[1];
+    }
 }
