@@ -253,7 +253,7 @@ public class MarkdownParser {
         @Override
         public void visit(Code inlineCode) {
             if (buffer != null) {
-                buffer.append(Text.literal(inlineCode.getLiteral()).formatted(Formatting.RED));
+                buffer.append(Text.literal(inlineCode.getLiteral()).formatted(Formatting.DARK_AQUA));
             }
         }
 
