@@ -11,8 +11,9 @@
   "tooltip.oracle_index.close_screen": "Close Wiki.",
   "oracle_index.button.docs": "Docs",
   "oracle_index.button.content": "Content",
-  "orale_index.callout.default": "Note",
-  "orale_index.callout.info": "Info",
-  "orale_index.callout.warning": "Warning",
-  "orale_index.callout.danger": "Danger"
+  "oracle_index.tooltip.docs": "Hold [ALT] for Documentation",
+  "oracle_index.callout.default": "Note",
+  "oracle_index.callout.info": "Info",
+  "oracle_index.callout.warning": "Warning",
+  "oracle_index.callout.danger": "Danger"
 }

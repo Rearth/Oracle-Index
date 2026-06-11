@@ -45,9 +45,7 @@ public class DrawContextMixin {
         
         var stackLink = OracleClient.ITEM_LINKS.get(stackId);
         
-        var tooltipText = Text.literal("\uD83D\uDCD5 ").append(Text.literal(stackLink.wikiId() + ": ").formatted(Formatting.ITALIC)).append(Text.literal(stackLink.entryName().get()));
-        var tooltip = TooltipComponent.of(tooltipText.formatted(Formatting.GRAY).asOrderedText());
-        modifiableComponents.add(tooltip);
+        Text icon = Text.literal("\uD83D\uDCD5 ").formatted(Formatting.GRAY);
         
         if (Screen.hasAltDown()) {
             var dt = MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration() * .125f;
@@ -57,7 +55,7 @@ public class DrawContextMixin {
             progress = Math.clamp(progress, 0, 40);
             var missingSteps = progressSteps - progress;
             var progressText = "[" + "|".repeat(progress) + ".".repeat(missingSteps) + "]";
-            var altTooltip = TooltipComponent.of(Text.translatable(progressText).asOrderedText());
+            var altTooltip = TooltipComponent.of(icon.copy().append(Text.translatable(progressText)).formatted(Formatting.GRAY).asOrderedText());
             modifiableComponents.add(altTooltip);
             
             if (OracleClient.openEntryProgress > 0.95f) {
@@ -65,8 +63,10 @@ public class DrawContextMixin {
             }
             
         } else {
-            var altTooltip = TooltipComponent.of(Text.translatable("Hold [ALT] to open").formatted(Formatting.GRAY).asOrderedText());
-            modifiableComponents.add(altTooltip);
+            var tooltip = TooltipComponent.of(icon.copy()
+                .append(Text.translatable("oracle_index.tooltip.docs").formatted(Formatting.GRAY))
+                .asOrderedText());
+            modifiableComponents.add(tooltip);
         }
         
         componentsRef.set(modifiableComponents);

@@ -75,7 +75,7 @@ public class CalloutWidget extends FlowWidget {
         super.renderContent(context, mouseX, mouseY, delta);
         // overlapping title chip rendered on top
         var tr = MinecraftClient.getInstance().textRenderer;
-        var key = "orale_index.callout." + this.variant.name().toLowerCase(Locale.ROOT);
+        var key = "oracle_index.callout." + this.variant.name().toLowerCase(Locale.ROOT);
         var title = Text.translatable(key).formatted(Formatting.WHITE);
         int textW = tr.getWidth(title);
         int chipW = textW + 12;
