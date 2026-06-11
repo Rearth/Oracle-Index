@@ -28,7 +28,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static rearth.oracle.OracleClient.ROOT_DIR;
+import static rearth.oracle.OracleClient.*;
 
 public class OracleScreen extends WikiBaseScreen {
     
@@ -362,6 +362,7 @@ public class OracleScreen extends WikiBaseScreen {
         var lastEntry = activeEntry;
         contentContainer.clearChildren();
         activeEntry = filePath;
+        activeWikiMode = getDocsModeForPage(filePath);
         
         var translatedPath = OracleClient.getTranslatedPath(filePath, wikiId);
         if (translatedPath.isPresent()) filePath = translatedPath.get();
@@ -394,6 +395,7 @@ public class OracleScreen extends WikiBaseScreen {
             var ingameTarget = MarkdownParser.getLinkTarget(link, wikiId, sourceEntryPath);
             if (ingameTarget != null) {
                 loadContent(ingameTarget, wikiId);
+                buildNavigationTree();
                 return true;
             }
             if (link.startsWith("@") || link.contains(":")) {
