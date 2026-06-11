@@ -130,11 +130,4 @@ public abstract class MdxComponentBlock extends CustomBlock {
                      '}';
         }
     }
-    
-    public static class PrefabObtainingBlock extends MdxComponentBlock {
-        // not supported (yet?)
-        @Override
-        void parseContent() {
-        }
-    }
 }

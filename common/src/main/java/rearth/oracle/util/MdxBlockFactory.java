@@ -18,8 +18,6 @@ public class MdxBlockFactory extends AbstractBlockParserFactory {
             return startLeaf(new MdxComponentBlock.AssetBlock("ModAsset"), "ModAsset", line, state);
         } else if (line.startsWith("<Asset")) {
             return startLeaf(new MdxComponentBlock.AssetBlock("Asset"), "Asset", line, state);
-        } else if (line.startsWith("<PrefabObtaining")) {
-            return startLeaf(new MdxComponentBlock.PrefabObtainingBlock(), "PrefabObtaining", line, state);
         }
         
         // container blocks
