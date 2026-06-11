@@ -75,8 +75,8 @@ public class MarkdownParser {
         widgets.add(buildTitlePanel(linkHandler, frontMatter, currentPath, contentWidthPx));
         widgets.addAll(visitor.results());
 
-        if (frontMatter.containsKey("id")) {
-            var gameId = frontMatter.getOne("id");
+        var gameId = frontMatter.getOne("id");
+        if (gameId != null) {
             var id = Identifier.of(gameId);
             if (Registries.ITEM.containsId(id) || Registries.BLOCK.containsId(id))
                 widgets.add(buildPropertiesPanel(ContentProperties.getProperties(gameId), contentWidthPx));
@@ -313,7 +313,7 @@ public class MarkdownParser {
             targetFile = Identifier.of(Oracle.MOD_ID, p);
         } else if (link.startsWith("+")) {
             var id = link.substring(1);
-            targetFile = OracleClient.CONTENT_REF_MAP.get(id);
+            targetFile = OracleClient.getPage(activeWikiId, id);
         } else {
             var p = OracleScreen.parsePathLink(link, sourceEntryPath);
             if (!p.endsWith(".mdx")) p += ".mdx";
@@ -338,24 +338,53 @@ public class MarkdownParser {
     }
 
     private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Frontmatter frontMatter, Identifier pageId, int contentWidthPx) {
-        ItemStack iconStack = ItemStack.EMPTY;
         var iconId = frontMatter.getOrDefault("icon", "");
         if (iconId.isBlank()) iconId = frontMatter.getOrDefault("id", "");
-        if (Identifier.validate(iconId).isSuccess() && Registries.ITEM.containsId(Identifier.of(iconId))) {
-            iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
+        ItemStack iconStack = getIconStack(iconId);
+
+        List<ItemStack> itemStacks = new ArrayList<>();
+        List<String> ids = frontMatter.getAll("id");
+        if (ids != null && ids.size() > 1) {
+            for (String id : ids) {
+                ItemStack stack = getIconStack(id);
+                if (!stack.isEmpty()) {
+                    itemStacks.add(stack);
+                }
+            }
         }
-        return new PageTitleWidget(Text.literal(getTitle(frontMatter, pageId)).formatted(Formatting.DARK_GRAY), iconStack, linkHandler, contentWidthPx);
+
+        return new PageTitleWidget(
+            Text.literal(getTitle(frontMatter, pageId)).formatted(Formatting.DARK_GRAY),
+            iconStack,
+            itemStacks,
+            linkHandler,
+            contentWidthPx
+        );
+    }
+
+    private static ItemStack getIconStack(String iconId) {
+        if (Identifier.validate(iconId).isSuccess() && Registries.ITEM.containsId(Identifier.of(iconId))) {
+            return new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
+        }
+        return ItemStack.EMPTY;
     }
 
     private static class PageTitleWidget extends UIComponent {
         private static final int ICON_PANEL_SIZE = 58;
         private static final int ICON_ITEM_SIZE = 50;
+
+        private static final int ITEM_PANEL_SIZE = 32;
+        private static final int ITEM_ICON_SIZE = 24;
+        private static final int ITEM_PADDING = (ITEM_PANEL_SIZE - ITEM_ICON_SIZE) / 2;
+        private static final int ITEMS_MARGIN = 2;
+
         private static final int TITLE_OVERLAP = 12;
         private static final int TITLE_PAD_X = 14;
         private static final int TITLE_PAD_Y = 9;
 
         private final LabelWidget titleLabel;
         private final ItemWidget icon;
+        private final List<ItemWidget> items;
         private final int contentWidthPx;
 
         private int titleX;
@@ -365,13 +394,21 @@ public class MarkdownParser {
         private int iconX;
         private int iconY;
 
-        PageTitleWidget(Text title, ItemStack iconStack, Predicate<String> linkHandler, int contentWidthPx) {
+        PageTitleWidget(Text title, ItemStack iconStack, List<ItemStack> itemStacks, Predicate<String> linkHandler, int contentWidthPx) {
             this.titleLabel = new LabelWidget(title).scale(2f).linkHandler(linkHandler);
             this.icon = iconStack.isEmpty() ? null : new ItemWidget(iconStack);
             if (icon != null) {
-                icon.setHideItemTooltip(true);
+                icon.setTooltipMode(TooltipMode.HIDDEN);
                 icon.setHideItemDecorations(true);
             }
+            this.items = itemStacks.stream()
+                .map(ItemWidget::new)
+                .peek(w -> {
+                    w.setTooltipMode(TooltipMode.NAME_ONLY);
+                    w.setHideItemDecorations(true);
+                    w.size(ITEM_ICON_SIZE, ITEM_ICON_SIZE);
+                })
+                .toList();
             this.contentWidthPx = contentWidthPx;
         }
 
@@ -381,7 +418,8 @@ public class MarkdownParser {
             int labelMaxWidth = labelMaxWidth(maxWidth);
             titleLabel.wrapWidth(labelMaxWidth);
             int titlePanelWidth = titleLabel.getPreferredWidth(labelMaxWidth) + TITLE_PAD_X * 2;
-            return leadingWidth() + titlePanelWidth;
+            int itemsRowWidth = Math.min(maxWidth, items.size() * ITEM_PANEL_SIZE);
+            return Math.max(leadingWidth() + titlePanelWidth, itemsRowWidth);
         }
 
         @Override
@@ -390,11 +428,28 @@ public class MarkdownParser {
             int labelMaxWidth = labelMaxWidth(maxWidth);
             titleLabel.wrapWidth(labelMaxWidth);
             int titlePanelHeight = titleLabel.getPreferredHeight(labelMaxWidth) + TITLE_PAD_Y * 2;
-            return Math.max(icon == null ? 0 : ICON_PANEL_SIZE, titlePanelHeight);
+            int itemRowsHeight = getOuterRowsHeight(maxWidth);
+            return Math.max(icon == null ? 0 : ICON_PANEL_SIZE, titlePanelHeight) + itemRowsHeight;
+        }
+
+        private int getMaxCols(int maxWidth) {
+            return maxWidth / ITEM_PANEL_SIZE;
+        }
+
+        private int getInnerRowsHeight(int maxWidth) {
+            int itemCols = getMaxCols(maxWidth);
+            return (int) Math.ceil(items.size() / (double) itemCols) * ITEM_PANEL_SIZE;
+        }
+
+        private int getOuterRowsHeight(int maxWidth) {
+            int height = getInnerRowsHeight(maxWidth);
+            return height > 0 ? height + ITEMS_MARGIN : 0;
         }
 
         @Override
         public void layout(int parentWidthHint, int parentHeightHint) {
+            int centerOffset = getOuterRowsHeight(width) / 2;
+
             int labelMaxWidth = Math.max(80, width - leadingWidth() - TITLE_PAD_X * 2);
             titleLabel.wrapWidth(labelMaxWidth);
             int labelW = titleLabel.getPreferredWidth(labelMaxWidth);
@@ -402,17 +457,37 @@ public class MarkdownParser {
             titleW = labelW + TITLE_PAD_X * 2;
             titleH = labelH + TITLE_PAD_Y * 2;
             titleX = x + leadingWidth();
-            titleY = y + (height - titleH) / 2;
+            titleY = y + (height - titleH) / 2 - centerOffset;
             int offset = icon != null ? TITLE_PAD_X / 2 : 0;
             titleLabel.setPosition(titleX + TITLE_PAD_X + offset, titleY + TITLE_PAD_Y);
             titleLabel.setLayoutSize(labelW, labelH);
             titleLabel.layout(labelW, labelH);
+
             if (icon != null) {
                 iconX = x;
-                iconY = y + (height - ICON_PANEL_SIZE) / 2;
+                iconY = y + (height - ICON_PANEL_SIZE) / 2 - centerOffset;
                 icon.setPosition(iconX + (ICON_PANEL_SIZE - ICON_ITEM_SIZE) / 2, iconY + (ICON_PANEL_SIZE - ICON_ITEM_SIZE) / 2);
                 icon.setLayoutSize(ICON_ITEM_SIZE, ICON_ITEM_SIZE);
                 icon.layout(ICON_ITEM_SIZE, ICON_ITEM_SIZE);
+            }
+
+            if (!items.isEmpty()) {
+                int cols = getMaxCols(width);
+                int rowsHeight = getInnerRowsHeight(width);
+                int baseX = x;
+                int baseY = y + height - rowsHeight;
+
+                for (int i = 0; i < items.size(); i++) {
+                    ItemWidget item = items.get(i);
+                    int row = i / cols;
+                    int col = i % cols;
+                    int iconX = baseX + ITEM_PADDING + col * ITEM_PANEL_SIZE;
+                    int iconY = baseY + ITEM_PADDING + row * ITEM_PANEL_SIZE;
+
+                    item.setPosition(iconX, iconY);
+                    item.setLayoutSize(ITEM_ICON_SIZE, ITEM_ICON_SIZE);
+                    item.layout(ITEM_ICON_SIZE, ITEM_ICON_SIZE);
+                }
             }
         }
 
@@ -420,15 +495,30 @@ public class MarkdownParser {
         protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
             WikiSurface.BEDROCK_PANEL.render(context, titleX, titleY, titleW, titleH);
             titleLabel.render(context, mouseX, mouseY, delta);
+
             if (icon != null) {
                 WikiSurface.BEDROCK_PANEL.render(context, iconX, iconY, ICON_PANEL_SIZE, ICON_PANEL_SIZE);
                 icon.render(context, mouseX, mouseY, delta);
+            }
+
+            if (!items.isEmpty()) {
+                for (ItemWidget item : items) {
+                    WikiSurface.BEDROCK_PANEL.render(context, item.getX() - ITEM_PADDING, item.getY() - ITEM_PADDING, ITEM_PANEL_SIZE, ITEM_PANEL_SIZE);
+                    item.render(context, mouseX, mouseY, delta);
+                }
             }
         }
 
         @Override
         public List<Text> tooltip(int mouseX, int mouseY) {
-            if (icon != null && icon.isInBounds(mouseX, mouseY)) return icon.tooltip(mouseX, mouseY);
+            if (icon != null && icon.isInBounds(mouseX, mouseY)) {
+                return icon.tooltip(mouseX, mouseY);
+            }
+            for (ItemWidget item : items) {
+                if (item.isInBounds(mouseX, mouseY)) {
+                    return item.tooltip(mouseX, mouseY);
+                }
+            }
             return super.tooltip(mouseX, mouseY);
         }
 
@@ -450,7 +540,7 @@ public class MarkdownParser {
             keyWidth = Math.max(keyWidth, tr.getWidth(entry.getKey()));
             valueWidth = Math.max(valueWidth, tr.getWidth(entry.getValue()));
         }
-        int innerWidth = Math.min(contentWidthPx, Math.max(160, Math.max(titleWidth, keyWidth + valueWidth + 28) + 20));
+        int innerWidth = Math.clamp(Math.max(titleWidth, keyWidth + valueWidth + 28) + 20, 160, contentWidthPx);
         var outer = FlowWidget.vertical().gap(2);
         outer.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
         outer.setPadding(Insets.of(10));

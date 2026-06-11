@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rearth.oracle.OracleClient;
+import rearth.oracle.ui.OracleScreen;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,7 @@ public class DrawContextMixin {
     @Inject(method = "drawTooltip(Lnet/minecraft/client/font/TextRenderer;Ljava/util/List;IILnet/minecraft/client/gui/tooltip/TooltipPositioner;)V", at = @At("HEAD"))
     private void injectTooltipComponents(TextRenderer textRenderer, List<TooltipComponent> components, int x, int y, TooltipPositioner positioner, CallbackInfo ci, @Local(argsOnly = true) LocalRef<List<TooltipComponent>> componentsRef) {
         if (OracleClient.tooltipStack == null) return;
+        if (MinecraftClient.getInstance().currentScreen instanceof OracleScreen) return;
         
         var stackItem = OracleClient.tooltipStack.getItem();
         var stackId = Registries.ITEM.getId(stackItem);

@@ -35,11 +35,11 @@ public final class OracleClient {
     public static final KeyBinding ORACLE_SEARCH = new KeyBinding("key.oracle_index.search", -1, "key.categories.oracle");
     
     public static final Map<String, DocsFormat> LOADED_WIKIS = new HashMap<>(); // map of loaded wiki ids to formats (specifies directory layout)
-    public static final HashMap<Identifier, ItemArticleRef> ITEM_LINKS = new HashMap<>();   // items that have a corresponding wiki page (docs or content)
-    public static final HashMap<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
-    public static final HashMap<String, Set<DocsMode>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
-    public static final HashMap<String, Identifier> CONTENT_ID_MAP = new HashMap<>();// item / block id -> resource path (e.g., "oritech:enderic_laser" -> "oracle_index:books/oritech/.content/machines/laser.mdx")
-    public static final HashMap<String, Identifier> CONTENT_REF_MAP = new HashMap<>();// page ref -> resource path (e.g., "colored_cables" -> "oracle_index:books/oritech/.content/cabling/colored_cables.mdx")
+    public static final Map<Identifier, ItemArticleRef> ITEM_LINKS = new HashMap<>();   // items that have a corresponding wiki page (docs or content)
+    public static final Map<String, Pair<String, String>> UNLOCK_CRITERIONS = new HashMap<>();  // path/key here is: "books/modid/folder/entry.mdx". Value is unlock type and content
+    public static final Map<String, Set<DocsMode>> AVAILABLE_MODES = new HashMap<>(); // wikiID -> Set of available modes (e.g., "oritech" -> ["docs", "content"])
+    public static final Map<String, Identifier> CONTENT_ID_MAP = new HashMap<>();// item / block id -> resource path (e.g., "oritech:enderic_laser" -> "oracle_index:books/oritech/.content/machines/laser.mdx")
+    public static final Map<String, Map<String, Identifier>> CONTENT_REF_MAP = new HashMap<>();// page ref -> resource path (e.g., "colored_cables" -> "oracle_index:books/oritech/.content/cabling/colored_cables.mdx")
     
     public static ItemStack tooltipStack;
     public static float openEntryProgress = 0;
@@ -155,6 +155,12 @@ public final class OracleClient {
     public static DocsFormat getWikiFormat(String wikiId) {
         return Objects.requireNonNull(LOADED_WIKIS.get(wikiId), "unknown wiki id");
     }
+    
+    @Nullable
+    public static Identifier getPage(String wikiId, String ref) {
+        Map<String, Identifier> refs = CONTENT_REF_MAP.get(wikiId);
+        return refs != null ? refs.get(ref) : null;
+    }
 
     private static void findAllResourceEntries(ResourceManager manager) {
         DocsIndexer indexer = new DocsIndexer();
@@ -216,7 +222,7 @@ public final class OracleClient {
         return Optional.empty();
     }
     
-    public record ItemArticleRef(Identifier linkTarget, Supplier<String> entryName, String wikiId) {
+    public record ItemArticleRef(Identifier linkTarget, Supplier<String> entryName, String wikiId, int pageIDs) {
     }
     
 }

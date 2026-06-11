@@ -1,6 +1,8 @@
 package rearth.oracle.docs;
 
 import com.google.common.base.Suppliers;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.resource.language.I18n;
@@ -21,6 +23,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
@@ -33,14 +36,16 @@ public class DocsIndexer {
     private static final Gson GSON = new Gson();
 
     private final Map<String, DocsFormat> loadedWikis;
+    private final Multimap<Identifier, ItemArticleRef> itemLinkCandidates;
     private final Map<Identifier, ItemArticleRef> itemLinks;
     private final Map<String, Pair<String, String>> unlockCriterions;
     private final Map<String, Set<DocsMode>> availableModes;
     private final Map<String, Identifier> contentIds;
-    private final Map<String, Identifier> contentRefs;
+    private final Map<String, Map<String, Identifier>> contentRefs;
 
     public DocsIndexer() {
         this.loadedWikis = new HashMap<>();
+        this.itemLinkCandidates = HashMultimap.create();
         this.itemLinks = new HashMap<>();
         this.unlockCriterions = new HashMap<>();
         this.availableModes = new HashMap<>();
@@ -68,7 +73,7 @@ public class DocsIndexer {
         return contentIds;
     }
 
-    public Map<String, Identifier> getContentRefs() {
+    public Map<String, Map<String, Identifier>> getContentRefs() {
         return contentRefs;
     }
 
@@ -98,6 +103,12 @@ public class DocsIndexer {
                 processEntry(modId, entry.id(), entry.resource(), format);
             }
         }
+
+        for (Entry<Identifier, Collection<ItemArticleRef>> entry : this.itemLinkCandidates.asMap().entrySet()) {
+            Identifier itemId = entry.getKey();
+            ItemArticleRef bestMatch = findBestMatch(entry.getValue());
+            this.itemLinks.put(itemId, bestMatch);
+        }
     }
 
     private void processEntry(String modId, Identifier resourceId, Resource resource, DocsFormat format) {
@@ -121,7 +132,7 @@ public class DocsIndexer {
             if (isContent) {
                 List<String> ids = frontmatter.getAll("id");
                 String ref = computePageRef(resourceId, format, frontmatter, ids);
-                this.contentRefs.put(ref, resourceId);
+                this.contentRefs.computeIfAbsent(modId, k -> new HashMap<>()).put(ref, resourceId);
 
                 if (frontmatter.containsKey("id")) {
                     for (String id : ids) {
@@ -139,7 +150,7 @@ public class DocsIndexer {
                         }
 
                         // TODO Pick best page for item
-                        this.itemLinks.put(itemId, new ItemArticleRef(resourceId, lazyTitle, modId));
+                        this.itemLinkCandidates.put(itemId, new ItemArticleRef(resourceId, lazyTitle, modId, ids.size()));
                     }
                 }
             }
@@ -150,7 +161,7 @@ public class DocsIndexer {
                 for (var itemString : baseString.split(", ")) {
                     var itemId = Identifier.of(itemString.trim());
                     var title = frontmatter.getOrDefault("title", "missing");
-                    this.itemLinks.put(itemId, new ItemArticleRef(resourceId, () -> title, modId));
+                    this.itemLinkCandidates.put(itemId, new ItemArticleRef(resourceId, () -> title, modId, 0));
                 }
             }
 
@@ -204,7 +215,7 @@ public class DocsIndexer {
 
         // 3. Try deriving from the page file name
         var relativePath = format.stripContentPrefix(resourceId.getPath());
-        var stripped = List.of(relativePath.split("\\.")).getLast();
+        var stripped = List.of(relativePath.split("\\.")).getFirst();
         var fileName = List.of(stripped.split("/")).getLast();
         var normalized = fileName.replace("/", "_");
         if (!this.contentRefs.containsKey(normalized)) {
@@ -232,6 +243,13 @@ public class DocsIndexer {
             return null;
         }
         return segments[1];
+    }
+
+    private static ItemArticleRef findBestMatch(Collection<ItemArticleRef> articles) {
+        if (articles.size() == 1) {
+            return articles.iterator().next();
+        }
+        return articles.stream().min(Comparator.comparingInt(ItemArticleRef::pageIDs)).orElseThrow();
     }
 
     record IdentifiedResource(Identifier id, Resource resource) {

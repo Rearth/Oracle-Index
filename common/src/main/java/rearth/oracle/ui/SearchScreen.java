@@ -191,7 +191,7 @@ public class SearchScreen extends WikiBaseScreen {
                 var iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(result.iconName())));
                 var icon = new ItemWidget(iconStack);
                 icon.size(12, 12);
-                icon.setHideItemTooltip(true);
+                icon.setTooltipMode(TooltipMode.HIDDEN);
                 icon.setHideItemDecorations(true);
                 titleRow.child(icon);
             }
