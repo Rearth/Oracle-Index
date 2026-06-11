@@ -22,6 +22,7 @@ import rearth.oracle.docs.DocsMode;
 import rearth.oracle.progress.AdvancementProgressValidator;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.SearchScreen;
+import rearth.oracle.util.TitleLookup;
 
 import java.util.*;
 import java.util.function.BiPredicate;
@@ -163,6 +164,8 @@ public final class OracleClient {
     }
 
     private static void findAllResourceEntries(ResourceManager manager) {
+        TitleLookup.clearCache();
+
         DocsIndexer indexer = new DocsIndexer();
         indexer.findAllResourceEntries(manager);
 

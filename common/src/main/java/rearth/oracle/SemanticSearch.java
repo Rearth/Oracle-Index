@@ -12,7 +12,7 @@ import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 import rearth.oracle.util.MarkdownParser;
-import rearth.oracle.util.MarkdownParser.Frontmatter;
+import rearth.oracle.util.TitleLookup;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -80,17 +80,18 @@ public class SemanticSearch {
                     try {
                         var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                         var frontmatter = MarkdownParser.parseFrontmatter(fileContent);
+                        var title = MarkdownParser.parseHeadingTitle(fileContent);
 
                         // generate embeddings
                         var fileComponents = new HashMap<String, String>();
                         frontmatter.map().forEach((k, v) -> {
                             if (v.size() == 1) fileComponents.put(k, v.getFirst());
                         });
-                        this.queueEmbeddingsJob(modId, entryDirectory, entryFileName, fileComponents, fileContent);
+                        this.queueEmbeddingsJob(modId, entryDirectory, entryFileName, fileComponents, fileContent, title);
                         
                         
                     } catch (IOException e) {
-                        Oracle.LOGGER.error("Unable to load book with id: " + resourceId);
+                        Oracle.LOGGER.error("Unable to load book with id: {}", resourceId);
                         throw new RuntimeException(e);
                     }
                 }
@@ -133,12 +134,7 @@ public class SemanticSearch {
             var id = match.embedded().metadata().getString("wiki") + ":" + match.embedded().metadata().getString("category") + match.embedded().metadata().getString("fileName");
             var title = match.embedded().metadata().getString("title");
             if (title == null) {
-                var frontmatter = new HashMap<String, List<String>>();
-                for (var data : match.embedded().metadata().toMap().entrySet()) {
-                    if (data.getValue() instanceof String value)
-                        frontmatter.put(data.getKey(), List.of(value));
-                }
-                title = MarkdownParser.getTitle(new Frontmatter(frontmatter), Identifier.of(id));
+                title = TitleLookup.getTitle(Identifier.of(id));
             }
             
             // check if id already exists, add it to alt texts
@@ -160,12 +156,13 @@ public class SemanticSearch {
         
     }
     
-    public void queueEmbeddingsJob(String wikiId, String filePath, String fileName, Map<String, String> frontmatter, String content) {
+    public void queueEmbeddingsJob(String wikiId, String filePath, String fileName, Map<String, String> frontmatter, String content, String title) {
         
         var document = Document.from(content, Metadata.from(frontmatter));
         document.metadata().put("fileName", fileName);
         document.metadata().put("category", filePath);
         document.metadata().put("wiki", wikiId);
+        if (title != null) document.metadata().put("title", title);
         ingestor.ingest(document);
     }
     

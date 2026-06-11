@@ -19,6 +19,7 @@ import rearth.oracle.docs.DocsMode;
 import rearth.oracle.progress.OracleProgressAPI;
 import rearth.oracle.ui.widgets.*;
 import rearth.oracle.util.MarkdownParser;
+import rearth.oracle.util.TitleLookup;
 
 import java.io.IOException;
 import java.net.URI;
@@ -28,7 +29,8 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static rearth.oracle.OracleClient.*;
+import static rearth.oracle.OracleClient.ROOT_DIR;
+import static rearth.oracle.OracleClient.getDocsModeForPage;
 
 public class OracleScreen extends WikiBaseScreen {
     
@@ -540,9 +542,7 @@ public class OracleScreen extends WikiBaseScreen {
                             Oracle.LOGGER.warn("Unable to get name for entry: {}", labelPath);
                             shownName = "<ERROR>";
                         } else {
-                            var fileContent = new String(contentRc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                            var fm = MarkdownParser.parseFrontmatter(fileContent);
-                            shownName = MarkdownParser.getTitle(fm, labelPath);
+                            shownName = TitleLookup.getTitle(labelPath);
                         }
                     }
                     PAGE_FALLBACK_NAMES.put(labelPath, shownName);

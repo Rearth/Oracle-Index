@@ -2,7 +2,6 @@ package rearth.oracle.util;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -26,7 +25,6 @@ import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.widgets.*;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -85,9 +83,45 @@ public class MarkdownParser {
         return widgets;
     }
 
+    public static String parseHeadingTitle(String markdown) {
+        var document = PARSER.parse(markdown);
+        var visitor = new WikiTitleVisitor();
+        document.accept(visitor);
+
+        return visitor.getTitle();
+    }
+
     // ---------------------------------------------------------------- visitor
 
-    private static class WikiMarkdownVisitor extends AbstractVisitor {
+    private static class WikiTitleVisitor extends AbstractVisitor {
+        protected String title;
+        protected MutableText buffer = Text.empty();
+
+        public String getTitle() {
+            return title;
+        }
+
+        @Override
+        public void visit(Heading heading) {
+            buffer = Text.empty();
+            visitChildren(heading);
+
+            if (heading.getLevel() == 1 && title == null) {
+                title = buffer.getString();
+            }
+
+            buffer = Text.empty();
+        }
+
+        @Override
+        public void visit(org.commonmark.node.Text text) {
+            if (buffer != null) {
+                buffer.append(Text.literal(text.getLiteral()));
+            }
+        }
+    }
+
+    private static class WikiMarkdownVisitor extends WikiTitleVisitor {
 
         private final Predicate<String> linkHandler;
         private final String wikiId;
@@ -133,10 +167,15 @@ public class MarkdownParser {
             visitChildren(heading);
             currentStyle = oldStyle;
 
-            var label = new LabelWidget(buffer).linkHandler(linkHandler).fillWidth();
-            label.scale(Math.max(1.0f, 2.0f - heading.getLevel() * 0.2f));
-            label.setPadding(Insets.of(10, 5, 0, 0));
-            components.add(label);
+            if (heading.getLevel() == 1 && title == null) {
+                title = buffer.getString();
+            } else {
+                var label = new LabelWidget(buffer).linkHandler(linkHandler).fillWidth();
+                label.scale(Math.max(1.0f, 2.0f - heading.getLevel() * 0.2f));
+                label.setPadding(Insets.of(10, 5, 0, 0));
+                components.add(label);
+            }
+
             buffer = Text.empty();
         }
 
@@ -290,14 +329,8 @@ public class MarkdownParser {
         var rm = MinecraftClient.getInstance().getResourceManager();
         var rc = rm.getResource(linkTarget);
         if (rc.isEmpty()) return "<invalid link>";
-        try {
-            var fileContent = new String(rc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            var fm = parseFrontmatter(fileContent);
-            return getTitle(fm, linkTarget);
-        } catch (IOException e) {
-            Oracle.LOGGER.warn("Unable to load file content to get link title: {}, {}", linkTarget, e);
-            return "<invalid link>";
-        }
+        String title = TitleLookup.getTitle(linkTarget);
+        return title != null ? title : "<invalid link>";
     }
 
     @Nullable
@@ -322,21 +355,6 @@ public class MarkdownParser {
         return targetFile;
     }
 
-    public static String getTitle(Frontmatter frontMatter, Identifier pagePath) {
-        String title = frontMatter.getOne("title");
-        if (title != null) return title;
-
-        String item = frontMatter.getOne("id");
-        if (item != null) {
-            if (Identifier.validate(item).isSuccess() && Registries.ITEM.containsId(Identifier.of(item))) {
-                return I18n.translate(Registries.ITEM.get(Identifier.of(item)).getTranslationKey());
-            }
-            return item;
-        }
-
-        return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, "No title found");
-    }
-
     private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Frontmatter frontMatter, Identifier pageId, int contentWidthPx) {
         var iconId = frontMatter.getOrDefault("icon", "");
         if (iconId.isBlank()) iconId = frontMatter.getOrDefault("id", "");
@@ -354,7 +372,7 @@ public class MarkdownParser {
         }
 
         return new PageTitleWidget(
-            Text.literal(getTitle(frontMatter, pageId)).formatted(Formatting.DARK_GRAY),
+            Text.literal(TitleLookup.getTitle(pageId)).formatted(Formatting.DARK_GRAY),
             iconStack,
             itemStacks,
             linkHandler,
