@@ -91,4 +91,28 @@ subprojects {
             // retrieving dependencies.
         }
     }
+    
+    if (project.name != 'common') {
+        sourceSets {
+            testmod {
+                compileClasspath += sourceSets.main.compileClasspath
+                runtimeClasspath += sourceSets.main.runtimeClasspath
+        
+                java.srcDir project(':common').file('src/testmod/java')
+                resources.srcDir project(':common').file('src/testmod/resources')
+            }
+        }
+
+        loom {
+            runs {
+                testmodClient {
+                    client()
+                    ideConfigGenerated true
+                    name = "Testmod Client"
+                    source sourceSets.main
+                    source sourceSets.testmod
+                }
+            }
+        }
+    }
 }

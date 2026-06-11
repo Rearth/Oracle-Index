@@ -9,7 +9,7 @@ version = "${version}"
 displayName = "Oracle Index"
 authors = "Me! - Rearth"
 description = '''
-Multiplatform Wiki / Documentation mod for content from moddedmc.org
+Multiplatform Wiki / Documentation mod for content from moddedmc.wiki
 '''
 #logoFile = ""
 

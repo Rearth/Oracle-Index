@@ -32,6 +32,21 @@ configurations {
     }
 }
 
+loom {
+    runs {
+        testmodClient {
+            mods {
+                oracleIndex {
+                    sourceSet sourceSets.main
+                }
+                oracleTest {
+                    sourceSet sourceSets.testmod
+                }
+            }
+        }
+    }
+}
+
 repositories {
     maven {
         name = 'NeoForged'
@@ -104,7 +119,7 @@ task cleanRemappedJar {
             if (name.startsWith("META-INF/jars/")) {
                 // Unzip the nested jar into memory, filter entries, and re-zip
                 ByteArrayOutputStream baos = new ByteArrayOutputStream()
-                ZipInputStream nestedIn  = new ZipInputStream(zis)
+                ZipInputStream nestedIn = new ZipInputStream(zis)
                 ZipOutputStream nestedOut = new ZipOutputStream(baos)
 
                 ZipEntry nestedEntry
@@ -162,7 +177,7 @@ task xplatJar {
             if (name.startsWith("META-INF/jars/")) {
                 // Unzip the nested jar into memory, filter entries, and re-zip
                 ByteArrayOutputStream baos = new ByteArrayOutputStream()
-                ZipInputStream nestedIn  = new ZipInputStream(zis)
+                ZipInputStream nestedIn = new ZipInputStream(zis)
                 ZipOutputStream nestedOut = new ZipOutputStream(baos)
 
                 ZipEntry nestedEntry

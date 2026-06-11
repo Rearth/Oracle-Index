@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "oracle_index_test",
+  "version": "1.0.0",
+  "name": "Oracle Index Test",
+  "description": "Dev-only mod for verifying wiki format compatibility",
+  "authors": [
+    "Me! - Rearth"
+  ],
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "rearth.oracle_test.fabric.OracleTestFabric"
+    ]
+  },
+  "depends": {
+    "fabric-api": "*",
+    "oracle_index": "*"
+  }
+}

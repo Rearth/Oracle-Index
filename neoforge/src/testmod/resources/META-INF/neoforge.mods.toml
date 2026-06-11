@@ -1,0 +1,33 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "CC0"
+
+[[mods]]
+modId = "oracle_index_test"
+version = "1.0.0"
+displayName = "Oracle Index Test"
+authors = "Me! - Rearth"
+description = '''
+Dev-only mod for verifying wiki format compatibility 
+'''
+
+[[dependencies.oracle_index_test]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.oracle_index_test]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.oracle_index_test]]
+modId = "oracle_index"
+type = "required"
+versionRange = "[1,)"
+ordering = "NONE"
+side = "BOTH"

@@ -36,3 +36,10 @@ tasks.named('processResources') {
         println "processResources executed: wiki folder copied into assets/oracle_index"
     }
 }
+
+sourceSets {
+    testmod {
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+}
