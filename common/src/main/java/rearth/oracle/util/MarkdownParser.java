@@ -558,7 +558,7 @@ public class MarkdownParser {
             keyWidth = Math.max(keyWidth, tr.getWidth(entry.getKey()));
             valueWidth = Math.max(valueWidth, tr.getWidth(entry.getValue()));
         }
-        int innerWidth = Math.clamp(Math.max(titleWidth, keyWidth + valueWidth + 28) + 20, 160, contentWidthPx);
+        int innerWidth = Math.clamp(Math.max(titleWidth, keyWidth + valueWidth + 28) + 20, 160, Math.max(contentWidthPx, 165));
         var outer = FlowWidget.vertical().gap(2);
         outer.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
         outer.setPadding(Insets.of(10));
