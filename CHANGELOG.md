@@ -1,3 +1,4 @@
-- Remove owo lib dependency
-- Rework entire UI to use custom widgets / frontend code
+- Support V1 wiki layout (@Su5ed)
+- Many formatting / parsing improvements (@Su5ed)
+- Migrate oracle index wiki to new V1 moddedmc wiki layout
 - Minor bugfixes
