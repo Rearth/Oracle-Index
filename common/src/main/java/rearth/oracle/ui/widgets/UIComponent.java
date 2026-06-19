@@ -55,6 +55,10 @@ public abstract class UIComponent {
         this.preferredHeight = height;
         return this;
     }
+
+    public @Nullable FlowWidget.HorizontalAlignment getOverrideAlignment() {
+        return null;
+    }
     
     /**
      * Alias for {@link #isMouseOver(double, double)}.

@@ -161,7 +161,12 @@ public class FlowWidget extends UIComponent {
                 cw = Math.min(cw, innerW);
                 int ch = c.getPreferredHeight(cw);
                 if (ch <= 0) ch = c.getHeight();
-                int cx = switch (horizontalAlignment) {
+
+                var alignment = horizontalAlignment;
+                if (c.getOverrideAlignment() != null)
+                    alignment = c.getOverrideAlignment();
+
+                int cx = switch (alignment) {
                     case LEFT -> innerX;
                     case CENTER -> innerX + (innerW - cw) / 2;
                     case RIGHT -> innerX + innerW - cw;

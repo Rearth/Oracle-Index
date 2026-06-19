@@ -640,12 +640,12 @@ public class MarkdownParser {
     }
 
     public static UIComponent buildImage(String location, String widthSource, String wikiId, int contentWidthPx) {
-        float widthRatio = convertImageWidth(widthSource);
+        var widthRatio = convertImageWidth(widthSource);
         if (widthRatio <= 0) widthRatio = 0.5f;
         if (location.startsWith("@")) location = location.substring(1);
 
         // available pixel budget after scrollbar gutter + a tiny breathing margin
-        int budget = Math.max(16, contentWidthPx - 12);
+        var budget = Math.max(16, contentWidthPx - 12);
 
         // case 1: ingame item → render as ItemWidget
         var itemIdCandidate = Identifier.of(location);
@@ -660,7 +660,7 @@ public class MarkdownParser {
         }
 
         // case 2: texture path
-        String assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
+        var assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
         Identifier searchPath;
         var parts = location.split(":", 2);
         var imageModId = parts.length > 0 ? parts[0] : wikiId;
@@ -679,7 +679,13 @@ public class MarkdownParser {
             int srcH = image.getHeight();
             int displayW = Math.max(16, (int) (budget * widthRatio));
             int displayH = (int) (displayW * (srcH / (float) srcW));
-            var widget = new TextureWidget(searchPath, srcW, srcH).region(0, 0, srcW, srcH);
+            var widget = new TextureWidget(searchPath, srcW, srcH) {
+                @Override
+                public @Nullable FlowWidget.HorizontalAlignment getOverrideAlignment() {
+                    return FlowWidget.HorizontalAlignment.CENTER;
+                }
+            };
+            widget.region(0, 0, srcW, srcH);
             widget.size(displayW, displayH);
             return widget;
         } catch (IOException e) {
