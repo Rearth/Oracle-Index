@@ -2,8 +2,8 @@ package rearth.oracle.util;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.texture.NativeImage;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.ClickEvent;
@@ -25,7 +25,6 @@ import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.widgets.*;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -36,21 +35,21 @@ import static rearth.oracle.OracleClient.ROOT_DIR;
  * Replaces the previous owo-lib-based parser.
  */
 public class MarkdownParser {
-    
+
     private static final String[] removedLines = {"<center>", "</center>", "<div>", "</div>", "<span>", "</span>"};
-    
+
     private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create());
     private static final Set<Class<? extends Block>> ENABLED_BLOCKS = Set.of(
-      Heading.class, HtmlBlock.class, ThematicBreak.class,
-      FencedCodeBlock.class, BlockQuote.class, ListBlock.class
+        Heading.class, HtmlBlock.class, ThematicBreak.class,
+        FencedCodeBlock.class, BlockQuote.class, ListBlock.class
     );
-    
+
     private static final Parser PARSER = Parser.builder()
-                                           .enabledBlockTypes(ENABLED_BLOCKS)
-                                           .extensions(EXTENSIONS)
-                                           .customBlockParserFactory(new MdxBlockFactory())
-                                           .build();
-    
+        .enabledBlockTypes(ENABLED_BLOCKS)
+        .extensions(EXTENSIONS)
+        .customBlockParserFactory(new MdxBlockFactory())
+        .build();
+
     /**
      * Parse markdown and produce a list of top-level widgets.
      *
@@ -60,55 +59,91 @@ public class MarkdownParser {
     public static List<UIComponent> parseMarkdownToWidgets(String markdown, String wikiId, Identifier currentPath,
                                                            Predicate<String> linkHandler, int contentWidthPx) {
         for (var toRemove : removedLines) markdown = markdown.replace(toRemove, "");
-        
+
         var document = PARSER.parse(markdown);
         var yamlVisitor = new YamlFrontMatterVisitor();
         document.accept(yamlVisitor);
-        
+
         var frontMatter = parseFrontmatter(markdown);
-        
+
         var visitor = new WikiMarkdownVisitor(linkHandler, wikiId, currentPath, contentWidthPx);
         document.accept(visitor);
-        
+
         var widgets = new ArrayList<UIComponent>();
         widgets.add(buildTitlePanel(linkHandler, frontMatter, currentPath, contentWidthPx));
         widgets.addAll(visitor.results());
-        
-        if (frontMatter.containsKey("id")) {
-            var gameId = frontMatter.get("id");
+
+        var gameId = frontMatter.getOne("id");
+        if (gameId != null) {
             var id = Identifier.of(gameId);
             if (Registries.ITEM.containsId(id) || Registries.BLOCK.containsId(id))
                 widgets.add(buildPropertiesPanel(ContentProperties.getProperties(gameId), contentWidthPx));
         }
-        
+
         return widgets;
     }
-    
+
+    public static String parseHeadingTitle(String markdown) {
+        var document = PARSER.parse(markdown);
+        var visitor = new WikiTitleVisitor();
+        document.accept(visitor);
+
+        return visitor.getTitle();
+    }
+
     // ---------------------------------------------------------------- visitor
-    
-    private static class WikiMarkdownVisitor extends AbstractVisitor {
-        
+
+    private static class WikiTitleVisitor extends AbstractVisitor {
+        protected String title;
+        protected MutableText buffer = Text.empty();
+
+        public String getTitle() {
+            return title;
+        }
+
+        @Override
+        public void visit(Heading heading) {
+            buffer = Text.empty();
+            visitChildren(heading);
+
+            if (heading.getLevel() == 1 && title == null) {
+                title = buffer.getString();
+            }
+
+            buffer = Text.empty();
+        }
+
+        @Override
+        public void visit(org.commonmark.node.Text text) {
+            if (buffer != null) {
+                buffer.append(Text.literal(text.getLiteral()));
+            }
+        }
+    }
+
+    private static class WikiMarkdownVisitor extends WikiTitleVisitor {
+
         private final Predicate<String> linkHandler;
         private final String wikiId;
         private final Identifier contentPath;
         private final int contentWidthPx;
-        
+
         private List<UIComponent> components = new ArrayList<>();
         private MutableText buffer = Text.empty();
         private Style currentStyle = Style.EMPTY;
         private int currentIndentation = 0;
-        
+
         WikiMarkdownVisitor(Predicate<String> linkHandler, String wikiId, Identifier contentPath, int contentWidthPx) {
             this.linkHandler = linkHandler;
             this.wikiId = wikiId;
             this.contentPath = contentPath;
             this.contentWidthPx = contentWidthPx;
         }
-        
+
         List<UIComponent> results() {
             return components;
         }
-        
+
         private void flushBuffer() {
             if (buffer == null || buffer.getString().isEmpty()) return;
             var label = new LabelWidget(buffer).linkHandler(linkHandler).lineSpacing(1).fillWidth();
@@ -117,13 +152,13 @@ public class MarkdownParser {
             buffer = Text.empty();
             currentIndentation = 0;
         }
-        
+
         @Override
         public void visit(Paragraph paragraph) {
             visitChildren(paragraph);
             flushBuffer();
         }
-        
+
         @Override
         public void visit(Heading heading) {
             buffer = Text.empty();
@@ -131,14 +166,19 @@ public class MarkdownParser {
             currentStyle = currentStyle.withColor(Formatting.GRAY);
             visitChildren(heading);
             currentStyle = oldStyle;
-            
-            var label = new LabelWidget(buffer).linkHandler(linkHandler).fillWidth();
-            label.scale(Math.max(1.0f, 2.0f - heading.getLevel() * 0.2f));
-            label.setPadding(Insets.of(10, 5, 0, 0));
-            components.add(label);
+
+            if (heading.getLevel() == 1 && title == null) {
+                title = buffer.getString();
+            } else {
+                var label = new LabelWidget(buffer).linkHandler(linkHandler).fillWidth();
+                label.scale(Math.max(1.0f, 2.0f - heading.getLevel() * 0.2f));
+                label.setPadding(Insets.of(10, 5, 0, 0));
+                components.add(label);
+            }
+
             buffer = Text.empty();
         }
-        
+
         @Override
         public void visit(FencedCodeBlock codeBlock) {
             flushBuffer();
@@ -149,17 +189,17 @@ public class MarkdownParser {
             panel.child(new LabelWidget(text));
             components.add(panel);
         }
-        
+
         @Override
         public void visit(BulletList l) {
             visitChildren(l);
         }
-        
+
         @Override
         public void visit(OrderedList l) {
             visitChildren(l);
         }
-        
+
         @Override
         public void visit(ListItem listItem) {
             var parent = listItem.getParent();
@@ -170,7 +210,7 @@ public class MarkdownParser {
                 ancestor = ancestor.getParent();
             }
             this.currentIndentation = depth - 1;
-            
+
             if (parent instanceof BulletList) {
                 buffer.append(Text.literal("• ").formatted(Formatting.DARK_GRAY));
             } else if (parent instanceof OrderedList orderedList) {
@@ -187,13 +227,13 @@ public class MarkdownParser {
             flushBuffer();
             this.currentIndentation = 0;
         }
-        
+
         @Override
         public void visit(CustomBlock customBlock) {
             if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock recipe) {
                 components.add(buildRecipe(recipe.slots, recipe.result, recipe.count));
             } else if (customBlock instanceof MdxComponentBlock.AssetBlock image) {
-                components.add(buildImage(image.location, image.width, this.wikiId, image.isModAsset(), contentWidthPx));
+                components.add(buildImage(image.location, image.width, this.wikiId, contentWidthPx));
             } else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
                 var oldComponents = this.components;
                 var inner = new ArrayList<UIComponent>();
@@ -201,24 +241,24 @@ public class MarkdownParser {
                 visitChildren(callout);
                 flushBuffer();
                 this.components = oldComponents;
-                
+
                 var widget = new CalloutWidget(callout.variant);
                 for (var c : inner) widget.addBodyChild(c);
                 components.add(widget);
             }
         }
-        
+
         @Override
         public void visit(Image image) {
             flushBuffer();
-            components.add(buildImage(image.getDestination(), "60%", wikiId, true, contentWidthPx));
+            components.add(buildImage(image.getDestination(), "60%", wikiId, contentWidthPx));
         }
-        
+
         @Override
         public void visit(org.commonmark.node.Text text) {
             if (buffer != null) buffer.append(Text.literal(text.getLiteral()).setStyle(currentStyle));
         }
-        
+
         @Override
         public void visit(StrongEmphasis e) {
             var old = currentStyle;
@@ -226,7 +266,7 @@ public class MarkdownParser {
             visitChildren(e);
             currentStyle = old;
         }
-        
+
         @Override
         public void visit(Emphasis e) {
             var old = currentStyle;
@@ -234,57 +274,65 @@ public class MarkdownParser {
             visitChildren(e);
             currentStyle = old;
         }
-        
+
         @Override
         public void visit(Link link) {
             var old = currentStyle;
             var clickEvent = new ClickEvent(ClickEvent.Action.OPEN_URL, link.getDestination());
             currentStyle = currentStyle.withColor(Formatting.BLUE).withUnderline(true).withClickEvent(clickEvent);
-            
+
             if (link.getFirstChild() == null && (link.getTitle() == null || link.getTitle().isBlank())) {
                 var linkTitle = getLinkText(link.getDestination(), wikiId, contentPath);
-                buffer.append(Text.literal(linkTitle).setStyle(currentStyle));
+                buffer.append(linkTitle.setStyle(currentStyle));
             }
             visitChildren(link);
             currentStyle = old;
         }
-        
+
         @Override
         public void visit(Code inlineCode) {
             if (buffer != null) {
-                buffer.append(Text.literal(inlineCode.getLiteral()).formatted(Formatting.RED));
+                buffer.append(Text.literal(inlineCode.getLiteral()).formatted(Formatting.DARK_AQUA));
             }
         }
-        
+
         @Override
         public void visit(SoftLineBreak n) {
             if (buffer != null) buffer.append(Text.literal(" "));
         }
-        
+
         @Override
         public void visit(HardLineBreak n) {
             if (buffer != null) buffer.append(Text.literal("\n"));
         }
     }
-    
+
     // ---------------------------------------------------------------- helpers
-    
-    public static String getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+
+    public static MutableText getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+        if (link.startsWith("@")) {
+            Identifier id = Identifier.tryParse(link.substring(1));
+            if (id != null && id.getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
+                Item item = Registries.ITEM.get(id);
+                if (item != null) {
+                    return Text.translatable(item.getTranslationKey());
+                }
+            }
+        }
+
+        return Text.literal(getLinkTextLiteral(link, activeWikiId, sourceEntryPath));
+    }
+
+    public static String getLinkTextLiteral(String link, String activeWikiId, Identifier sourceEntryPath) {
         var linkTarget = getLinkTarget(link, activeWikiId, sourceEntryPath);
         if (linkTarget == null) return "<invalid link>";
         var rm = MinecraftClient.getInstance().getResourceManager();
         var rc = rm.getResource(linkTarget);
         if (rc.isEmpty()) return "<invalid link>";
-        try {
-            var fileContent = new String(rc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            var fm = parseFrontmatter(fileContent);
-            return getTitle(fm, linkTarget);
-        } catch (IOException e) {
-            Oracle.LOGGER.warn("Unable to load file content to get link title: {}, {}", linkTarget, e);
-            return "<invalid link>";
-        }
+        String title = TitleLookup.getTitle(linkTarget);
+        return title != null ? title : "<invalid link>";
     }
-    
+
     @Nullable
     public static Identifier getLinkTarget(String link, String activeWikiId, Identifier sourceEntryPath) {
         Identifier targetFile;
@@ -292,9 +340,13 @@ public class MarkdownParser {
             var id = link.startsWith("@") ? link.substring(1) : link;
             targetFile = OracleClient.CONTENT_ID_MAP.get(id);
         } else if (link.startsWith("$")) {
-            var p = "books/" + activeWikiId + "/" + link.substring(1);
+            var format = OracleClient.getWikiFormat(activeWikiId);
+            var p = "books/" + activeWikiId + "/" + format.getDocsPagePath(link.substring(1));
             if (!p.endsWith(".mdx")) p += ".mdx";
             targetFile = Identifier.of(Oracle.MOD_ID, p);
+        } else if (link.startsWith("+")) {
+            var id = link.substring(1);
+            targetFile = OracleClient.getPage(activeWikiId, id);
         } else {
             var p = OracleScreen.parsePathLink(link, sourceEntryPath);
             if (!p.endsWith(".mdx")) p += ".mdx";
@@ -302,77 +354,120 @@ public class MarkdownParser {
         }
         return targetFile;
     }
-    
-    public static String getTitle(Map<String, String> frontMatter, Identifier pagePath) {
-        if (frontMatter.containsKey("title")) return frontMatter.get("title");
-        if (frontMatter.containsKey("id")) {
-            var item = frontMatter.get("id");
-            if (Identifier.validate(item).isSuccess() && Registries.ITEM.containsId(Identifier.of(item))) {
-                return I18n.translate(Registries.ITEM.get(Identifier.of(item)).getTranslationKey());
-            }
-            return item;
-        }
-        return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, "No title found");
-    }
-    
-    private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Map<String, String> frontMatter, Identifier pageId, int contentWidthPx) {
-        ItemStack iconStack = ItemStack.EMPTY;
+
+    private static UIComponent buildTitlePanel(Predicate<String> linkHandler, Frontmatter frontMatter, Identifier pageId, int contentWidthPx) {
         var iconId = frontMatter.getOrDefault("icon", "");
         if (iconId.isBlank()) iconId = frontMatter.getOrDefault("id", "");
-        if (Identifier.validate(iconId).isSuccess() && Registries.ITEM.containsId(Identifier.of(iconId))) {
-            iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
+        ItemStack iconStack = getIconStack(iconId);
+
+        List<ItemStack> itemStacks = new ArrayList<>();
+        List<String> ids = frontMatter.getAll("id");
+        if (ids != null && ids.size() > 1) {
+            for (String id : ids) {
+                ItemStack stack = getIconStack(id);
+                if (!stack.isEmpty()) {
+                    itemStacks.add(stack);
+                }
+            }
         }
-        return new PageTitleWidget(Text.literal(getTitle(frontMatter, pageId)).formatted(Formatting.DARK_GRAY), iconStack, linkHandler, contentWidthPx);
+
+        return new PageTitleWidget(
+            Text.literal(TitleLookup.getTitle(pageId)).formatted(Formatting.DARK_GRAY),
+            iconStack,
+            itemStacks,
+            linkHandler,
+            contentWidthPx
+        );
     }
-    
+
+    private static ItemStack getIconStack(String iconId) {
+        if (Identifier.validate(iconId).isSuccess() && Registries.ITEM.containsId(Identifier.of(iconId))) {
+            return new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
+        }
+        return ItemStack.EMPTY;
+    }
+
     private static class PageTitleWidget extends UIComponent {
         private static final int ICON_PANEL_SIZE = 58;
         private static final int ICON_ITEM_SIZE = 50;
+
+        private static final int ITEM_PANEL_SIZE = 32;
+        private static final int ITEM_ICON_SIZE = 24;
+        private static final int ITEM_PADDING = (ITEM_PANEL_SIZE - ITEM_ICON_SIZE) / 2;
+        private static final int ITEMS_MARGIN = 2;
+
         private static final int TITLE_OVERLAP = 12;
         private static final int TITLE_PAD_X = 14;
         private static final int TITLE_PAD_Y = 9;
-        
+
         private final LabelWidget titleLabel;
         private final ItemWidget icon;
+        private final List<ItemWidget> items;
         private final int contentWidthPx;
-        
+
         private int titleX;
         private int titleY;
         private int titleW;
         private int titleH;
         private int iconX;
         private int iconY;
-        
-        PageTitleWidget(Text title, ItemStack iconStack, Predicate<String> linkHandler, int contentWidthPx) {
+
+        PageTitleWidget(Text title, ItemStack iconStack, List<ItemStack> itemStacks, Predicate<String> linkHandler, int contentWidthPx) {
             this.titleLabel = new LabelWidget(title).scale(2f).linkHandler(linkHandler);
             this.icon = iconStack.isEmpty() ? null : new ItemWidget(iconStack);
             if (icon != null) {
-                icon.setHideItemTooltip(true);
+                icon.setTooltipMode(TooltipMode.HIDDEN);
                 icon.setHideItemDecorations(true);
             }
+            this.items = itemStacks.stream()
+                .map(ItemWidget::new)
+                .peek(w -> {
+                    w.setTooltipMode(TooltipMode.NAME_ONLY);
+                    w.setHideItemDecorations(true);
+                    w.size(ITEM_ICON_SIZE, ITEM_ICON_SIZE);
+                })
+                .toList();
             this.contentWidthPx = contentWidthPx;
         }
-        
+
         @Override
         public int getPreferredWidth(int widthHint) {
             int maxWidth = widthHint > 0 ? widthHint : contentWidthPx;
             int labelMaxWidth = labelMaxWidth(maxWidth);
             titleLabel.wrapWidth(labelMaxWidth);
             int titlePanelWidth = titleLabel.getPreferredWidth(labelMaxWidth) + TITLE_PAD_X * 2;
-            return leadingWidth() + titlePanelWidth;
+            int itemsRowWidth = Math.min(maxWidth, items.size() * ITEM_PANEL_SIZE);
+            return Math.max(leadingWidth() + titlePanelWidth, itemsRowWidth);
         }
-        
+
         @Override
         public int getPreferredHeight(int widthHint) {
             int maxWidth = widthHint > 0 ? widthHint : contentWidthPx;
             int labelMaxWidth = labelMaxWidth(maxWidth);
             titleLabel.wrapWidth(labelMaxWidth);
             int titlePanelHeight = titleLabel.getPreferredHeight(labelMaxWidth) + TITLE_PAD_Y * 2;
-            return Math.max(icon == null ? 0 : ICON_PANEL_SIZE, titlePanelHeight);
+            int itemRowsHeight = getOuterRowsHeight(maxWidth);
+            return Math.max(icon == null ? 0 : ICON_PANEL_SIZE, titlePanelHeight) + itemRowsHeight;
         }
-        
+
+        private int getMaxCols(int maxWidth) {
+            return maxWidth / ITEM_PANEL_SIZE;
+        }
+
+        private int getInnerRowsHeight(int maxWidth) {
+            int itemCols = getMaxCols(maxWidth);
+            return (int) Math.ceil(items.size() / (double) itemCols) * ITEM_PANEL_SIZE;
+        }
+
+        private int getOuterRowsHeight(int maxWidth) {
+            int height = getInnerRowsHeight(maxWidth);
+            return height > 0 ? height + ITEMS_MARGIN : 0;
+        }
+
         @Override
         public void layout(int parentWidthHint, int parentHeightHint) {
+            int centerOffset = getOuterRowsHeight(width) / 2;
+
             int labelMaxWidth = Math.max(80, width - leadingWidth() - TITLE_PAD_X * 2);
             titleLabel.wrapWidth(labelMaxWidth);
             int labelW = titleLabel.getPreferredWidth(labelMaxWidth);
@@ -380,44 +475,80 @@ public class MarkdownParser {
             titleW = labelW + TITLE_PAD_X * 2;
             titleH = labelH + TITLE_PAD_Y * 2;
             titleX = x + leadingWidth();
-            titleY = y + (height - titleH) / 2;
-            titleLabel.setPosition(titleX + TITLE_PAD_X, titleY + TITLE_PAD_Y);
+            titleY = y + (height - titleH) / 2 - centerOffset;
+            int offset = icon != null ? TITLE_PAD_X / 2 : 0;
+            titleLabel.setPosition(titleX + TITLE_PAD_X + offset, titleY + TITLE_PAD_Y);
             titleLabel.setLayoutSize(labelW, labelH);
             titleLabel.layout(labelW, labelH);
+
             if (icon != null) {
                 iconX = x;
-                iconY = y + (height - ICON_PANEL_SIZE) / 2;
+                iconY = y + (height - ICON_PANEL_SIZE) / 2 - centerOffset;
                 icon.setPosition(iconX + (ICON_PANEL_SIZE - ICON_ITEM_SIZE) / 2, iconY + (ICON_PANEL_SIZE - ICON_ITEM_SIZE) / 2);
                 icon.setLayoutSize(ICON_ITEM_SIZE, ICON_ITEM_SIZE);
                 icon.layout(ICON_ITEM_SIZE, ICON_ITEM_SIZE);
             }
+
+            if (!items.isEmpty()) {
+                int cols = getMaxCols(width);
+                int rowsHeight = getInnerRowsHeight(width);
+                int baseX = x;
+                int baseY = y + height - rowsHeight;
+
+                for (int i = 0; i < items.size(); i++) {
+                    ItemWidget item = items.get(i);
+                    int row = i / cols;
+                    int col = i % cols;
+                    int iconX = baseX + ITEM_PADDING + col * ITEM_PANEL_SIZE;
+                    int iconY = baseY + ITEM_PADDING + row * ITEM_PANEL_SIZE;
+
+                    item.setPosition(iconX, iconY);
+                    item.setLayoutSize(ITEM_ICON_SIZE, ITEM_ICON_SIZE);
+                    item.layout(ITEM_ICON_SIZE, ITEM_ICON_SIZE);
+                }
+            }
         }
-        
+
         @Override
         protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
             WikiSurface.BEDROCK_PANEL.render(context, titleX, titleY, titleW, titleH);
             titleLabel.render(context, mouseX, mouseY, delta);
+
             if (icon != null) {
                 WikiSurface.BEDROCK_PANEL.render(context, iconX, iconY, ICON_PANEL_SIZE, ICON_PANEL_SIZE);
                 icon.render(context, mouseX, mouseY, delta);
             }
+
+            if (!items.isEmpty()) {
+                for (ItemWidget item : items) {
+                    WikiSurface.BEDROCK_PANEL.render(context, item.getX() - ITEM_PADDING, item.getY() - ITEM_PADDING, ITEM_PANEL_SIZE, ITEM_PANEL_SIZE);
+                    item.render(context, mouseX, mouseY, delta);
+                }
+            }
         }
-        
+
         @Override
         public List<Text> tooltip(int mouseX, int mouseY) {
-            if (icon != null && icon.isInBounds(mouseX, mouseY)) return icon.tooltip(mouseX, mouseY);
+            if (icon != null && icon.isInBounds(mouseX, mouseY)) {
+                return icon.tooltip(mouseX, mouseY);
+            }
+            for (ItemWidget item : items) {
+                if (item.isInBounds(mouseX, mouseY)) {
+                    return item.tooltip(mouseX, mouseY);
+                }
+            }
             return super.tooltip(mouseX, mouseY);
         }
-        
+
         private int leadingWidth() {
             return icon == null ? 0 : ICON_PANEL_SIZE - TITLE_OVERLAP;
         }
-        
+
         private int labelMaxWidth(int maxWidth) {
             return Math.max(80, maxWidth - leadingWidth() - TITLE_PAD_X * 2);
         }
     }
-    
+
     private static UIComponent buildPropertiesPanel(Map<String, Text> properties, int contentWidthPx) {
         var tr = MinecraftClient.getInstance().textRenderer;
         int titleWidth = tr.getWidth("Details");
@@ -427,39 +558,39 @@ public class MarkdownParser {
             keyWidth = Math.max(keyWidth, tr.getWidth(entry.getKey()));
             valueWidth = Math.max(valueWidth, tr.getWidth(entry.getValue()));
         }
-        int innerWidth = Math.min(contentWidthPx, Math.max(160, Math.max(titleWidth, keyWidth + valueWidth + 28) + 20));
+        int innerWidth = Math.clamp(Math.max(titleWidth, keyWidth + valueWidth + 28) + 20, 160, contentWidthPx);
         var outer = FlowWidget.vertical().gap(2);
         outer.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
         outer.setPadding(Insets.of(10));
         outer.size(innerWidth, 0);
         outer.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
         outer.child(new LabelWidget(Text.literal("Details").formatted(Formatting.BOLD, Formatting.GRAY)));
-        
+
         for (var entry : properties.entrySet()) {
             outer.child(new PropertyRowWidget(Text.literal(entry.getKey()).formatted(Formatting.GOLD), entry.getValue()));
         }
         return outer;
     }
-    
+
     private static class PropertyRowWidget extends UIComponent {
         private final Text key;
         private final Text value;
-        
+
         PropertyRowWidget(Text key, Text value) {
             this.key = key;
             this.value = value;
         }
-        
+
         @Override
         public int getPreferredWidth(int widthHint) {
             return widthHint > 0 ? widthHint : MinecraftClient.getInstance().textRenderer.getWidth(key) + 28 + MinecraftClient.getInstance().textRenderer.getWidth(value);
         }
-        
+
         @Override
         public int getPreferredHeight(int widthHint) {
             return MinecraftClient.getInstance().textRenderer.fontHeight;
         }
-        
+
         @Override
         protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
             var tr = MinecraftClient.getInstance().textRenderer;
@@ -467,12 +598,12 @@ public class MarkdownParser {
             context.drawText(tr, value, x + width - tr.getWidth(value), y, 0xFFFFFFFF, false);
         }
     }
-    
+
     public static UIComponent buildRecipe(List<String> inputs, String resultId, int resultCount) {
         if (inputs.size() != 9) {
             return new LabelWidget(Text.literal("Invalid crafting recipe data: expected 9 inputs").formatted(Formatting.RED));
         }
-        
+
         // Layered: a 3x3 grid of slots with items overlaid on top.
         var grid = new GridWidget(3, 3, ItemSlotWidget.SLOT_SIZE, ItemSlotWidget.SLOT_SIZE).gap(0, 0);
         grid.setPadding(Insets.of(3));
@@ -486,18 +617,18 @@ public class MarkdownParser {
             var item = new ItemWidget(stack);
             grid.set(i / 3, i % 3, new ItemSlotWidget(item));
         }
-        
+
         // → arrow
         var arrow = new TextureWidget(Identifier.of(Oracle.MOD_ID, "textures/arrow_empty.png"), 29, 16);
-        
+
         // result slot
         var resultIdObj = Identifier.of(resultId);
         var resultStack = Registries.ITEM.containsId(resultIdObj)
-                            ? new ItemStack(Registries.ITEM.get(resultIdObj), resultCount)
-                            : ItemStack.EMPTY;
+            ? new ItemStack(Registries.ITEM.get(resultIdObj), resultCount)
+            : ItemStack.EMPTY;
         var result = new ItemWidget(resultStack);
         var resultSlot = new ItemSlotWidget(result);
-        
+
         var panel = FlowWidget.horizontal().gap(8);
         panel.setSurface(WikiSurface.BEDROCK_PANEL);
         panel.setPadding(Insets.of(8));
@@ -507,15 +638,15 @@ public class MarkdownParser {
         panel.child(resultSlot);
         return panel;
     }
-    
-    public static UIComponent buildImage(String location, String widthSource, String wikiId, boolean isModAsset, int contentWidthPx) {
+
+    public static UIComponent buildImage(String location, String widthSource, String wikiId, int contentWidthPx) {
         float widthRatio = convertImageWidth(widthSource);
         if (widthRatio <= 0) widthRatio = 0.5f;
         if (location.startsWith("@")) location = location.substring(1);
-        
+
         // available pixel budget after scrollbar gutter + a tiny breathing margin
         int budget = Math.max(16, contentWidthPx - 12);
-        
+
         // case 1: ingame item → render as ItemWidget
         var itemIdCandidate = Identifier.of(location);
         if (Registries.ITEM.containsId(itemIdCandidate)) {
@@ -527,18 +658,16 @@ public class MarkdownParser {
             itemWidget.setHideItemDecorations(true);
             return itemWidget;
         }
-        
+
         // case 2: texture path
+        String assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
         Identifier searchPath;
-        if (isModAsset) {
-            var parts = location.split(":", 2);
-            var imageModId = parts.length > 0 ? parts[0] : wikiId;
-            var imagePath = parts.length > 1 ? parts[1] : location;
-            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/.assets/" + imageModId + "/" + imagePath + ".png");
-        } else {
-            searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/.assets/" + wikiId + "/" + location + ".png");
-        }
-        
+        var parts = location.split(":", 2);
+        var imageModId = parts.length > 0 ? parts[0] : wikiId;
+        var imagePath = parts.length > 1 ? parts[1] : location;
+        var extension = imagePath.contains(".") ? "" : ".png";
+        searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + extension);
+
         var rm = MinecraftClient.getInstance().getResourceManager();
         var resource = rm.getResource(searchPath);
         if (resource.isEmpty()) {
@@ -557,25 +686,25 @@ public class MarkdownParser {
             return new LabelWidget(Text.literal("Error reading image: " + location).formatted(Formatting.RED));
         }
     }
-    
-    public static Map<String, String> parseFrontmatter(String markdown) {
+
+    public static Frontmatter parseFrontmatter(String markdown) {
         var document = PARSER.parse(markdown);
         var yamlVisitor = new YamlFrontMatterVisitor();
         document.accept(yamlVisitor);
         var frontmatter = yamlVisitor.getData();
         try {
-            var simple = new HashMap<String, String>();
+            var inner = new HashMap<String, List<String>>();
             for (var pair : frontmatter.entrySet()) {
                 if (pair.getValue().isEmpty()) continue;
-                simple.put(pair.getKey(), pair.getValue().getFirst().trim());
+                inner.put(pair.getKey(), pair.getValue().stream().map(String::trim).toList());
             }
-            return simple;
+            return new Frontmatter(inner);
         } catch (RuntimeException ex) {
             Oracle.LOGGER.warn("Error parsing markdown frontmatter: {} in {}", ex, markdown);
-            return new HashMap<>();
+            return new Frontmatter(Map.of());
         }
     }
-    
+
     public static float convertImageWidth(String input) {
         if (input == null || input.isEmpty()) return 0.0f;
         var trimmed = input.trim();
@@ -601,5 +730,30 @@ public class MarkdownParser {
             }
         }
         return 0.0f;
+    }
+
+    public record Frontmatter(Map<String, List<String>> map) {
+        @Nullable
+        public List<String> getAll(String key) {
+            return this.map.get(key);
+        }
+
+        @Nullable
+        public String getOne(String key) {
+            List<String> values = this.map.get(key);
+            if (values == null) {
+                return null;
+            }
+            return values.size() == 1 ? values.getFirst() : null;
+        }
+
+        public String getOrDefault(String key, String _default) {
+            String value = getOne(key);
+            return value != null ? value : _default;
+        }
+
+        public boolean containsKey(String key) {
+            return this.map.containsKey(key);
+        }
     }
 }

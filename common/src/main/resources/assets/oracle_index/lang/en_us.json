@@ -10,5 +10,10 @@
   "tooltip.oracle_index.back": "Go back to last page.",
   "tooltip.oracle_index.close_screen": "Close Wiki.",
   "oracle_index.button.docs": "Docs",
-  "oracle_index.button.content": "Content"
+  "oracle_index.button.content": "Content",
+  "oracle_index.tooltip.docs": "Hold [ALT] for Documentation",
+  "oracle_index.callout.default": "Note",
+  "oracle_index.callout.info": "Info",
+  "oracle_index.callout.warning": "Warning",
+  "oracle_index.callout.danger": "Danger"
 }

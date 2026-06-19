@@ -1,0 +1,84 @@
+# Introduction
+
+## Links
+
+Green Apple by ID: [](@oracle_index_test:green_apple).
+
+Green Apple by ref: [Green Apple Ref](+my_green_apple).
+
+Green Apple by ref default title: [](+my_green_apple).
+
+Vanilla link: [](@minecraft:apple)
+
+## Components
+
+### `Asset`
+
+<Asset location="oracle_index_test:folder_layout.png" />
+
+### `Audio`
+
+<Audio controls src="oracle_index_test:sounds/snare.ogg"/>
+
+### Code blocks
+
+<!-- With language and file name -->
+```json my-file.json
+{
+    "id": "hello-world"
+}
+```
+ 
+<!-- Language only -->
+```json
+{
+    "id": "hello-world"
+}
+```
+
+### `Callout`
+
+<Callout>
+    This is a sample callout
+</Callout>
+ 
+<Callout variant="info">
+    This is a sample info callout
+</Callout>
+
+<Callout variant="warning">
+    This is a sample warning callout
+</Callout>
+
+<Callout variant="danger">
+    This is a sample danger callout
+</Callout>
+
+### `CodeTabs`
+
+<CodeTabs>
+ 
+```js !!tabs main.js
+function lorem(ipsum, dolor = 1) {
+    const sit = ipsum == null ? 0 : ipsum.sit
+    dolor = sit - amet(dolor)
+    return sit ? consectetur(ipsum) : []
+}
+```
+ 
+```css !!tabs styles.css
+body {
+    margin: 0;
+    padding: 0;
+}
+```
+ 
+</CodeTabs>
+
+### Lucide icons
+
+<SquirrelIcon width={64} height={64} strokeWidth={1} />
+
+### `VideoEmbed`
+
+<VideoEmbed id="Y_WnAEKoeA4"/>

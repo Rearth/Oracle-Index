@@ -7,12 +7,12 @@ import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import rearth.oracle.util.MarkdownParser;
+import rearth.oracle.util.MarkdownParser.Frontmatter;
 import rearth.oracle.util.MdxBlockFactory;
 import rearth.oracle.util.MdxComponentBlock;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,8 +38,8 @@ class MarkdownTests {
     @DisplayName("Frontmatter: Extraction logic")
     void testFrontMatter() {
         String md = "---\ntitle: Nickel\n---\nBody";
-        Map<String, String> data = MarkdownParser.parseFrontmatter(md);
-        assertEquals("Nickel", data.get("title"));
+        Frontmatter data = MarkdownParser.parseFrontmatter(md);
+        assertEquals("Nickel", data.getOne("title"));
     }
     
     @Test

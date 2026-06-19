@@ -15,7 +15,7 @@ import java.util.List;
 public class ItemWidget extends UIComponent {
     
     private final ItemStack stack;
-    private boolean hideItemTooltip;
+    private TooltipMode tooltipMode;
     private boolean hideItemDecorations;
     
     public ItemWidget(ItemStack stack) {
@@ -38,20 +38,24 @@ public class ItemWidget extends UIComponent {
         if (!hideItemDecorations) context.drawItemInSlot(mc.textRenderer, stack, 0, 0);
         matrices.pop();
     }
-    
-    public void setHideItemTooltip(boolean hideItemTooltip) {
-        this.hideItemTooltip = hideItemTooltip;
+
+    public void setTooltipMode(TooltipMode tooltipMode) {
+        this.tooltipMode = tooltipMode;
     }
-    
+
     public void setHideItemDecorations(boolean hideItemDecorations) {
         this.hideItemDecorations = hideItemDecorations;
     }
     
     @Override
     public List<Text> tooltip(int mouseX, int mouseY) {
-        if (stack == null || stack.isEmpty() || hideItemTooltip) return super.tooltip(mouseX, mouseY);
+        if (stack == null || stack.isEmpty() || tooltipMode == TooltipMode.HIDDEN) return super.tooltip(mouseX, mouseY);
         var mc = MinecraftClient.getInstance();
-        return stack.getTooltip(Item.TooltipContext.create(mc.world), mc.player,
-          mc.options.advancedItemTooltips ? TooltipType.ADVANCED : TooltipType.BASIC);
+        List<Text> tooltip = stack.getTooltip(
+            Item.TooltipContext.create(mc.world),
+            mc.player, 
+            mc.options.advancedItemTooltips ? TooltipType.ADVANCED : TooltipType.BASIC
+        );
+        return tooltipMode == TooltipMode.NAME_ONLY && !tooltip.isEmpty() ? tooltip.subList(0, 1) : tooltip;
     }
 }

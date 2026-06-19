@@ -3,7 +3,7 @@
   "id": "oracle_index",
   "version": "${version}",
   "name": "Oracle Index",
-  "description": "Multiplatform Wiki / Documentation mod for content from moddedmc.org",
+  "description": "Multiplatform Wiki / Documentation mod for content from moddedmc.wiki",
   "authors": [
     "Me! - Rearth"
   ],

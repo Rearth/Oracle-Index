@@ -1,13 +1,17 @@
 package rearth.oracle.util;
 
+import com.mojang.logging.LogUtils;
 import org.commonmark.node.CustomBlock;
 import org.jsoup.Jsoup;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 public abstract class MdxComponentBlock extends CustomBlock {
+    private static final Logger LOGGER = LogUtils.getLogger();
     
     protected String rawContent;
     
@@ -71,14 +75,19 @@ public abstract class MdxComponentBlock extends CustomBlock {
     }
     
     public static class CalloutBlock extends MdxComponentBlock {
-        public String variant = "info";
+        public CalloutVariant variant = CalloutVariant.DEFAULT;
         
         @Override
         void parseContent() {
             var el = Jsoup.parseBodyFragment(rawContent).selectFirst("Callout");
             if (el != null) {
                 if (el.hasAttr("variant")) {
-                    this.variant = el.attr("variant");
+                    String name = el.attr("variant");
+                    try {
+                        this.variant = CalloutVariant.valueOf(name.toUpperCase(Locale.ROOT));
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.error("Unknown callout variant: '{}'", name, e);
+                    }
                 }
             }
         }
@@ -93,21 +102,16 @@ public abstract class MdxComponentBlock extends CustomBlock {
     }
     
     public static class AssetBlock extends MdxComponentBlock {
-        private final boolean isModAsset;
+        private final String tagName;
         public String location;
         public String width = "50%";
         
-        public AssetBlock(boolean isModAsset) {
-            this.isModAsset = isModAsset;
-        }
-        
-        public boolean isModAsset() {
-            return isModAsset;
+        public AssetBlock(String tagName) {
+            this.tagName = tagName;
         }
         
         @Override
         void parseContent() {
-            var tagName = isModAsset ? "ModAsset" : "Asset";
             var el = Jsoup.parseBodyFragment(rawContent).selectFirst(tagName);
             if (el != null) {
                 this.location = el.attr("location");
@@ -120,18 +124,10 @@ public abstract class MdxComponentBlock extends CustomBlock {
         @Override
         public String toString() {
             return "AssetBlock{" +
-                     "isModAsset=" + isModAsset +
-                     ", location='" + location + '\'' +
+                     "location='" + location + '\'' +
                      ", width='" + width + '\'' +
                      ", rawContent='" + rawContent + '\'' +
                      '}';
-        }
-    }
-    
-    public static class PrefabObtainingBlock extends MdxComponentBlock {
-        // not supported (yet?)
-        @Override
-        void parseContent() {
         }
     }
 }

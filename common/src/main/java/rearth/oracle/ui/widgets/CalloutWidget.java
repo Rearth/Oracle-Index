@@ -4,7 +4,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import org.apache.commons.lang3.StringUtils;
+import rearth.oracle.util.CalloutVariant;
+
+import java.util.Locale;
 
 /**
  * Stylised callout block used by {@code <Callout>} markdown tags.
@@ -15,10 +17,10 @@ import org.apache.commons.lang3.StringUtils;
 public class CalloutWidget extends FlowWidget {
     private static final int BODY_TEXT_COLOR = 0xFF555555;
     
-    private final String variant;
+    private final CalloutVariant variant;
     private final FlowWidget body;
     
-    public CalloutWidget(String variant) {
+    public CalloutWidget(CalloutVariant variant) {
         super(Direction.VERTICAL);
         this.variant = variant;
         this.body = FlowWidget.vertical();
@@ -73,13 +75,14 @@ public class CalloutWidget extends FlowWidget {
         super.renderContent(context, mouseX, mouseY, delta);
         // overlapping title chip rendered on top
         var tr = MinecraftClient.getInstance().textRenderer;
-        var title = Text.literal(StringUtils.capitalize(variant)).formatted(Formatting.WHITE);
+        var key = "oracle_index.callout." + this.variant.name().toLowerCase(Locale.ROOT);
+        var title = Text.translatable(key).formatted(Formatting.WHITE);
         int textW = tr.getWidth(title);
         int chipW = textW + 12;
         int chipH = tr.fontHeight + 9;
         int chipX = body.getX();
         int chipY = body.getY();
-        WikiSurface.BEDROCK_PANEL_PRESSED.render(context, chipX - 6, chipY - 6, chipW, chipH);
+        this.variant.getSurface().render(context, chipX - 6, chipY - 6, chipW, chipH);
         context.drawText(tr, title, chipX, chipY, 0xFFFFFFFF, false);
     }
 }

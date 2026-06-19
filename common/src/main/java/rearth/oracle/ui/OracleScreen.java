@@ -15,9 +15,11 @@ import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
+import rearth.oracle.docs.DocsMode;
 import rearth.oracle.progress.OracleProgressAPI;
 import rearth.oracle.ui.widgets.*;
 import rearth.oracle.util.MarkdownParser;
+import rearth.oracle.util.TitleLookup;
 
 import java.io.IOException;
 import java.net.URI;
@@ -28,12 +30,13 @@ import java.util.*;
 import java.util.function.Consumer;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
+import static rearth.oracle.OracleClient.getDocsModeForPage;
 
 public class OracleScreen extends WikiBaseScreen {
     
     public static final HashMap<Identifier, String> PAGE_FALLBACK_NAMES = new HashMap<>();
     
-    public static String activeWikiMode = "docs";
+    public static DocsMode activeWikiMode = DocsMode.DOCS;
     public static Identifier activeEntry;
     public static String activeWiki;
     
@@ -123,6 +126,9 @@ public class OracleScreen extends WikiBaseScreen {
         addRoot(contentScroll);
         addRoot(actionHub);
         
+        if (activeEntry != null) {
+            activeWikiMode = OracleClient.getDocsModeForPage(activeEntry);
+        }
         buildNavigationTree();
         if (activeEntry != null) {
             try {
@@ -134,7 +140,7 @@ public class OracleScreen extends WikiBaseScreen {
     }
     
     private UIComponent buildWikiTitleHeader() {
-        var wikiIds = OracleClient.LOADED_WIKIS.stream().sorted().toList();
+        var wikiIds = OracleClient.LOADED_WIKIS.keySet().stream().sorted().toList();
         if (wikiIds.isEmpty()) return FlowWidget.horizontal();
         if (activeWiki == null || !wikiIds.contains(activeWiki)) activeWiki = wikiIds.get(0);
         
@@ -184,7 +190,7 @@ public class OracleScreen extends WikiBaseScreen {
     
     private void rebuildModDropdown(FlowWidget dropdown) {
         dropdown.clearChildren();
-        var wikiIds = OracleClient.LOADED_WIKIS.stream().sorted().toList();
+        var wikiIds = OracleClient.LOADED_WIKIS.keySet().stream().sorted().toList();
         for (var wikiId : wikiIds) {
             var label = new LabelWidget(Text.translatable(Oracle.MOD_ID + ".title." + wikiId).formatted(wikiId.equals(activeWiki) ? Formatting.WHITE : Formatting.DARK_GRAY));
             label.setPadding(Insets.of(4, 3));
@@ -358,6 +364,7 @@ public class OracleScreen extends WikiBaseScreen {
         var lastEntry = activeEntry;
         contentContainer.clearChildren();
         activeEntry = filePath;
+        activeWikiMode = getDocsModeForPage(filePath);
         
         var translatedPath = OracleClient.getTranslatedPath(filePath, wikiId);
         if (translatedPath.isPresent()) filePath = translatedPath.get();
@@ -390,6 +397,7 @@ public class OracleScreen extends WikiBaseScreen {
             var ingameTarget = MarkdownParser.getLinkTarget(link, wikiId, sourceEntryPath);
             if (ingameTarget != null) {
                 loadContent(ingameTarget, wikiId);
+                buildNavigationTree();
                 return true;
             }
             if (link.startsWith("@") || link.contains(":")) {
@@ -429,22 +437,23 @@ public class OracleScreen extends WikiBaseScreen {
         if (canSwitchWikiMode(activeWiki)) {
             navigationBar.child(buildModeSelector());
         }
-        var path = activeWikiMode.equals("docs") ? "" : "/.content";
-        buildNavigationEntries(activeWiki, path, navigationBar);
+        var format = OracleClient.getWikiFormat(activeWiki);
+        var path = format.getDocsRoot(activeWikiMode);
+        buildNavigationEntries(activeWiki, path, navigationBar, new Stack<>());
     }
     
     private FlowWidget buildModeSelector() {
         var row = FlowWidget.horizontal().gap(-1);
         row.size(SIDEBAR_WIDTH - 10, 0);
         row.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
-        row.child(makeModeButton("docs"));
-        row.child(makeModeButton("content"));
+        row.child(makeModeButton(DocsMode.DOCS));
+        row.child(makeModeButton(DocsMode.CONTENT));
         return row;
     }
     
-    private ClickableWidget makeModeButton(String mode) {
+    private ClickableWidget makeModeButton(DocsMode mode) {
         boolean selected = activeWikiMode.equals(mode);
-        var text = Text.translatable("oracle_index.button." + mode).formatted(selected ? Formatting.WHITE : Formatting.DARK_GRAY);
+        var text = Text.translatable("oracle_index.button." + mode.name().toLowerCase(Locale.ROOT)).formatted(selected ? Formatting.WHITE : Formatting.DARK_GRAY);
         var label = new LabelWidget(text);
         var widget = new ClickableWidget(label, b -> {
             if (!selected) {
@@ -466,22 +475,22 @@ public class OracleScreen extends WikiBaseScreen {
         return widget;
     }
     
-    private String getWikiMode(String wikiId) {
-        var modes = OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs"));
+    private DocsMode getWikiMode(String wikiId) {
+        var modes = OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of(DocsMode.DOCS));
         if (modes.contains(activeWikiMode)) return activeWikiMode;
-        if (modes.contains("docs")) return "docs";
-        if (modes.contains("content")) return "content";
-        return modes.stream().findFirst().orElse("docs");
+        if (modes.contains(DocsMode.DOCS)) return DocsMode.DOCS;
+        if (modes.contains(DocsMode.CONTENT)) return DocsMode.CONTENT;
+        return modes.stream().findFirst().orElse(DocsMode.DOCS);
     }
     
     private boolean canSwitchWikiMode(String wikiId) {
-        return OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of("docs")).size() > 1;
+        return OracleClient.AVAILABLE_MODES.getOrDefault(wikiId, Set.of(DocsMode.DOCS)).size() > 1;
     }
     
     /**
      * @return true if any entry under this path is unlocked.
      */
-    private boolean buildNavigationEntries(String wikiId, String path, FlowWidget container) {
+    private boolean buildNavigationEntries(String wikiId, String path, FlowWidget container, Stack<CollapsibleWidget> hierarchy) {
         var rm = MinecraftClient.getInstance().getResourceManager();
         var metaPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/_meta.json");
         var translated = OracleClient.getTranslatedPath(metaPath, wikiId);
@@ -501,9 +510,15 @@ public class OracleScreen extends WikiBaseScreen {
             var levelContainers = new ArrayList<CollapsibleWidget>();
             
             for (var entry : entries) {
+                final var labelPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
+
                 if (entry.directory) {
-                    var directory = new CollapsibleWidget(Text.translatable(entry.name()).formatted(Formatting.WHITE), false);
-                    boolean childrenUnlocked = buildNavigationEntries(wikiId, path + "/" + entry.id(), directory.body());
+                    boolean expanded = activeEntry != null && activeEntry.getPath().startsWith(labelPath.getPath());
+
+                    var directory = new CollapsibleWidget(Text.translatable(entry.name()).formatted(Formatting.WHITE), expanded);
+                    hierarchy.push(directory);
+                    boolean childrenUnlocked = buildNavigationEntries(wikiId, path + "/" + entry.id(), directory.body(), hierarchy);
+                    hierarchy.pop();
                     if (childrenUnlocked) anyUnlocked = true;
                     
                     final var captured = directory;
@@ -520,8 +535,6 @@ public class OracleScreen extends WikiBaseScreen {
                         levelContainers.add(directory);
                     }
                 } else {
-                    final var labelPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
-                    
                     var shownName = entry.name;
                     if (shownName.isBlank()) {
                         var contentRc = rm.getResource(labelPath);
@@ -529,9 +542,7 @@ public class OracleScreen extends WikiBaseScreen {
                             Oracle.LOGGER.warn("Unable to get name for entry: {}", labelPath);
                             shownName = "<ERROR>";
                         } else {
-                            var fileContent = new String(contentRc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                            var fm = MarkdownParser.parseFrontmatter(fileContent);
-                            shownName = MarkdownParser.getTitle(fm, labelPath);
+                            shownName = TitleLookup.getTitle(labelPath);
                         }
                     }
                     PAGE_FALLBACK_NAMES.put(labelPath, shownName);
@@ -560,6 +571,10 @@ public class OracleScreen extends WikiBaseScreen {
                     var firstPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + first.get().id());
                     loadContent(firstPath, wikiId);
                     activeEntry = firstPath;
+
+                    for (CollapsibleWidget parent : hierarchy) {
+                        parent.setExpanded(true);
+                    }
                 }
             }
         } catch (IOException e) {

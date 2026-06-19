@@ -1,5 +1,5 @@
 plugins {
-    id 'dev.architectury.loom' version '1.7-SNAPSHOT' apply false
+    id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
     id 'org.moddedmc.wiki.toolkit' version '0.2.7'
@@ -89,6 +89,30 @@ subprojects {
             // Notice: This block does NOT have the same function as the block in the top level.
             // The repositories here will be used for publishing your artifact, not for
             // retrieving dependencies.
+        }
+    }
+    
+    if (project.name != 'common') {
+        sourceSets {
+            testmod {
+                compileClasspath += sourceSets.main.compileClasspath
+                runtimeClasspath += sourceSets.main.runtimeClasspath
+        
+                java.srcDir project(':common').file('src/testmod/java')
+                resources.srcDir project(':common').file('src/testmod/resources')
+            }
+        }
+
+        loom {
+            runs {
+                testmodClient {
+                    client()
+                    ideConfigGenerated true
+                    name = "Testmod Client"
+                    source sourceSets.main
+                    source sourceSets.testmod
+                }
+            }
         }
     }
 }

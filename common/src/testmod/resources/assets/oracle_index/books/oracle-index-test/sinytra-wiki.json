@@ -1,0 +1,9 @@
+{
+    "schema": "1",
+    "id": "oracle-index-test",
+    "modid": "oracle_index_test",
+    "platforms": {
+        "modrinth": "oracle-index",
+        "curseforge": "oracle-index"
+    }
+}
