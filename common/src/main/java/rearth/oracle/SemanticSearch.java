@@ -73,9 +73,9 @@ public class SemanticSearch {
                     var modId = segments[0];        // e.g. "oritech"
                     var entryPath = purePath.replaceFirst(modId + "/", ""); // e.g. "tools/wrench.mdx"
                     var entryFileName = segments[segments.length - 1]; // e.g. "wrench.mdx"
-                    var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor"
+                    var entryDirectory = entryPath.replace(entryFileName, ""); // e.g. "tools" or "processing/reactor" or ".translated/ja_jp/tools"
                     
-                    if (!filter.test(modId, entryDirectory)) continue; // skip / don't support translations for now
+                    if (!filter.test(modId, purePath)) continue; // skip / don't support translations for now
                     
                     try {
                         var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
