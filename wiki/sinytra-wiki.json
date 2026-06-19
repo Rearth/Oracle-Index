@@ -1,0 +1,8 @@
+{
+  "id": "oracle-index",
+  "schema": "1",
+  "platforms": {
+    "curseforge": "oracle-index",
+    "modrinth": "oracle-index"
+  }
+}

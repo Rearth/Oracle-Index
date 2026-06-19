@@ -2,11 +2,11 @@
 title: (Optional) Automatic Gradle Wiki Sync
 ---
 
-It is recommended to add a gradle task to automatically sync the content from your "docs" directory to your built mod. A simple architectury gradle task may look as follows:
+It is recommended to add a gradle task to automatically sync the content from your "wiki" directory to your built mod. A simple architectury gradle task may look as follows:
 
 ```
 tasks.named('processResources') {
-    from("$rootDir/docs") {
+    from("$rootDir/wiki") {
         into "assets/oracle_index/books/oritech"
         exclude '.assets/item/**'   // items are rendered ingame as actual item components, no need to include them here
     }
