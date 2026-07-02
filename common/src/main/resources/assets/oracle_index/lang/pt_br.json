@@ -1,0 +1,14 @@
+{
+  "oracle_index.title.oracle_index": "Índice do Oracle",
+  "oracle_index.title.oracle-index": "Índice do Oracle",
+  "key.oracle_index.open": "Abrir índice do Oracle",
+  "key.oracle_index.search": "Abrir pesquisa do Oracle",
+  "key.categories.oracle": "Índice do Oracle",
+  "oracle_index.searchbar.placeholder" : "Encontrar ou Calcular",
+  "oracle_index.searchbar.tooltip" : "Pesquisa inteligente que suporta frases completas e expressões matemáticas.",
+  "tooltip.oracle_index.open_search": "Abrir pesquisa. Você sempre pode abrir isso pressionando [CTRL + %s] ou [%s].",
+  "tooltip.oracle_index.back": "Voltar para a última página.",
+  "tooltip.oracle_index.close_screen": "Fechar Wiki.",
+  "oracle_index.button.docs": "Documentação",
+  "oracle_index.button.content": "Conteúdo"
+}
