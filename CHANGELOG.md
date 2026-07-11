@@ -1,4 +1,2 @@
-- Support V1 wiki layout (@Su5ed)
-- Many formatting / parsing improvements (@Su5ed)
-- Migrate oracle index wiki to new V1 moddedmc wiki layout
-- Minor bugfixes
+- Optimize images
+- Fix neoforge accesswiedener inclusion
