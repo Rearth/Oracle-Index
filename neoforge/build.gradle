@@ -98,6 +98,12 @@ processResources {
 shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = 'dev-shadow'
+
+    // Architectury uses these files to transform the common sources, but they
+    // must not be published in a NeoForge mod. Loom treats their presence as a
+    // Fabric access widener when this jar is consumed as a dependency.
+    exclude 'architectury.common.json'
+    exclude 'oracle_index.accesswidener'
 }
 
 // because the stupid microsoft onnx package contains 50MB of unnecessary pdb files, we re-assemble the entire dist jar, and strip out those files
