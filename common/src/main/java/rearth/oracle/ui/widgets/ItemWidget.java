@@ -19,8 +19,8 @@ public class ItemWidget extends UIComponent {
     private boolean hideItemDecorations;
     
     public ItemWidget(ItemStack stack) {
+        super(0, 0, 16, 16);
         this.stack = stack;
-        size(16, 16);
     }
     
     @Override

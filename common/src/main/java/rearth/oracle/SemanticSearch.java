@@ -35,10 +35,18 @@ public class SemanticSearch {
     public static AtomicBoolean EMBEDDING_ERRORED = new AtomicBoolean(false);
     public static AtomicBoolean FINISHED = new AtomicBoolean(false);
     
-    public SemanticSearch(BiPredicate<String, String> filter) {
-        
+    public static SemanticSearch create(BiPredicate<String, String> filter) {
+        var search = new SemanticSearch();
+        search.startIndexing(filter);
+        return search;
+    }
+
+    private SemanticSearch() {
+    }
+
+    private void startIndexing(BiPredicate<String, String> filter) {
         // do this in background to avoid freezing main
-        new Thread(() -> {
+        var indexingThread = new Thread(() -> {
             
             try {
                 
@@ -104,7 +112,8 @@ public class SemanticSearch {
                 Oracle.LOGGER.error("Unable to generate embeddings: " + e.getMessage());
                 EMBEDDING_ERRORED.set(true);
             }
-        }).start();
+        }, "Oracle Index Search Indexer");
+        indexingThread.start();
     }
     
     public boolean isReady() throws InvalidObjectException {

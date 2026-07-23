@@ -20,6 +20,7 @@ import rearth.oracle.docs.DocsFormat;
 import rearth.oracle.docs.DocsIndexer;
 import rearth.oracle.docs.DocsMode;
 import rearth.oracle.progress.AdvancementProgressValidator;
+import rearth.oracle.tooltip.DocumentationTooltipHandler;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.SearchScreen;
 import rearth.oracle.util.TitleLookup;
@@ -44,9 +45,6 @@ public final class OracleClient {
     public static final Map<String, Identifier> CONTENT_ID_MAP = new HashMap<>();// item / block id -> resource path (e.g., "oritech:enderic_laser" -> "oracle_index:books/oritech/.content/machines/laser.mdx")
     public static final Map<String, Map<String, Identifier>> CONTENT_REF_MAP = new HashMap<>();// page ref -> resource path (e.g., "colored_cables" -> "oracle_index:books/oritech/.content/cabling/colored_cables.mdx")
     
-    public static ItemStack tooltipStack;
-    public static float openEntryProgress = 0;
-    
     private static SemanticSearch searchInstance;
     
     public static void init() {
@@ -58,6 +56,7 @@ public final class OracleClient {
         Configurator.setLevel("ai.djl.util.Platform", Level.WARN);
         
         AdvancementProgressValidator.register();
+        DocumentationTooltipHandler.register();
         
         ClientTickEvent.CLIENT_POST.register(client -> {
             if (ORACLE_WIKI.consumeClick()) {
@@ -83,11 +82,6 @@ public final class OracleClient {
             findAllResourceEntries(manager);
             getOrCreateSearch();    // start search to begin indexing in advance
         }, Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "wiki_resources"));
-        
-        ClientTickEvent.CLIENT_POST.register(client -> {
-            if (client.hasAltDown()) return;
-            openEntryProgress += (0f - openEntryProgress) * 0.13f;
-        });
         
     }
     
@@ -198,7 +192,7 @@ public final class OracleClient {
               return !format.isTranslatedPath(path);
             };
 
-            searchInstance = new SemanticSearch(filter);
+            searchInstance = SemanticSearch.create(filter);
         }
         
         return searchInstance;

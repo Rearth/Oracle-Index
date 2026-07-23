@@ -13,6 +13,7 @@ import rearth.oracle.util.MdxComponentBlock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -120,7 +121,8 @@ class MarkdownTests {
                         if (sibling instanceof ListItem) index++;
                         sibling = sibling.getPrevious();
                     }
-                    label = String.valueOf(orderedList.getStartNumber() + index - 1);
+                    int start = Objects.requireNonNullElse(orderedList.getMarkerStartNumber(), 1);
+                    label = String.valueOf(start + index - 1);
                 }
                 
                 results.add(depth + ":" + label);

@@ -33,6 +33,3 @@ type = "required"
 versionRange = "[20.0.9,)"
 ordering = "AFTER"
 side = "BOTH"
-
-[[mixins]]
-config = "oracle_index.mixins.json"

@@ -42,12 +42,12 @@ subprojects {
 
         maven { // FFAPI
             name = "Sinytra"
-            url "https://maven.su5ed.dev/releases"
+            url = "https://maven.su5ed.dev/releases"
         }
 
         maven {
             name = 'CurseMaven'
-            url "https://beta.cursemaven.com"
+            url = "https://beta.cursemaven.com"
         }
     }
 
@@ -66,7 +66,7 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         it.options.release = 25
-        it.options.compilerArgs.addAll(['-Xmaxerrs', '500'])
+        it.options.compilerArgs.addAll(['-Xmaxerrs', '500', '-Xlint:all'])
     }
 
     // Configure Maven publishing.

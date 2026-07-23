@@ -17,12 +17,12 @@ public class TextureWidget extends UIComponent {
     private final int textureHeight;
     
     public TextureWidget(Identifier texture, int textureWidth, int textureHeight) {
+        super(0, 0, textureWidth, textureHeight);
         this.texture = texture;
         this.textureWidth = textureWidth;
         this.textureHeight = textureHeight;
         this.regionWidth = textureWidth;
         this.regionHeight = textureHeight;
-        size(textureWidth, textureHeight);
     }
     
     public TextureWidget region(int u, int v, int regionWidth, int regionHeight) {

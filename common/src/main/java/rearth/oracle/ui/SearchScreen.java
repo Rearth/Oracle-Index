@@ -48,6 +48,7 @@ public class SearchScreen extends WikiBaseScreen {
     private int searchBarW;
     private int searchBarH;
     private int waitFrames = 0;
+    private boolean searchReady;
     
     public SearchScreen(Screen parent) {
         super(Component.translatable("oracle_index.title.search"));
@@ -75,7 +76,7 @@ public class SearchScreen extends WikiBaseScreen {
         searchField = new EditBox(Minecraft.getInstance().font, 0, 0, 1, 14, Component.empty());
         searchField.setMaxLength(120);
         searchField.setBordered(false);
-        searchField.setEditable(false);
+        searchField.setEditable(true);
         searchField.setResponder(this::onSearchTyped);
         searchField.setSuggestion(Component.translatable("oracle_index.searchbar.placeholder").getString());
         searchField.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("oracle_index.searchbar.tooltip")));
@@ -114,7 +115,7 @@ public class SearchScreen extends WikiBaseScreen {
     
     @Override
     public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        boolean searchReady;
+        boolean wasReady = searchReady;
         try {
             searchReady = OracleClient.getOrCreateSearch().isReady();
         } catch (Throwable error) {
@@ -132,13 +133,16 @@ public class SearchScreen extends WikiBaseScreen {
         
         if (searchReady) {
             searchField.setEditable(true);
-            if (searchField.getValue().startsWith("Indexing")) searchField.setValue("");
+            var query = searchField.getValue();
+            searchField.setSuggestion(query.isEmpty()
+              ? Component.translatable("oracle_index.searchbar.placeholder").getString()
+              : "");
+            if (!wasReady && !query.isEmpty()) onSearchTyped(query);
         } else {
             waitFrames++;
             int dots = (waitFrames / 2) % 3 + 1;
-            searchField.setEditable(false);
-            searchField.setValue("Indexing" + ".".repeat(dots));
-            searchField.setSuggestion("");
+            searchField.setEditable(true);
+            searchField.setSuggestion(searchField.getValue().isEmpty() ? "Indexing" + ".".repeat(dots) : "");
         }
         
         super.extractRenderState(context, mouseX, mouseY, delta);
@@ -158,9 +162,9 @@ public class SearchScreen extends WikiBaseScreen {
     }
     
     private void onSearchTyped(String query) {
-        if (query.startsWith("Indexing")) return;
         var placeholder = Component.translatable("oracle_index.searchbar.placeholder").getString();
         searchField.setSuggestion(query.isEmpty() ? placeholder : "");
+        if (!searchReady) return;
         if (query.length() <= 2) return;
         
         List<SemanticSearch.SearchResult> results;

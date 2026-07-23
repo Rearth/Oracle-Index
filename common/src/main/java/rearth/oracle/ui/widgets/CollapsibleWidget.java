@@ -31,6 +31,7 @@ public class CollapsibleWidget extends FlowWidget {
     private boolean headerHovered;
     private Consumer<CollapsibleWidget> onToggle;
     
+    @SuppressWarnings("this-escape")
     public CollapsibleWidget(Component title, boolean expanded) {
         super(Direction.VERTICAL);
         this.title = title;

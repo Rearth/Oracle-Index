@@ -19,8 +19,7 @@ import java.util.function.Predicate;
  * {@link #getPreferredHeight(int)} based on the wrapped layout.
  *
  * <p>Supports a render-time {@link #scale}, {@link #color}, and click-handling
- * for {@link ClickEvent#OPEN_URL} styles via a {@link Predicate} that can veto
- * navigation.</p>
+ * for URL and wiki-link styles via a {@link Predicate} that can veto navigation.</p>
  */
 public class LabelWidget extends UIComponent {
     
@@ -182,9 +181,15 @@ public class LabelWidget extends UIComponent {
         var style = styleAt(mouseX, mouseY);
         if (style == null) return super.handleClick(mouseX, mouseY, button);
         var click = style.getClickEvent();
-        if (!(click instanceof ClickEvent.OpenUrl openUrl))
+        String destination;
+        if (click instanceof ClickEvent.OpenUrl openUrl) {
+            destination = openUrl.uri().toString();
+        } else if (click instanceof ClickEvent.Custom custom) {
+            destination = custom.payload().flatMap(tag -> tag.asString()).orElse(null);
+        } else {
             return super.handleClick(mouseX, mouseY, button);
-        if (linkHandler.test(openUrl.uri().toString())) return true;
+        }
+        if (destination != null && linkHandler.test(destination)) return true;
         return super.handleClick(mouseX, mouseY, button);
     }
     

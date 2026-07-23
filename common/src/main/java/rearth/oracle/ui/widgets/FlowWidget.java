@@ -68,7 +68,7 @@ public class FlowWidget extends UIComponent {
         return this;
     }
     
-    public FlowWidget child(UIComponent child) {
+    public final FlowWidget child(UIComponent child) {
         children.add(child);
         return this;
     }

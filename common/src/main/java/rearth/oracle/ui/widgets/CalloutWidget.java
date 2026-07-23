@@ -20,6 +20,7 @@ public class CalloutWidget extends FlowWidget {
     private final CalloutVariant variant;
     private final FlowWidget body;
     
+    @SuppressWarnings("this-escape")
     public CalloutWidget(CalloutVariant variant) {
         super(Direction.VERTICAL);
         this.variant = variant;

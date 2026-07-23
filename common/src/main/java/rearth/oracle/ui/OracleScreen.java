@@ -398,7 +398,7 @@ public class OracleScreen extends WikiBaseScreen {
     
     private boolean onLinkClicked(String wikiId, String link, Identifier sourceEntryPath) {
         try {
-            if (link.startsWith("https")) return tryOpenWebLink(link);
+            if (link.startsWith("https://") || link.startsWith("http://")) return tryOpenWebLink(link);
             var ingameTarget = MarkdownParser.getLinkTarget(link, wikiId, sourceEntryPath);
             if (ingameTarget != null) {
                 loadContent(ingameTarget, wikiId);

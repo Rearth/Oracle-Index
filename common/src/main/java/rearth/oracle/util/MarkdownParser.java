@@ -10,6 +10,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.Identifier;
 import org.apache.commons.lang3.StringUtils;
@@ -25,7 +26,6 @@ import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.widgets.*;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -37,6 +37,8 @@ import static rearth.oracle.OracleClient.ROOT_DIR;
  */
 public class MarkdownParser {
 
+    private static final Identifier WIKI_LINK_EVENT =
+      Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "wiki_link");
     private static final String[] removedLines = {"<center>", "</center>", "<div>", "</div>", "<span>", "</span>"};
 
     private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create());
@@ -221,7 +223,8 @@ public class MarkdownParser {
                     if (sibling instanceof ListItem) index++;
                     sibling = sibling.getPrevious();
                 }
-                int n = orderedList.getStartNumber() + index - 1;
+                int start = Objects.requireNonNullElse(orderedList.getMarkerStartNumber(), 1);
+                int n = start + index - 1;
                 buffer.append(Component.literal(n + ". ").withStyle(ChatFormatting.DARK_GRAY));
             }
             visitChildren(listItem);
@@ -279,7 +282,10 @@ public class MarkdownParser {
         @Override
         public void visit(Link link) {
             var old = currentStyle;
-            var clickEvent = new ClickEvent.OpenUrl(URI.create(link.getDestination()));
+            var clickEvent = new ClickEvent.Custom(
+              WIKI_LINK_EVENT,
+              Optional.of(StringTag.valueOf(link.getDestination()))
+            );
             currentStyle = currentStyle.withColor(ChatFormatting.BLUE).withUnderlined(true).withClickEvent(clickEvent);
 
             if (link.getFirstChild() == null && (link.getTitle() == null || link.getTitle().isBlank())) {

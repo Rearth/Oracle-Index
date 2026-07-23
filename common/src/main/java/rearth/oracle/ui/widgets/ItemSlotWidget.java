@@ -17,8 +17,8 @@ public class ItemSlotWidget extends UIComponent {
     private final ItemWidget item;
     
     public ItemSlotWidget(ItemWidget item) {
+        super(0, 0, SLOT_SIZE, SLOT_SIZE);
         this.item = item;
-        size(SLOT_SIZE, SLOT_SIZE);
     }
     
     public ItemWidget item() {
