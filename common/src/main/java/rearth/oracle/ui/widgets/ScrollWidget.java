@@ -1,8 +1,8 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ import java.util.List;
  * Vertical scroll viewport. Wraps a single child widget; if the child is
  * taller than this widget's {@link #height}, the user can scroll it.
  *
- * <p>Clipping uses {@link DrawContext#enableScissor(int, int, int, int)} for
+ * <p>Clipping uses {@link GuiGraphicsExtractor#enableScissor(int, int, int, int)} for
  * a sharp viewport, then a soft 6-px fade gradient at the top/bottom edge
  * indicates more content is available.</p>
  *
@@ -56,7 +56,7 @@ public class ScrollWidget extends UIComponent {
     }
     
     private int clampOffset(int requested) {
-        return MathHelper.clamp(requested, 0, maxOffset());
+        return Mth.clamp(requested, 0, maxOffset());
     }
     
     private int maxOffset() {
@@ -88,7 +88,7 @@ public class ScrollWidget extends UIComponent {
         
         contentHeight = child instanceof FlowWidget flow ? Math.max(childH, flow.laidOutHeight()) : Math.max(childH, child.getHeight());
         targetScrollOffset = clampOffset(targetScrollOffset);
-        scrollOffset = MathHelper.clamp(scrollOffset, 0, maxOffset());
+        scrollOffset = Mth.clamp(scrollOffset, 0, maxOffset());
     }
     
     @Override
@@ -107,7 +107,7 @@ public class ScrollWidget extends UIComponent {
     // ---------------------------------------------------------------- render
     
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         if (!visible || child == null) return;
         
         if (!surface.isNone()) {
@@ -121,10 +121,10 @@ public class ScrollWidget extends UIComponent {
         
         // Clip viewport, then translate to apply scroll offset
         context.enableScissor(x, y, x + width, y + height);
-        context.getMatrices().push();
-        context.getMatrices().translate(0, -visibleOffset, 0);
+        context.pose().pushMatrix();
+        context.pose().translate(0, -visibleOffset);
         child.render(context, mouseX, mouseY + visibleOffset, delta);
-        context.getMatrices().pop();
+        context.pose().popMatrix();
         context.disableScissor();
         
         renderEdgeFades(context, visibleOffset);
@@ -143,27 +143,27 @@ public class ScrollWidget extends UIComponent {
         }
     }
     
-    private void renderEdgeFades(DrawContext context, int visibleOffset) {
+    private void renderEdgeFades(GuiGraphicsExtractor context, int visibleOffset) {
         // Top fade — only if scrolled away from top
         if (visibleOffset > 0) {
             int top = Math.min(visibleOffset, FADE_HEIGHT);
-            int alpha = MathHelper.clamp(top * 32, 0, 0xC0);
+            int alpha = Mth.clamp(top * 32, 0, 0xC0);
             context.fillGradient(x, y, x + width - SCROLL_BAR_WIDTH - 2, y + top, (alpha << 24) | 0x000000, 0x00000000);
         }
         // Bottom fade — only if more content below
         int hidden = Math.max(0, contentHeight - height - visibleOffset);
         if (hidden > 0) {
             int bot = Math.min(hidden, FADE_HEIGHT);
-            int alpha = MathHelper.clamp(bot * 32, 0, 0xC0);
+            int alpha = Mth.clamp(bot * 32, 0, 0xC0);
             context.fillGradient(x, y + height - bot, x + width - SCROLL_BAR_WIDTH - 2, y + height, 0x00000000, (alpha << 24) | 0x000000);
         }
     }
     
-    private void renderScrollBar(DrawContext context, int visibleOffset) {
+    private void renderScrollBar(GuiGraphicsExtractor context, int visibleOffset) {
         if (contentHeight <= height) return;
         if (scrollBarVisibleFrames <= 0) return;
         
-        float alphaRatio = MathHelper.clamp(scrollBarVisibleFrames / (float) SCROLL_BAR_VISIBLE_TICKS, 0f, 1f);
+        float alphaRatio = Mth.clamp(scrollBarVisibleFrames / (float) SCROLL_BAR_VISIBLE_TICKS, 0f, 1f);
         int trackAlpha = (int) (0x40 * alphaRatio);
         int thumbAlpha = (int) (0xC0 * alphaRatio);
         
@@ -179,7 +179,7 @@ public class ScrollWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         // unused — render() is fully overridden
     }
     
@@ -219,7 +219,7 @@ public class ScrollWidget extends UIComponent {
     }
     
     @Override
-    public List<Text> tooltip(int mouseX, int mouseY) {
+    public List<Component> tooltip(int mouseX, int mouseY) {
         if (child != null && isInBounds(mouseX, mouseY)) {
             int virtualY = mouseY + visibleOffset();
             if (child.isInBounds(mouseX, virtualY)) {

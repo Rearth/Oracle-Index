@@ -3,7 +3,7 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 plugins {
-    id 'io.github.goooler.shadow'
+    id 'com.gradleup.shadow'
 }
 loom {
     accessWidenerPath.set(project(":common").loom.accessWidenerPath)
@@ -32,45 +32,52 @@ configurations {
 }
 
 dependencies {
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    implementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     // Fabric API. This is technically optional, but you probably want it anyway.
-    modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
+    implementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
 
     // Architectury API. This is optional, and you can comment it out if you don't need it.
-    modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
+    implementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
 
-    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    common(project(path: ':common')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
 
     // included libs
     // jsoup for html parsing
-    implementation(include(api('org.jsoup:jsoup:1.17.2')))
+    implementation 'org.jsoup:jsoup:1.17.2'
+    include 'org.jsoup:jsoup:1.17.2'
     // commonmark for markdown parsing
-    implementation(include(api('org.commonmark:commonmark:0.27.1')))
-    implementation(include(api('org.commonmark:commonmark-ext-yaml-front-matter:0.27.1')))
+    implementation 'org.commonmark:commonmark:0.27.1'
+    include 'org.commonmark:commonmark:0.27.1'
+    implementation 'org.commonmark:commonmark-ext-yaml-front-matter:0.27.1'
+    include 'org.commonmark:commonmark-ext-yaml-front-matter:0.27.1'
     // exp4j for math expressions in search bar
-    implementation(include(api('net.objecthunter:exp4j:0.4.8')))
+    implementation 'net.objecthunter:exp4j:0.4.8'
+    include 'net.objecthunter:exp4j:0.4.8'
 
     // langchain for in memory vector store and small embedding model
-    implementation(include(api("dev.langchain4j:langchain4j:1.0.0")))
-    implementation(include(api("dev.langchain4j:langchain4j-core:1.0.0")))
-    implementation(include(api("dev.langchain4j:langchain4j-embeddings:1.0.0-beta5")))
-    implementation(include(api("dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5")))
-    implementation(include(api("ai.djl:api:0.31.1")))
-    implementation(include(api("ai.djl.huggingface:tokenizers:0.31.1")))
-    implementation(include(api("org.apache.opennlp:opennlp-tools:2.5.4")))
-    implementation(include(api("com.microsoft.onnxruntime:onnxruntime:1.20.0")))
+    implementation "dev.langchain4j:langchain4j:1.0.0"
+    include "dev.langchain4j:langchain4j:1.0.0"
+    implementation "dev.langchain4j:langchain4j-core:1.0.0"
+    include "dev.langchain4j:langchain4j-core:1.0.0"
+    implementation "dev.langchain4j:langchain4j-embeddings:1.0.0-beta5"
+    include "dev.langchain4j:langchain4j-embeddings:1.0.0-beta5"
+    implementation "dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5"
+    include "dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2-q:1.0.0-beta5"
+    implementation "ai.djl:api:0.31.1"
+    include "ai.djl:api:0.31.1"
+    implementation "ai.djl.huggingface:tokenizers:0.31.1"
+    include "ai.djl.huggingface:tokenizers:0.31.1"
+    implementation "org.apache.opennlp:opennlp-tools:2.5.4"
+    include "org.apache.opennlp:opennlp-tools:2.5.4"
+    implementation "com.microsoft.onnxruntime:onnxruntime:1.20.0"
+    include "com.microsoft.onnxruntime:onnxruntime:1.20.0"
 
     testImplementation "net.fabricmc:fabric-loader-junit:${rootProject.fabric_loader_version}"
     compileOnly "net.fabricmc:fabric-loader-junit:${rootProject.fabric_loader_version}"
 
-    modRuntimeOnly "teamreborn:energy:4.1.0"
-    modImplementation "curse.maven:oritech-1030830:7938775" // oritech 1.2.2
-    modRuntimeOnly "curse.maven:architectury-api-419699:5786326"
-    modRuntimeOnly "curse.maven:athena-841890:5629396"
-    modRuntimeOnly "curse.maven:geckolib-388172:5605709"
-    modRuntimeOnly "curse.maven:emi-580555:6205505"
+    // Optional runtime integrations can be added back once 26.1-compatible artifacts are published.
     // modRuntimeOnly "curse.maven:jei-238222:6516055"
 
     // simply swords for more oracle lib usage
@@ -91,16 +98,23 @@ processResources {
     }
 }
 
+jar {
+    archiveClassifier = 'raw'
+}
+
 shadowJar {
+    dependsOn jar
+    mainSpec.sourcePaths.clear()
+    from(zipTree(jar.archiveFile))
     configurations = [project.configurations.shadowBundle]
-    archiveClassifier = 'dev-shadow'
+    archiveClassifier = null
 }
 
 // because the stupid microsoft onnx package contains 50MB of unnecessary pdb files, we re-assemble the entire dist jar, and strip out those files
 task cleanRemappedJar {
 
     doLast {
-        File original = remapJar.archiveFile.get().asFile
+        File original = shadowJar.archiveFile.get().asFile
         File temp = new File(original.parentFile, original.name + ".tmp")
 
         // Open streams for reading the old jar and writing the new one
@@ -158,7 +172,7 @@ task cleanRemappedJar {
 task xplatJar {
 
     doLast {
-        File original = remapJar.archiveFile.get().asFile
+        File original = shadowJar.archiveFile.get().asFile
         File temp = new File(original.parentFile, original.name.replace(".jar", "-xplat.jar"))
 
         // Open streams for reading the old jar and writing the new one
@@ -209,15 +223,12 @@ task xplatJar {
     }
 }
 
-remapJar.finalizedBy(cleanRemappedJar)
-remapJar.finalizedBy(xplatJar)
-
-remapJar {
-    inputFile.set shadowJar.archiveFile
-}
+shadowJar.finalizedBy(cleanRemappedJar)
+shadowJar.finalizedBy(xplatJar)
+assemble.dependsOn(shadowJar)
 
 publishMods {
-    file = remapJar.archiveFile
+    file = shadowJar.archiveFile
     changelog = file("../CHANGELOG.md").getText()
     type = STABLE
     modLoaders.add("fabric")
@@ -225,7 +236,7 @@ publishMods {
     modrinth {
         accessToken = providers.environmentVariable("MODRINTH_API_KEY")
         projectId = "J8MMsNrL"
-        minecraftVersions.add("1.21.1")
+        minecraftVersions.add("26.1.2")
 
         requires("architectury-api")
 
@@ -235,11 +246,11 @@ publishMods {
     curseforge {
         accessToken = providers.environmentVariable("CURSEFORGE_API_KEY")
         projectId = "1206582"
-        minecraftVersions.add("1.21.1")
+        minecraftVersions.add("26.1.2")
 
         requires("architectury-api")
 
-        javaVersions.add(JavaVersion.VERSION_21)
+        javaVersions.add(JavaVersion.VERSION_25)
         clientRequired = true
         serverRequired = false
 

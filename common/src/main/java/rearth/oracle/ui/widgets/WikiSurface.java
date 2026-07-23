@@ -1,7 +1,7 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import rearth.oracle.Oracle;
 
 /**
@@ -22,7 +22,7 @@ public enum WikiSurface {
     
     @FunctionalInterface
     public interface Renderer {
-        void render(DrawContext context, int x, int y, int width, int height);
+        void render(GuiGraphicsExtractor context, int x, int y, int width, int height);
     }
     
     private final Renderer renderer;
@@ -31,7 +31,7 @@ public enum WikiSurface {
         this.renderer = renderer;
     }
     
-    public void render(DrawContext context, int x, int y, int width, int height) {
+    public void render(GuiGraphicsExtractor context, int x, int y, int width, int height) {
         if (renderer != null && width > 0 && height > 0) {
             renderer.render(context, x, y, width, height);
         }
@@ -42,7 +42,7 @@ public enum WikiSurface {
     }
     
     private static Renderer ninePatch(String name) {
-        var id = Identifier.of(Oracle.MOD_ID, "textures/gui/" + name + ".png");
+        var id = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "textures/gui/" + name + ".png");
         var renderer = new NinePatchRenderer(id);
         return renderer::render;
     }

@@ -5,12 +5,12 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.resource.language.I18n;
-import net.minecraft.registry.Registries;
-import net.minecraft.resource.Resource;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Pair;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.resources.Identifier;
+import com.mojang.datafixers.util.Pair;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import rearth.oracle.Oracle;
@@ -78,7 +78,7 @@ public class DocsIndexer {
     }
 
     public void findAllResourceEntries(ResourceManager manager) {
-        var resources = manager.findResources(ROOT_DIR, path -> path.getPath().endsWith(".mdx"));
+        var resources = manager.listResources(ROOT_DIR, path -> path.getPath().endsWith(".mdx"));
 
         Map<String, List<IdentifiedResource>> wikis = new HashMap<>();
         for (var entry : resources.entrySet()) {
@@ -124,7 +124,7 @@ public class DocsIndexer {
         this.availableModes.computeIfAbsent(modId, k -> new HashSet<>()).add(mode);
 
         // parse frontmatter
-        try (var inputStream = resource.getInputStream()) {
+        try (var inputStream = resource.open()) {
             var fileContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
             var frontmatter = MarkdownParser.parseFrontmatter(fileContent);
 
@@ -138,13 +138,13 @@ public class DocsIndexer {
                     for (String id : ids) {
                         this.contentIds.put(id, resourceId);
 
-                        var itemId = Identifier.of(id);
+                        var itemId = Identifier.parse(id);
 
                         Supplier<String> lazyTitle;
                         var title = frontmatter.getOrDefault("title", "missing");
-                        if (title.equals("missing") && Registries.ITEM.containsId(itemId)) {
+                        if (title.equals("missing") && BuiltInRegistries.ITEM.containsKey(itemId)) {
                             // Use supplier as translations may not be available at this time yet
-                            lazyTitle = Suppliers.memoize(() -> I18n.translate(Registries.ITEM.get(itemId).getTranslationKey()));
+                            lazyTitle = Suppliers.memoize(() -> I18n.get(BuiltInRegistries.ITEM.getValue(itemId).getDescriptionId()));
                         } else {
                             lazyTitle = () -> title;
                         }
@@ -159,7 +159,7 @@ public class DocsIndexer {
             if (frontmatter.containsKey("related_items")) {
                 var baseString = frontmatter.getOne("related_items").replace("[", "").replace("]", "").replace("\"", "");
                 for (var itemString : baseString.split(", ")) {
-                    var itemId = Identifier.of(itemString.trim());
+                    var itemId = Identifier.parse(itemString.trim());
                     var title = frontmatter.getOrDefault("title", "missing");
                     this.itemLinkCandidates.put(itemId, new ItemArticleRef(resourceId, () -> title, modId, 0));
                 }
@@ -179,7 +179,7 @@ public class DocsIndexer {
     }
 
     private static DocsFormat detectDocsFormat(ResourceManager manager, String wikiId) {
-        var metaPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/" + WIKI_META_FILE);
+        var metaPath = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + "/" + WIKI_META_FILE);
         WikiMetaStub meta = manager.getResource(metaPath)
             .map(DocsIndexer::parseWikiMeta)
             .orElse(null);
@@ -228,7 +228,7 @@ public class DocsIndexer {
 
     @Nullable
     private static WikiMetaStub parseWikiMeta(Resource resource) {
-        try (Reader reader = new InputStreamReader(resource.getInputStream())) {
+        try (Reader reader = new InputStreamReader(resource.open())) {
             return GSON.fromJson(reader, WikiMetaStub.class);
         } catch (Exception e) {
             LOGGER.error("Error parsing wiki metadata", e);

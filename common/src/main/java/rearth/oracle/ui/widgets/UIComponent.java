@@ -1,7 +1,7 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -15,7 +15,7 @@ import java.util.List;
  *
  * <p>Containers are responsible for laying out their children and may call
  * {@link #layout(int, int)} on each child. Leaf widgets only need to override
- * {@link #renderContent(DrawContext, int, int, float)}.
+ * {@link #renderContent(GuiGraphicsExtractor, int, int, float)}.
  */
 public abstract class UIComponent {
     
@@ -25,7 +25,7 @@ public abstract class UIComponent {
     protected WikiSurface surface = WikiSurface.NONE;
     protected boolean visible = true;
     
-    private List<Text> tooltip;
+    private List<Component> tooltip;
     
     /**
      * Set by the screen / parent container so widgets can request a re-layout.
@@ -70,13 +70,13 @@ public abstract class UIComponent {
     /**
      * Tooltip lookup; subclasses can return a position-dependent tooltip.
      */
-    public List<Text> tooltip(int mouseX, int mouseY) {
+    public List<Component> tooltip(int mouseX, int mouseY) {
         return tooltip;
     }
     
     // --------------------------------------------------------------- rendering
     
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         if (!visible) return;
         
         if (!surface.isNone()) surface.render(context, x, y, width, height);
@@ -84,7 +84,7 @@ public abstract class UIComponent {
         renderContent(context, mouseX, mouseY, delta);
     }
     
-    protected abstract void renderContent(DrawContext context, int mouseX, int mouseY, float delta);
+    protected abstract void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta);
     
     public void tick() {
     }
@@ -200,22 +200,22 @@ public abstract class UIComponent {
     
     // --------------------------------------------------------------- fluent
     
-    public UIComponent withTooltip(Text... lines) {
+    public UIComponent withTooltip(Component... lines) {
         this.tooltip = splitNewlines(List.of(lines));
         return this;
     }
     
-    public UIComponent withTooltip(List<Text> lines) {
+    public UIComponent withTooltip(List<Component> lines) {
         this.tooltip = splitNewlines(lines);
         return this;
     }
     
-    private static List<Text> splitNewlines(List<Text> lines) {
-        var result = new ArrayList<Text>();
+    private static List<Component> splitNewlines(List<Component> lines) {
+        var result = new ArrayList<Component>();
         for (var line : lines) {
             var str = line.getString();
             if (str.contains("\n")) {
-                for (var part : str.split("\n", -1)) result.add(Text.literal(part));
+                for (var part : str.split("\n", -1)) result.add(Component.literal(part));
             } else {
                 result.add(line);
             }

@@ -1,7 +1,7 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -108,7 +108,7 @@ public class ClickableWidget extends UIComponent {
     }
     
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         if (!visible) return;
         var surface = currentSurface(mouseX, mouseY);
         if (!surface.isNone()) surface.render(context, x, y, width, height);
@@ -123,7 +123,7 @@ public class ClickableWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
     }
     
     @Override
@@ -154,7 +154,7 @@ public class ClickableWidget extends UIComponent {
     }
     
     @Override
-    public List<Text> tooltip(int mouseX, int mouseY) {
+    public List<Component> tooltip(int mouseX, int mouseY) {
         if (child != null && child.isInBounds(mouseX, mouseY)) {
             var tip = child.tooltip(mouseX, mouseY);
             if (tip != null && !tip.isEmpty()) return tip;

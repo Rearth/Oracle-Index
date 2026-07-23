@@ -1,7 +1,7 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +72,7 @@ public class GridWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         for (var c : cells) if (c != null) c.render(context, mouseX, mouseY, delta);
     }
     
@@ -116,7 +116,7 @@ public class GridWidget extends UIComponent {
     }
     
     @Override
-    public List<Text> tooltip(int mouseX, int mouseY) {
+    public List<Component> tooltip(int mouseX, int mouseY) {
         for (var c : visibleChildren()) {
             if (!c.isInBounds(mouseX, mouseY)) continue;
             var t = c.tooltip(mouseX, mouseY);

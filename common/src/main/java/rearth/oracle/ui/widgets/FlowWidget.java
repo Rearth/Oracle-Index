@@ -1,7 +1,7 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -222,7 +222,7 @@ public class FlowWidget extends UIComponent {
     // ---------------------------------------------------------------- render
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         for (var c : children) c.render(context, mouseX, mouseY, delta);
     }
     
@@ -274,7 +274,7 @@ public class FlowWidget extends UIComponent {
     }
     
     @Override
-    public List<Text> tooltip(int mouseX, int mouseY) {
+    public List<Component> tooltip(int mouseX, int mouseY) {
         for (int i = children.size() - 1; i >= 0; i--) {
             var c = children.get(i);
             if (!c.isVisible() || !c.isInBounds(mouseX, mouseY)) continue;

@@ -14,14 +14,14 @@ Dev-only mod for verifying wiki format compatibility
 [[dependencies.oracle_index_test]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.1,)"
+versionRange = "[26.1.2,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.oracle_index_test]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21.1,)"
+versionRange = "[26.1.2]"
 ordering = "NONE"
 side = "BOTH"
 

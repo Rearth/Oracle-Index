@@ -153,7 +153,7 @@ class MarkdownTests {
     }
     
     @Test
-    @DisplayName("Formatting: Soft line breaks should be converted to spaces")
+    @DisplayName("ChatFormatting: Soft line breaks should be converted to spaces")
     void testSoftLineBreaks() {
         String md = """
         Line One

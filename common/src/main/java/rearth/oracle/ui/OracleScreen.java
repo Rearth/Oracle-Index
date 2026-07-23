@@ -3,13 +3,15 @@ package rearth.oracle.ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ConfirmLinkScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ConfirmLinkScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
@@ -66,17 +68,17 @@ public class OracleScreen extends WikiBaseScreen {
     }
     
     public OracleScreen(Screen parent) {
-        super(Text.translatable("oracle_index.title.screen"));
+        super(Component.translatable("oracle_index.title.screen"));
         this.parent = parent;
     }
     
     @Override
-    public void close() {
-        Objects.requireNonNull(client).setScreen(parent);
+    public void onClose() {
+        Objects.requireNonNull(minecraft).setScreen(parent);
     }
     
     public void fullClose() {
-        Objects.requireNonNull(client).setScreen(null);
+        Objects.requireNonNull(minecraft).setScreen(null);
     }
     
     // ---------------------------------------------------------------- build
@@ -108,17 +110,17 @@ public class OracleScreen extends WikiBaseScreen {
         
         // action hub (back / search / close)
         actionHub = FlowWidget.horizontal().gap(-1);
-        backAction = makeHubAction(Text.translatable("tooltip.oracle_index.back"),
-          Identifier.ofVanilla("textures/gui/sprites/widget/page_backward.png"), 23, 13, 24, 20,
+        backAction = makeHubAction(Component.translatable("tooltip.oracle_index.back"),
+          Identifier.withDefaultNamespace("textures/gui/sprites/widget/page_backward.png"), 23, 13, 24, 20,
           b -> back());
         backAction.setVisible(!navigationHistory.isEmpty());
-        var searchAction = makeHubAction(Text.translatable("tooltip.oracle_index.open_search",
-            OracleClient.ORACLE_WIKI.getBoundKeyLocalizedText(),
-            OracleClient.ORACLE_SEARCH.getBoundKeyLocalizedText()),
-          Identifier.ofVanilla("textures/gui/sprites/icon/search.png"), 16, 16, 24, 24,
-          b -> MinecraftClient.getInstance().setScreen(new SearchScreen(this)));
-        var closeAction = makeHubAction(Text.translatable("tooltip.oracle_index.close_screen"),
-          Identifier.ofVanilla("textures/gui/sprites/container/beacon/cancel.png"), 13, 13, 20, 20,
+        var searchAction = makeHubAction(Component.translatable("tooltip.oracle_index.open_search",
+            OracleClient.ORACLE_WIKI.getTranslatedKeyMessage(),
+            OracleClient.ORACLE_SEARCH.getTranslatedKeyMessage()),
+          Identifier.withDefaultNamespace("textures/gui/sprites/icon/search.png"), 16, 16, 24, 24,
+          b -> Minecraft.getInstance().setScreen(new SearchScreen(this)));
+        var closeAction = makeHubAction(Component.translatable("tooltip.oracle_index.close_screen"),
+          Identifier.withDefaultNamespace("textures/gui/sprites/container/beacon/cancel.png"), 13, 13, 20, 20,
           b -> fullClose());
         actionHub.child(backAction).child(searchAction).child(closeAction);
         
@@ -144,7 +146,7 @@ public class OracleScreen extends WikiBaseScreen {
         if (wikiIds.isEmpty()) return FlowWidget.horizontal();
         if (activeWiki == null || !wikiIds.contains(activeWiki)) activeWiki = wikiIds.get(0);
         
-        wikiTitleLabel = new LabelWidget(wikiTitleText().copy().append(Text.literal(" >"))).scale(1.35f);
+        wikiTitleLabel = new LabelWidget(wikiTitleText().copy().append(Component.literal(" >"))).scale(1.35f);
         
         var header = new ClickableWidget(wikiTitleLabel, b -> {
             if (modDropdown != null) {
@@ -158,15 +160,15 @@ public class OracleScreen extends WikiBaseScreen {
             }
             
             @Override
-            public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+            public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
                 if (!visible) return;
-                context.getMatrices().push();
+                context.pose().pushMatrix();
                 var offset = leftPanel.getWidth() * 0f - this.getWidth() * 0f;
-                context.getMatrices().translate(offset, 0, 10);
+                context.pose().translate(offset, 0);
                 var surface = currentSurface(mouseX, mouseY);
                 surface.render(context, x - 5, y, width + 10, height);
                 getChild().render(context, mouseX, mouseY, delta);
-                context.getMatrices().pop();
+                context.pose().popMatrix();
             }
         }.fixedHeight(WIKI_HEADER_HEIGHT)
                        .surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
@@ -176,8 +178,8 @@ public class OracleScreen extends WikiBaseScreen {
         return header;
     }
     
-    private Text wikiTitleText() {
-        return Text.translatable(Oracle.MOD_ID + ".title." + activeWiki).formatted(Formatting.DARK_GRAY);
+    private Component wikiTitleText() {
+        return Component.translatable(Oracle.MOD_ID + ".title." + activeWiki).withStyle(ChatFormatting.DARK_GRAY);
     }
     
     private FlowWidget buildModDropdown() {
@@ -192,7 +194,7 @@ public class OracleScreen extends WikiBaseScreen {
         dropdown.clearChildren();
         var wikiIds = OracleClient.LOADED_WIKIS.keySet().stream().sorted().toList();
         for (var wikiId : wikiIds) {
-            var label = new LabelWidget(Text.translatable(Oracle.MOD_ID + ".title." + wikiId).formatted(wikiId.equals(activeWiki) ? Formatting.WHITE : Formatting.DARK_GRAY));
+            var label = new LabelWidget(Component.translatable(Oracle.MOD_ID + ".title." + wikiId).withStyle(wikiId.equals(activeWiki) ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY));
             label.setPadding(Insets.of(4, 3));
             var row = new ClickableWidget(label, b -> selectWiki(wikiId))
                         .fillWidth()
@@ -214,7 +216,7 @@ public class OracleScreen extends WikiBaseScreen {
             navigationHistory.clear();
             if (backAction != null) backAction.setVisible(false);
             if (contentContainer != null) contentContainer.clearChildren();
-            if (wikiTitleLabel != null) wikiTitleLabel.text(wikiTitleText().copy().append(Text.literal(" >")));
+            if (wikiTitleLabel != null) wikiTitleLabel.text(wikiTitleText().copy().append(Component.literal(" >")));
             if (modDropdown != null) rebuildModDropdown(modDropdown);
             buildNavigationTree();
         }
@@ -283,35 +285,38 @@ public class OracleScreen extends WikiBaseScreen {
     // ---------------------------------------------------------------- render
     
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        super.render(context, mouseX, mouseY, delta);
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(context, mouseX, mouseY, delta);
         if (!isModDropdownOpen() && wikiTitleHeader != null) {
             wikiTitleHeader.render(context, mouseX, mouseY, delta);
         }
-        if (Screen.hasControlDown()) {
+        if (this.minecraft.hasControlDown()) {
             Oracle.LOGGER.info("Opening Oracle Search...");
-            Objects.requireNonNull(client).setScreen(new SearchScreen(this));
+            Objects.requireNonNull(minecraft).setScreen(new SearchScreen(this));
         }
     }
     
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         if (button == 0 && isModDropdownOpen()
               && !modDropdown.isInBounds(mouseX, mouseY)
               && (wikiTitleHeader == null || !wikiTitleHeader.isInBounds(mouseX, mouseY))) {
             closeModDropdown();
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
     
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE && isModDropdownOpen()) {
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE && isModDropdownOpen()) {
             closeModDropdown();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
     
     private boolean isModDropdownOpen() {
@@ -325,7 +330,7 @@ public class OracleScreen extends WikiBaseScreen {
     
     // ---------------------------------------------------------------- hub button
     
-    private ClickableWidget makeHubAction(Text tooltip, Identifier iconTexture, int texW, int texH, int w, int h, Consumer<ClickableWidget> onPress) {
+    private ClickableWidget makeHubAction(Component tooltip, Identifier iconTexture, int texW, int texH, int w, int h, Consumer<ClickableWidget> onPress) {
         var icon = new TextureWidget(iconTexture, texW, texH);
         var button = new ClickableWidget(icon, onPress)
                        .fixedSize(w, h)
@@ -369,7 +374,7 @@ public class OracleScreen extends WikiBaseScreen {
         var translatedPath = OracleClient.getTranslatedPath(filePath, wikiId);
         if (translatedPath.isPresent()) filePath = translatedPath.get();
         
-        var rm = MinecraftClient.getInstance().getResourceManager();
+        var rm = Minecraft.getInstance().getResourceManager();
         var rc = rm.getResource(filePath);
         if (rc.isEmpty()) {
             Oracle.LOGGER.warn("No content file found for {}", filePath);
@@ -380,7 +385,7 @@ public class OracleScreen extends WikiBaseScreen {
             navigationHistory.push(lastEntry);
         if (backAction != null) backAction.setVisible(!navigationHistory.isEmpty());
         
-        var fileContent = new String(rc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        var fileContent = new String(rc.get().open().readAllBytes(), StandardCharsets.UTF_8);
         final var finalPath = filePath;
         var widgets = MarkdownParser.parseMarkdownToWidgets(fileContent, wikiId, filePath,
           link -> onLinkClicked(wikiId, link, finalPath), currentContentWidth());
@@ -422,10 +427,10 @@ public class OracleScreen extends WikiBaseScreen {
     private boolean tryOpenWebLink(String link) throws URISyntaxException {
         var uri = new URI(link);
         var confirm = new ConfirmLinkScreen(accepted -> {
-            if (accepted) Util.getOperatingSystem().open(uri);
-            MinecraftClient.getInstance().setScreen(this);
+            if (accepted) Util.getPlatform().openUri(uri);
+            Minecraft.getInstance().setScreen(this);
         }, link, true);
-        MinecraftClient.getInstance().setScreen(confirm);
+        Minecraft.getInstance().setScreen(confirm);
         return true;
     }
     
@@ -453,7 +458,7 @@ public class OracleScreen extends WikiBaseScreen {
     
     private ClickableWidget makeModeButton(DocsMode mode) {
         boolean selected = activeWikiMode.equals(mode);
-        var text = Text.translatable("oracle_index.button." + mode.name().toLowerCase(Locale.ROOT)).formatted(selected ? Formatting.WHITE : Formatting.DARK_GRAY);
+        var text = Component.translatable("oracle_index.button." + mode.name().toLowerCase(Locale.ROOT)).withStyle(selected ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY);
         var label = new LabelWidget(text);
         var widget = new ClickableWidget(label, b -> {
             if (!selected) {
@@ -491,8 +496,8 @@ public class OracleScreen extends WikiBaseScreen {
      * @return true if any entry under this path is unlocked.
      */
     private boolean buildNavigationEntries(String wikiId, String path, FlowWidget container, Stack<CollapsibleWidget> hierarchy) {
-        var rm = MinecraftClient.getInstance().getResourceManager();
-        var metaPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/_meta.json");
+        var rm = Minecraft.getInstance().getResourceManager();
+        var metaPath = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/_meta.json");
         var translated = OracleClient.getTranslatedPath(metaPath, wikiId);
         if (translated.isPresent()) metaPath = translated.get();
         
@@ -504,18 +509,18 @@ public class OracleScreen extends WikiBaseScreen {
         
         boolean anyUnlocked = false;
         try {
-            var meta = new String(rc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            var meta = new String(rc.get().open().readAllBytes(), StandardCharsets.UTF_8);
             var entries = parseJson(meta);
             
             var levelContainers = new ArrayList<CollapsibleWidget>();
             
             for (var entry : entries) {
-                final var labelPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
+                final var labelPath = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + entry.id());
 
                 if (entry.directory) {
                     boolean expanded = activeEntry != null && activeEntry.getPath().startsWith(labelPath.getPath());
 
-                    var directory = new CollapsibleWidget(Text.translatable(entry.name()).formatted(Formatting.WHITE), expanded);
+                    var directory = new CollapsibleWidget(Component.translatable(entry.name()).withStyle(ChatFormatting.WHITE), expanded);
                     hierarchy.push(directory);
                     boolean childrenUnlocked = buildNavigationEntries(wikiId, path + "/" + entry.id(), directory.body(), hierarchy);
                     hierarchy.pop();
@@ -547,11 +552,11 @@ public class OracleScreen extends WikiBaseScreen {
                     }
                     PAGE_FALLBACK_NAMES.put(labelPath, shownName);
                     
-                    final var labelText = Text.translatable(shownName).formatted(Formatting.WHITE);
+                    final var labelText = Component.translatable(shownName).withStyle(ChatFormatting.WHITE);
                     boolean isUnlocked = true;
                     if (OracleClient.UNLOCK_CRITERIONS.containsKey(labelPath.getPath())) {
                         var unlockData = OracleClient.UNLOCK_CRITERIONS.get(labelPath.getPath());
-                        isUnlocked = OracleProgressAPI.IsUnlocked(wikiId, labelPath.getPath(), unlockData.getLeft(), unlockData.getRight());
+                        isUnlocked = OracleProgressAPI.IsUnlocked(wikiId, labelPath.getPath(), unlockData.getFirst(), unlockData.getSecond());
                     }
                     
                     var label = new LabelWidget(labelText.copy());
@@ -559,7 +564,7 @@ public class OracleScreen extends WikiBaseScreen {
                         anyUnlocked = true;
                         label.text(labelText.copy());
                     } else {
-                        label.text(labelText.copy().formatted(Formatting.OBFUSCATED));
+                        label.text(labelText.copy().withStyle(ChatFormatting.OBFUSCATED));
                     }
                     container.child(new NavigationLink(labelPath, wikiId, label, labelText, isUnlocked));
                 }
@@ -568,7 +573,7 @@ public class OracleScreen extends WikiBaseScreen {
             if (activeEntry == null) {
                 var first = entries.stream().filter(e -> !e.directory).findFirst();
                 if (first.isPresent()) {
-                    var firstPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + first.get().id());
+                    var firstPath = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + path + "/" + first.get().id());
                     loadContent(firstPath, wikiId);
                     activeEntry = firstPath;
 
@@ -589,12 +594,12 @@ public class OracleScreen extends WikiBaseScreen {
     private class NavigationLink extends ClickableWidget {
         private final Identifier target;
         private final LabelWidget label;
-        private final Text labelText;
+        private final Component labelText;
         private final boolean unlocked;
         private boolean wasSelected;
         private boolean wasHovered;
         
-        NavigationLink(Identifier target, String wikiId, LabelWidget label, Text labelText, boolean unlocked) {
+        NavigationLink(Identifier target, String wikiId, LabelWidget label, Component labelText, boolean unlocked) {
             super(label, b -> {
                 try {
                     loadContent(target, wikiId);
@@ -613,7 +618,7 @@ public class OracleScreen extends WikiBaseScreen {
         }
         
         @Override
-        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
             boolean selected = target.equals(activeEntry);
             boolean hovered = isInBounds(mouseX, mouseY);
             if (selected != wasSelected || hovered != wasHovered) updateText(selected, hovered);
@@ -624,13 +629,13 @@ public class OracleScreen extends WikiBaseScreen {
             wasSelected = selected;
             wasHovered = hovered;
             if (!unlocked) {
-                label.text(labelText.copy().formatted(Formatting.OBFUSCATED));
+                label.text(labelText.copy().withStyle(ChatFormatting.OBFUSCATED));
             } else if (selected && hovered) {
-                label.text(labelText.copy().formatted(Formatting.UNDERLINE, Formatting.GRAY));
+                label.text(labelText.copy().withStyle(ChatFormatting.UNDERLINE, ChatFormatting.GRAY));
             } else if (selected) {
-                label.text(labelText.copy().formatted(Formatting.UNDERLINE));
+                label.text(labelText.copy().withStyle(ChatFormatting.UNDERLINE));
             } else if (hovered) {
-                label.text(labelText.copy().formatted(Formatting.GRAY));
+                label.text(labelText.copy().withStyle(ChatFormatting.GRAY));
             } else {
                 label.text(labelText.copy());
             }

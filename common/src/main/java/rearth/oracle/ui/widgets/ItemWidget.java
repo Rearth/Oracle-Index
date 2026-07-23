@@ -1,11 +1,11 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
@@ -24,19 +24,19 @@ public class ItemWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
-        var mc = MinecraftClient.getInstance();
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+        var mc = Minecraft.getInstance();
         int itemSize = Math.max(1, Math.min(width, height));
         float scale = itemSize / 16f;
         int drawX = x + (width - itemSize) / 2;
         int drawY = y + (height - itemSize) / 2;
-        var matrices = context.getMatrices();
-        matrices.push();
-        matrices.translate(drawX, drawY, 0);
-        matrices.scale(scale, scale, 1f);
-        context.drawItem(stack, 0, 0);
-        if (!hideItemDecorations) context.drawItemInSlot(mc.textRenderer, stack, 0, 0);
-        matrices.pop();
+        var matrices = context.pose();
+        matrices.pushMatrix();
+        matrices.translate(drawX, drawY);
+        matrices.scale(scale, scale);
+        context.item(stack, 0, 0);
+        if (!hideItemDecorations) context.itemDecorations(mc.font, stack, 0, 0);
+        matrices.popMatrix();
     }
 
     public void setTooltipMode(TooltipMode tooltipMode) {
@@ -48,13 +48,13 @@ public class ItemWidget extends UIComponent {
     }
     
     @Override
-    public List<Text> tooltip(int mouseX, int mouseY) {
+    public List<Component> tooltip(int mouseX, int mouseY) {
         if (stack == null || stack.isEmpty() || tooltipMode == TooltipMode.HIDDEN) return super.tooltip(mouseX, mouseY);
-        var mc = MinecraftClient.getInstance();
-        List<Text> tooltip = stack.getTooltip(
-            Item.TooltipContext.create(mc.world),
-            mc.player, 
-            mc.options.advancedItemTooltips ? TooltipType.ADVANCED : TooltipType.BASIC
+        var mc = Minecraft.getInstance();
+        List<Component> tooltip = stack.getTooltipLines(
+            Item.TooltipContext.of(mc.level),
+            mc.player,
+            mc.options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL
         );
         return tooltipMode == TooltipMode.NAME_ONLY && !tooltip.isEmpty() ? tooltip.subList(0, 1) : tooltip;
     }

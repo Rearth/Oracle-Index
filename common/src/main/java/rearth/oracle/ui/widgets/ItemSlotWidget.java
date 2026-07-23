@@ -1,7 +1,8 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import rearth.oracle.Oracle;
 
 /**
@@ -10,7 +11,7 @@ import rearth.oracle.Oracle;
  */
 public class ItemSlotWidget extends UIComponent {
     
-    public static final Identifier SLOT_TEXTURE = Identifier.of(Oracle.MOD_ID, "textures/item_cell.png");
+    public static final Identifier SLOT_TEXTURE = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "textures/item_cell.png");
     public static final int SLOT_SIZE = 18;
     
     private final ItemWidget item;
@@ -33,13 +34,13 @@ public class ItemSlotWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.drawTexture(SLOT_TEXTURE, x, y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+        context.blit(RenderPipelines.GUI_TEXTURED, SLOT_TEXTURE, x, y, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
         item.render(context, mouseX, mouseY, delta);
     }
     
     @Override
-    public java.util.List<net.minecraft.text.Text> tooltip(int mouseX, int mouseY) {
+    public java.util.List<net.minecraft.network.chat.Component> tooltip(int mouseX, int mouseY) {
         if (item.isInBounds(mouseX, mouseY)) {
             var t = item.tooltip(mouseX, mouseY);
             if (t != null) return t;

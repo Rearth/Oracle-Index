@@ -1,20 +1,15 @@
 package rearth.oracle.mixin;
 
-import com.llamalad7.mixinextras.sugar.Local;
-import com.llamalad7.mixinextras.sugar.ref.LocalRef;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.TooltipComponent;
-import net.minecraft.client.gui.tooltip.TooltipPositioner;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import rearth.oracle.OracleClient;
 import rearth.oracle.ui.OracleScreen;
 
@@ -22,54 +17,54 @@ import java.util.ArrayList;
 import java.util.List;
 
 @SuppressWarnings("UnstableApiUsage")
-@Mixin(DrawContext.class)
+@Mixin(GuiGraphicsExtractor.class)
 public class DrawContextMixin {
     
-    @Inject(method = "drawTooltip(Lnet/minecraft/client/font/TextRenderer;Ljava/util/List;IILnet/minecraft/client/gui/tooltip/TooltipPositioner;)V", at = @At("HEAD"))
-    private void injectTooltipComponents(TextRenderer textRenderer, List<TooltipComponent> components, int x, int y, TooltipPositioner positioner, CallbackInfo ci, @Local(argsOnly = true) LocalRef<List<TooltipComponent>> componentsRef) {
-        if (OracleClient.tooltipStack == null) return;
-        if (MinecraftClient.getInstance().currentScreen instanceof OracleScreen) return;
+    @ModifyVariable(method = "setTooltipForNextFrameInternal", at = @At("HEAD"), argsOnly = true, name = "lines")
+    private List<ClientTooltipComponent> injectTooltipComponents(List<ClientTooltipComponent> components) {
+        if (OracleClient.tooltipStack == null) return components;
+        if (Minecraft.getInstance().screen instanceof OracleScreen) return components;
         
         var stackItem = OracleClient.tooltipStack.getItem();
-        var stackId = Registries.ITEM.getId(stackItem);
+        var stackId = BuiltInRegistries.ITEM.getId(stackItem);
         
-        if (!OracleClient.ITEM_LINKS.containsKey(stackId)) return;
+        if (!OracleClient.ITEM_LINKS.containsKey(stackId)) return components;
         
         OracleClient.tooltipStack = null;
         
         var modifiableComponents = new ArrayList<>(components);
         
         // vanilla-friendly separator: dim dashes line
-        var separator = TooltipComponent.of(Text.literal("─".repeat(20)).formatted(Formatting.DARK_GRAY).asOrderedText());
+        var separator = new ClientTextTooltip(Component.literal("─".repeat(20)).withStyle(ChatFormatting.DARK_GRAY).getVisualOrderText());
         modifiableComponents.add(separator);
         
         var stackLink = OracleClient.ITEM_LINKS.get(stackId);
         
-        Text icon = Text.literal("\uD83D\uDCD5 ").formatted(Formatting.GRAY);
+        Component icon = Component.literal("\uD83D\uDCD5 ").withStyle(ChatFormatting.GRAY);
         
-        if (Screen.hasAltDown()) {
-            var dt = MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration() * .125f;
+        if (Minecraft.getInstance().hasAltDown()) {
+            var dt = Minecraft.getInstance().getDeltaTracker().getRealtimeDeltaTicks() * .125f;
             OracleClient.openEntryProgress += (1.25f - OracleClient.openEntryProgress) * dt;
             var progressSteps = 40;
             var progress = (int) (OracleClient.openEntryProgress * progressSteps);
             progress = Math.clamp(progress, 0, 40);
             var missingSteps = progressSteps - progress;
             var progressText = "[" + "|".repeat(progress) + ".".repeat(missingSteps) + "]";
-            var altTooltip = TooltipComponent.of(icon.copy().append(Text.translatable(progressText)).formatted(Formatting.GRAY).asOrderedText());
+            var altTooltip = new ClientTextTooltip(icon.copy().append(Component.literal(progressText)).withStyle(ChatFormatting.GRAY).getVisualOrderText());
             modifiableComponents.add(altTooltip);
             
             if (OracleClient.openEntryProgress > 0.95f) {
-                OracleClient.openScreen(stackLink.wikiId(), stackLink.linkTarget(), MinecraftClient.getInstance().currentScreen);
+                OracleClient.openScreen(stackLink.wikiId(), stackLink.linkTarget(), Minecraft.getInstance().screen);
             }
             
         } else {
-            var tooltip = TooltipComponent.of(icon.copy()
-                .append(Text.translatable("oracle_index.tooltip.docs").formatted(Formatting.GRAY))
-                .asOrderedText());
+            var tooltip = new ClientTextTooltip(icon.copy()
+                .append(Component.translatable("oracle_index.tooltip.docs").withStyle(ChatFormatting.GRAY))
+                .getVisualOrderText());
             modifiableComponents.add(tooltip);
         }
         
-        componentsRef.set(modifiableComponents);
+        return modifiableComponents;
     }
     
 }

@@ -3,7 +3,7 @@
   "oracle_index.title.oracle-index": "Индекс Оракула",
   "key.oracle_index.open": "Открыть Индекс Оракула",
   "key.oracle_index.search": "Открыть Поиск Оракула",
-  "key.categories.oracle": "Индекс Оракула",
+  "key.category.oracle_index.oracle": "Индекс Оракула",
   "oracle_index.searchbar.placeholder" : "Найти или вычислить",
   "oracle_index.searchbar.tooltip" : "Умный поиск, поддерживающий полные предложения и математические выражения.",
   "tooltip.oracle_index.open_search": "Открыть поиск. Вы всегда можете открыть его, нажав [CTRL + %s] или [%s]."

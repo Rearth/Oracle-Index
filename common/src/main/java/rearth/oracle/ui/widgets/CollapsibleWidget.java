@@ -1,11 +1,11 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.function.Consumer;
 
@@ -26,12 +26,12 @@ public class CollapsibleWidget extends FlowWidget {
     private final FlowWidget body;
     private final LabelWidget glyphLabel;
     private final LabelWidget titleLabel;
-    private final Text title;
+    private final Component title;
     private boolean expanded;
     private boolean headerHovered;
     private Consumer<CollapsibleWidget> onToggle;
     
-    public CollapsibleWidget(Text title, boolean expanded) {
+    public CollapsibleWidget(Component title, boolean expanded) {
         super(Direction.VERTICAL);
         this.title = title;
         this.expanded = expanded;
@@ -43,8 +43,8 @@ public class CollapsibleWidget extends FlowWidget {
         headerContent.child(titleLabel).child(glyphLabel);
         this.header = new ClickableWidget(headerContent, row -> {
             toggle();
-            MinecraftClient.getInstance().getSoundManager()
-              .play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0f));
+            Minecraft.getInstance().getSoundManager()
+              .play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
         }).fillWidth().fixedHeight(HEADER_HEIGHT)
                         .surfaces(WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE, WikiSurface.NONE);
         header.setPadding(Insets.of(1, 4));
@@ -84,18 +84,18 @@ public class CollapsibleWidget extends FlowWidget {
         if (onToggle != null) onToggle.accept(this);
     }
     
-    private Text glyph() {
-        return Text.literal(expanded ? GLYPH_OPEN : GLYPH_CLOSED).formatted(Formatting.GRAY);
+    private Component glyph() {
+        return Component.literal(expanded ? GLYPH_OPEN : GLYPH_CLOSED).withStyle(ChatFormatting.GRAY);
     }
     
-    private Text headerTitle(boolean hovered) {
+    private Component headerTitle(boolean hovered) {
         return hovered
-                 ? title.copy().formatted(Formatting.WHITE, Formatting.GRAY)
-                 : title.copy().formatted(Formatting.WHITE);
+                 ? title.copy().withStyle(ChatFormatting.WHITE, ChatFormatting.GRAY)
+                 : title.copy().withStyle(ChatFormatting.WHITE);
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         boolean hovered = header.isInBounds(mouseX, mouseY);
         if (hovered != headerHovered) {
             headerHovered = hovered;

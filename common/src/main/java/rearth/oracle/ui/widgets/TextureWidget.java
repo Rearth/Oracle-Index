@@ -1,7 +1,8 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 
 /**
  * Renders a static texture region. Use {@link #region(int, int, int, int)} to
@@ -33,13 +34,13 @@ public class TextureWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         if (width == regionWidth && height == regionHeight) {
             // 9-arg: (id, x, y, float u, float v, w, h, texW, texH)
-            context.drawTexture(texture, x, y, (float) u, (float) v, width, height, textureWidth, textureHeight);
+            context.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, (float) u, (float) v, width, height, textureWidth, textureHeight);
         } else {
             // 11-arg stretch: (id, x, y, w, h, float u, float v, regW, regH, texW, texH)
-            context.drawTexture(texture, x, y, width, height, (float) u, (float) v, regionWidth, regionHeight, textureWidth, textureHeight);
+            context.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, (float) u, (float) v, width, height, regionWidth, regionHeight, textureWidth, textureHeight);
         }
     }
 }

@@ -1,10 +1,10 @@
 package rearth.oracle.util;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.resource.language.I18n;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import rearth.oracle.ui.OracleScreen;
@@ -46,8 +46,8 @@ public class TitleLookup {
 
         String item = frontMatter.getOne("id");
         if (item != null) {
-            if (Identifier.validate(item).isSuccess() && Registries.ITEM.containsId(Identifier.of(item))) {
-                return I18n.translate(Registries.ITEM.get(Identifier.of(item)).getTranslationKey());
+            if (Identifier.tryParse(item) != null && BuiltInRegistries.ITEM.containsKey(Identifier.parse(item))) {
+                return I18n.get(BuiltInRegistries.ITEM.getValue(Identifier.parse(item)).getDescriptionId());
             }
             return item;
         }
@@ -62,12 +62,12 @@ public class TitleLookup {
     @Nullable
     private static String parseContents(Identifier pagePath) {
         try {
-            var rm = MinecraftClient.getInstance().getResourceManager();
+            var rm = Minecraft.getInstance().getResourceManager();
             var rc = rm.getResource(pagePath);
             if (rc.isEmpty()) {
                 return null;
             }
-            return new String(rc.get().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            return new String(rc.get().open().readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOGGER.error("Error parsing markdown title for page {}", pagePath, e);
             return null;

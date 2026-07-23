@@ -9,8 +9,8 @@ import dev.langchain4j.model.embedding.onnx.allminilml6v2q.AllMiniLmL6V2Quantize
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 import rearth.oracle.util.MarkdownParser;
 import rearth.oracle.util.TitleLookup;
 
@@ -64,8 +64,8 @@ public class SemanticSearch {
                              .documentSplitter(DocumentSplitters.recursive(500, 50))
                              .build();
                 // generate embeddings for all found entries
-                var resourceManager = MinecraftClient.getInstance().getResourceManager();
-                var resources = resourceManager.findResources(ROOT_DIR, path -> path.getPath().endsWith(".mdx"));
+                var resourceManager = Minecraft.getInstance().getResourceManager();
+                var resources = resourceManager.listResources(ROOT_DIR, path -> path.getPath().endsWith(".mdx"));
                 
                 for (var resourceId : resources.keySet()) {
                     var purePath = resourceId.getPath().replaceFirst(ROOT_DIR + "/", "");
@@ -78,7 +78,7 @@ public class SemanticSearch {
                     if (!filter.test(modId, purePath)) continue; // skip / don't support translations for now
                     
                     try {
-                        var fileContent = new String(resources.get(resourceId).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                        var fileContent = new String(resources.get(resourceId).open().readAllBytes(), StandardCharsets.UTF_8);
                         var frontmatter = MarkdownParser.parseFrontmatter(fileContent);
                         var title = MarkdownParser.parseHeadingTitle(fileContent);
 
@@ -134,11 +134,11 @@ public class SemanticSearch {
             var id = match.embedded().metadata().getString("wiki") + ":" + match.embedded().metadata().getString("category") + match.embedded().metadata().getString("fileName");
             var title = match.embedded().metadata().getString("title");
             if (title == null) {
-                title = TitleLookup.getTitle(Identifier.of(id));
+                title = TitleLookup.getTitle(Identifier.parse(id));
             }
             
             // check if id already exists, add it to alt texts
-            var existingCandidate = results.stream().filter(result -> result.id.equals(Identifier.of(id))).findFirst();
+            var existingCandidate = results.stream().filter(result -> result.id.equals(Identifier.parse(id))).findFirst();
             if (existingCandidate.isPresent()) {
                 existingCandidate.get().texts.add(match.embedded().text());
             } else {
@@ -147,7 +147,7 @@ public class SemanticSearch {
                 var icon = match.embedded().metadata().getString("icon");
                 if ((icon == null || icon.isBlank()) && match.embedded().metadata().containsKey("id"))
                     icon = match.embedded().metadata().getString("id");
-                var step = new SearchResult(list, match.score(), title, Identifier.of(id), icon);
+                var step = new SearchResult(list, match.score(), title, Identifier.parse(id), icon);
                 results.add(step);
             }
         }

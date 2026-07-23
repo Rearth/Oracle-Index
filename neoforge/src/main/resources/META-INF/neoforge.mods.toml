@@ -16,21 +16,21 @@ Multiplatform Wiki / Documentation mod for content from moddedmc.wiki
 [[dependencies.oracle_index]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.1,)"
+versionRange = "[26.1.2,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.oracle_index]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21.1,)"
+versionRange = "[26.1.2]"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.oracle_index]]
 modId = "architectury"
 type = "required"
-versionRange = "[13.0.8,)"
+versionRange = "[20.0.9,)"
 ordering = "AFTER"
 side = "BOTH"
 

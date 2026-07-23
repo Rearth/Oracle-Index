@@ -1,14 +1,14 @@
 package rearth.oracle.ui;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.Identifier;
 import net.objecthunter.exp4j.ExpressionBuilder;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
@@ -42,7 +42,7 @@ public class SearchScreen extends WikiBaseScreen {
     private FlowWidget resultsPanel;
     private ScrollWidget resultsScroll;
     private TextureWidget oracleIcon;
-    private TextFieldWidget searchField;
+    private EditBox searchField;
     private int searchBarX;
     private int searchBarY;
     private int searchBarW;
@@ -50,7 +50,7 @@ public class SearchScreen extends WikiBaseScreen {
     private int waitFrames = 0;
     
     public SearchScreen(Screen parent) {
-        super(Text.translatable("oracle_index.title.search"));
+        super(Component.translatable("oracle_index.title.search"));
         this.parent = parent;
         backgroundFillColor = 0x99191923;
     }
@@ -60,7 +60,7 @@ public class SearchScreen extends WikiBaseScreen {
         mainContainer = FlowWidget.vertical().gap(6);
         mainContainer.size(PANEL_WIDTH, 0); // height resolved at layout
         
-        oracleIcon = new TextureWidget(Identifier.of(Oracle.MOD_ID, "textures/oracle-index-icon.png"), 256, 256);
+        oracleIcon = new TextureWidget(Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "textures/oracle-index-icon.png"), 256, 256);
         oracleIcon.size(ORACLE_ICON_SIZE, ORACLE_ICON_SIZE);
         
         // results
@@ -72,14 +72,14 @@ public class SearchScreen extends WikiBaseScreen {
         addRoot(mainContainer);
         
         // vanilla text field — sized/positioned in layoutWidgets()
-        searchField = new TextFieldWidget(MinecraftClient.getInstance().textRenderer, 0, 0, 1, 14, Text.empty());
+        searchField = new EditBox(Minecraft.getInstance().font, 0, 0, 1, 14, Component.empty());
         searchField.setMaxLength(120);
-        searchField.setDrawsBackground(false);
+        searchField.setBordered(false);
         searchField.setEditable(false);
-        searchField.setChangedListener(this::onSearchTyped);
-        searchField.setSuggestion(Text.translatable("oracle_index.searchbar.placeholder").getString());
-        searchField.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.translatable("oracle_index.searchbar.tooltip")));
-        addDrawableChild(searchField);
+        searchField.setResponder(this::onSearchTyped);
+        searchField.setSuggestion(Component.translatable("oracle_index.searchbar.placeholder").getString());
+        searchField.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("oracle_index.searchbar.tooltip")));
+        addRenderableWidget(searchField);
         setInitialFocus(searchField);
     }
     
@@ -113,39 +113,39 @@ public class SearchScreen extends WikiBaseScreen {
     }
     
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         boolean searchReady;
         try {
             searchReady = OracleClient.getOrCreateSearch().isReady();
         } catch (Throwable error) {
             error.printStackTrace();
-            var p = MinecraftClient.getInstance().player;
+            var p = Minecraft.getInstance().player;
             if (p != null) {
-                p.sendMessage(Text.literal("Sorry, Oracle Index Search is not available on your platform."));
-                p.sendMessage(Text.literal("If you want this search feature, you can use the xplat jar available on the mods github."));
-                p.sendMessage(Text.literal("https://github.com/Rearth/Oracle-Index"));
-                p.sendMessage(Text.literal("This is not the default file due to jar size limitations."));
+                p.sendSystemMessage(Component.literal("Sorry, Oracle Index Search is not available on your platform."));
+                p.sendSystemMessage(Component.literal("If you want this search feature, you can use the xplat jar available on the mods github."));
+                p.sendSystemMessage(Component.literal("https://github.com/Rearth/Oracle-Index"));
+                p.sendSystemMessage(Component.literal("This is not the default file due to jar size limitations."));
             }
-            this.close();
+            this.onClose();
             return;
         }
         
         if (searchReady) {
-            if (!searchField.isActive()) searchField.setEditable(true);
-            if (searchField.getText().startsWith("Indexing")) searchField.setText("");
+            searchField.setEditable(true);
+            if (searchField.getValue().startsWith("Indexing")) searchField.setValue("");
         } else {
             waitFrames++;
             int dots = (waitFrames / 2) % 3 + 1;
             searchField.setEditable(false);
-            searchField.setText("Indexing" + ".".repeat(dots));
+            searchField.setValue("Indexing" + ".".repeat(dots));
             searchField.setSuggestion("");
         }
         
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
         renderSearchHeader(context, mouseX, mouseY, delta);
     }
     
-    private void renderSearchHeader(DrawContext context, int mouseX, int mouseY, float delta) {
+    private void renderSearchHeader(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         WikiSurface.BEDROCK_PANEL.render(context,
           searchBarX - SEARCH_PANEL_PAD,
           searchBarY - SEARCH_PANEL_PAD,
@@ -153,13 +153,13 @@ public class SearchScreen extends WikiBaseScreen {
           searchBarH + SEARCH_PANEL_PAD * 2);
         context.fill(searchBarX + 19, searchBarY, searchBarX + searchBarW, searchBarY + searchBarH, 0xFFFFFFFF);
         context.fill(searchBarX + 19 + 1, searchBarY + 1, searchBarX + searchBarW - 1, searchBarY + searchBarH - 1, 0xFF000000);
-        searchField.render(context, mouseX, mouseY, delta);
+        searchField.extractRenderState(context, mouseX, mouseY, delta);
         oracleIcon.render(context, mouseX, mouseY, delta);
     }
     
     private void onSearchTyped(String query) {
         if (query.startsWith("Indexing")) return;
-        var placeholder = Text.translatable("oracle_index.searchbar.placeholder").getString();
+        var placeholder = Component.translatable("oracle_index.searchbar.placeholder").getString();
         searchField.setSuggestion(query.isEmpty() ? placeholder : "");
         if (query.length() <= 2) return;
         
@@ -173,13 +173,13 @@ public class SearchScreen extends WikiBaseScreen {
         
         for (var result : results) {
             int rowWidth = resultsContentWidth();
-            var contentId = Identifier.of(Oracle.MOD_ID, String.format("%s/%s/%s",
+            var contentId = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, String.format("%s/%s/%s",
               ROOT_DIR, result.id().getNamespace(), result.id().getPath()));
             
             // gate by unlocks
             if (OracleClient.UNLOCK_CRITERIONS.containsKey(contentId.getPath())) {
                 var unlock = OracleClient.UNLOCK_CRITERIONS.get(contentId.getPath());
-                if (!OracleProgressAPI.IsUnlocked(result.id().getNamespace(), result.id().getPath(), unlock.getLeft(), unlock.getRight()))
+                if (!OracleProgressAPI.IsUnlocked(result.id().getNamespace(), result.id().getPath(), unlock.getFirst(), unlock.getSecond()))
                     continue;
             }
             
@@ -187,15 +187,15 @@ public class SearchScreen extends WikiBaseScreen {
             var titleRow = FlowWidget.horizontal().gap(4);
             titleRow.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
             titleRow.setPadding(Insets.of(6, 7, 4, 8));
-            if (result.iconName() != null && Registries.ITEM.containsId(Identifier.of(result.iconName()))) {
-                var iconStack = new ItemStack(Registries.ITEM.get(Identifier.of(result.iconName())));
+            if (result.iconName() != null && BuiltInRegistries.ITEM.containsKey(Identifier.parse(result.iconName()))) {
+                var iconStack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(result.iconName())));
                 var icon = new ItemWidget(iconStack);
                 icon.size(12, 12);
                 icon.setTooltipMode(TooltipMode.HIDDEN);
                 icon.setHideItemDecorations(true);
                 titleRow.child(icon);
             }
-            titleRow.child(new LabelWidget(Text.literal(result.title()).formatted(Formatting.BOLD)));
+            titleRow.child(new LabelWidget(Component.literal(result.title()).withStyle(ChatFormatting.BOLD)));
             
             // body preview
             var body = FlowWidget.vertical().gap(1);
@@ -279,7 +279,7 @@ public class SearchScreen extends WikiBaseScreen {
         }
         
         @Override
-        protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+        protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
             boolean hovered = isInBounds(mouseX, mouseY);
             body.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_HOVER : WikiSurface.BEDROCK_PANEL);
             titleRow.setSurface(hovered ? WikiSurface.BEDROCK_PANEL_PRESSED : WikiSurface.BEDROCK_PANEL_DARK);
@@ -318,7 +318,7 @@ public class SearchScreen extends WikiBaseScreen {
                 var calc = String.format("%s = **%s**", input.replace("*", "x"),
                   new DecimalFormat("#.####").format(n));
                 return Optional.of(new SemanticSearch.SearchResult(List.of(calc), 1, "Calculation: ",
-                  Identifier.of(Oracle.MOD_ID, "expression"), "minecraft:comparator"));
+                  Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "expression"), "minecraft:comparator"));
             }
         } catch (RuntimeException ignored) {
         }
@@ -326,7 +326,7 @@ public class SearchScreen extends WikiBaseScreen {
     }
     
     @Override
-    public void close() {
-        Objects.requireNonNull(client).setScreen(parent);
+    public void onClose() {
+        Objects.requireNonNull(minecraft).setScreen(parent);
     }
 }

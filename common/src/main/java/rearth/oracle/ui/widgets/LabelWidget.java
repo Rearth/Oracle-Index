@@ -1,13 +1,13 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +24,7 @@ import java.util.function.Predicate;
  */
 public class LabelWidget extends UIComponent {
     
-    private Text text;
+    private Component text;
     private float scale = 1.0f;
     private int color = 0xFFFFFFFF;
     private int lineSpacing = 0;
@@ -37,22 +37,22 @@ public class LabelWidget extends UIComponent {
     private Predicate<String> linkHandler;
     
     // Cached wrap result
-    private List<OrderedText> wrappedLines = new ArrayList<>();
+    private List<FormattedCharSequence> wrappedLines = new ArrayList<>();
     private int lastWrapWidth = -1;
-    private Text lastWrappedText;
+    private Component lastWrappedText;
     private float lastWrapScale = -1;
     
-    public LabelWidget(Text text) {
+    public LabelWidget(Component text) {
         this.text = text;
     }
     
-    public LabelWidget text(Text text) {
+    public LabelWidget text(Component text) {
         this.text = text;
         invalidateWrap();
         return this;
     }
     
-    public Text text() {
+    public Component text() {
         return text;
     }
     
@@ -102,8 +102,8 @@ public class LabelWidget extends UIComponent {
         lastWrapScale = -1;
     }
     
-    private TextRenderer textRenderer() {
-        return MinecraftClient.getInstance().textRenderer;
+    private Font textRenderer() {
+        return Minecraft.getInstance().font;
     }
     
     /**
@@ -118,7 +118,7 @@ public class LabelWidget extends UIComponent {
         return Math.max(1, (int) Math.floor(avail / scale));
     }
     
-    private List<OrderedText> wrap(int widthHint) {
+    private List<FormattedCharSequence> wrap(int widthHint) {
         int wrapPx = effectiveWrapWidthPx(widthHint);
         if (wrapPx == lastWrapWidth && text == lastWrappedText && scale == lastWrapScale && !wrappedLines.isEmpty()) {
             return wrappedLines;
@@ -126,7 +126,7 @@ public class LabelWidget extends UIComponent {
         lastWrapWidth = wrapPx;
         lastWrappedText = text;
         lastWrapScale = scale;
-        wrappedLines = textRenderer().wrapLines(text, wrapPx);
+        wrappedLines = textRenderer().split(text, wrapPx);
         return wrappedLines;
     }
     
@@ -136,8 +136,8 @@ public class LabelWidget extends UIComponent {
         if (fillWidth && widthHint > 0) return widthHint;
         var lines = wrap(widthHint);
         int max = 0;
-        for (var line : lines) max = Math.max(max, textRenderer().getWidth(line));
-        return MathHelper.ceil(max * scale);
+        for (var line : lines) max = Math.max(max, textRenderer().width(line));
+        return Mth.ceil(max * scale);
     }
     
     @Override
@@ -145,8 +145,8 @@ public class LabelWidget extends UIComponent {
         if (preferredHeight > 0) return preferredHeight;
         var lines = wrap(widthHint);
         int n = lines.size();
-        int total = n * textRenderer().fontHeight + Math.max(0, n - 1) * lineSpacing;
-        return MathHelper.ceil(total * scale);
+        int total = n * textRenderer().lineHeight + Math.max(0, n - 1) * lineSpacing;
+        return Mth.ceil(total * scale);
     }
     
     @Override
@@ -156,24 +156,24 @@ public class LabelWidget extends UIComponent {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         var lines = wrap(width > 0 ? width : Integer.MAX_VALUE / 2);
         var tr = textRenderer();
-        var matrices = context.getMatrices();
+        var matrices = context.pose();
         boolean scaled = scale != 1.0f;
         if (scaled) {
-            matrices.push();
-            matrices.translate(x, y, 0);
-            matrices.scale(scale, scale, 1.0f);
+            matrices.pushMatrix();
+            matrices.translate(x, y);
+            matrices.scale(scale, scale);
         }
         int baseX = scaled ? 0 : x;
         int baseY = scaled ? 0 : y;
-        int lineHeight = tr.fontHeight + lineSpacing;
+        int lineHeight = tr.lineHeight + lineSpacing;
         for (int i = 0; i < lines.size(); i++) {
             var line = lines.get(i);
-            context.drawText(tr, line, baseX, baseY + i * lineHeight, color, false);
+            context.text(tr, line, baseX, baseY + i * lineHeight, color, false);
         }
-        if (scaled) matrices.pop();
+        if (scaled) matrices.popMatrix();
     }
     
     @Override
@@ -182,9 +182,9 @@ public class LabelWidget extends UIComponent {
         var style = styleAt(mouseX, mouseY);
         if (style == null) return super.handleClick(mouseX, mouseY, button);
         var click = style.getClickEvent();
-        if (click == null || click.getAction() != ClickEvent.Action.OPEN_URL)
+        if (!(click instanceof ClickEvent.OpenUrl openUrl))
             return super.handleClick(mouseX, mouseY, button);
-        if (linkHandler.test(click.getValue())) return true;
+        if (linkHandler.test(openUrl.uri().toString())) return true;
         return super.handleClick(mouseX, mouseY, button);
     }
     
@@ -198,10 +198,20 @@ public class LabelWidget extends UIComponent {
         // map screen coords to unscaled local font coords
         double localX = (mouseX - x) / scale;
         double localY = (mouseY - y) / scale;
-        int lineHeight = tr.fontHeight + lineSpacing;
+        int lineHeight = tr.lineHeight + lineSpacing;
         int lineIndex = (int) Math.floor(localY / lineHeight);
         if (lineIndex < 0 || lineIndex >= lines.size()) return null;
-        return tr.getTextHandler().getStyleAt(lines.get(lineIndex), MathHelper.floor(localX));
+        float[] measuredWidth = {0};
+        Style[] result = {null};
+        lines.get(lineIndex).accept((position, style, codePoint) -> {
+            measuredWidth[0] += tr.width(new String(Character.toChars(codePoint)));
+            if (measuredWidth[0] >= localX) {
+                result[0] = style;
+                return false;
+            }
+            return true;
+        });
+        return result[0];
     }
     
 }

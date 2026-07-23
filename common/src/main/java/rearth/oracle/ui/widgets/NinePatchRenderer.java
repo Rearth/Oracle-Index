@@ -1,7 +1,8 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 
 /**
  * Renders a 9-patch (9-slice) texture at any size by stretching the centre
@@ -22,7 +23,7 @@ public record NinePatchRenderer(Identifier texture, int texWidth, int texHeight,
         this(texture, 16, 16, 4, 4);
     }
     
-    public void render(DrawContext context, int x, int y, int width, int height) {
+    public void render(GuiGraphicsExtractor context, int x, int y, int width, int height) {
         int cw = cornerWidth;
         int ch = cornerHeight;
         int centerW = texWidth - cw * 2;
@@ -52,13 +53,13 @@ public record NinePatchRenderer(Identifier texture, int texWidth, int texHeight,
         }
     }
     
-    private void corner(DrawContext context, int dx, int dy, int u, int v) {
+    private void corner(GuiGraphicsExtractor context, int dx, int dy, int u, int v) {
         // 9-arg drawTexture: (id, x, y, float u, float v, w, h, texW, texH) - source 1:1 to dest.
-        context.drawTexture(texture, dx, dy, (float) u, (float) v, cornerWidth, cornerHeight, texWidth, texHeight);
+        context.blit(RenderPipelines.GUI_TEXTURED, texture, dx, dy, (float) u, (float) v, cornerWidth, cornerHeight, texWidth, texHeight);
     }
     
-    private void stretched(DrawContext context, int dx, int dy, int u, int v, int dw, int dh, int regW, int regH) {
+    private void stretched(GuiGraphicsExtractor context, int dx, int dy, int u, int v, int dw, int dh, int regW, int regH) {
         // 11-arg drawTexture: (id, x, y, w, h, float u, float v, regW, regH, texW, texH) - source (regW,regH) stretched to (dw,dh).
-        context.drawTexture(texture, dx, dy, dw, dh, (float) u, (float) v, regW, regH, texWidth, texHeight);
+        context.blit(RenderPipelines.GUI_TEXTURED, texture, dx, dy, (float) u, (float) v, dw, dh, regW, regH, texWidth, texHeight);
     }
 }

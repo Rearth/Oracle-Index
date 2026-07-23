@@ -1,9 +1,9 @@
 package rearth.oracle.ui.widgets;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import rearth.oracle.util.CalloutVariant;
 
 import java.util.Locale;
@@ -71,18 +71,18 @@ public class CalloutWidget extends FlowWidget {
     }
     
     @Override
-    protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         super.renderContent(context, mouseX, mouseY, delta);
         // overlapping title chip rendered on top
-        var tr = MinecraftClient.getInstance().textRenderer;
+        var tr = Minecraft.getInstance().font;
         var key = "oracle_index.callout." + this.variant.name().toLowerCase(Locale.ROOT);
-        var title = Text.translatable(key).formatted(Formatting.WHITE);
-        int textW = tr.getWidth(title);
+        var title = Component.translatable(key).withStyle(ChatFormatting.WHITE);
+        int textW = tr.width(title);
         int chipW = textW + 12;
-        int chipH = tr.fontHeight + 9;
+        int chipH = tr.lineHeight + 9;
         int chipX = body.getX();
         int chipY = body.getY();
         this.variant.getSurface().render(context, chipX - 6, chipY - 6, chipW, chipH);
-        context.drawText(tr, title, chipX, chipY, 0xFFFFFFFF, false);
+        context.text(tr, title, chipX, chipY, 0xFFFFFFFF, false);
     }
 }

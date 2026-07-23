@@ -1,17 +1,17 @@
 package rearth.oracle.util;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.Identifier;
 import org.apache.commons.lang3.StringUtils;
 import org.commonmark.Extension;
 import org.commonmark.ext.front.matter.YamlFrontMatterExtension;
@@ -25,6 +25,7 @@ import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.widgets.*;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -75,8 +76,8 @@ public class MarkdownParser {
 
         var gameId = frontMatter.getOne("id");
         if (gameId != null) {
-            var id = Identifier.of(gameId);
-            if (Registries.ITEM.containsId(id) || Registries.BLOCK.containsId(id))
+            var id = Identifier.parse(gameId);
+            if (BuiltInRegistries.ITEM.containsKey(id) || BuiltInRegistries.BLOCK.containsKey(id))
                 widgets.add(buildPropertiesPanel(ContentProperties.getProperties(gameId), contentWidthPx));
         }
 
@@ -95,7 +96,7 @@ public class MarkdownParser {
 
     private static class WikiTitleVisitor extends AbstractVisitor {
         protected String title;
-        protected MutableText buffer = Text.empty();
+        protected MutableComponent buffer = Component.empty();
 
         public String getTitle() {
             return title;
@@ -103,20 +104,20 @@ public class MarkdownParser {
 
         @Override
         public void visit(Heading heading) {
-            buffer = Text.empty();
+            buffer = Component.empty();
             visitChildren(heading);
 
             if (heading.getLevel() == 1 && title == null) {
                 title = buffer.getString();
             }
 
-            buffer = Text.empty();
+            buffer = Component.empty();
         }
 
         @Override
         public void visit(org.commonmark.node.Text text) {
             if (buffer != null) {
-                buffer.append(Text.literal(text.getLiteral()));
+                buffer.append(Component.literal(text.getLiteral()));
             }
         }
     }
@@ -129,7 +130,7 @@ public class MarkdownParser {
         private final int contentWidthPx;
 
         private List<UIComponent> components = new ArrayList<>();
-        private MutableText buffer = Text.empty();
+        private MutableComponent buffer = Component.empty();
         private Style currentStyle = Style.EMPTY;
         private int currentIndentation = 0;
 
@@ -149,7 +150,7 @@ public class MarkdownParser {
             var label = new LabelWidget(buffer).linkHandler(linkHandler).lineSpacing(1).fillWidth();
             label.setPadding(Insets.of(0, 0, currentIndentation * 6, 0));
             components.add(label);
-            buffer = Text.empty();
+            buffer = Component.empty();
             currentIndentation = 0;
         }
 
@@ -161,9 +162,9 @@ public class MarkdownParser {
 
         @Override
         public void visit(Heading heading) {
-            buffer = Text.empty();
+            buffer = Component.empty();
             var oldStyle = currentStyle;
-            currentStyle = currentStyle.withColor(Formatting.GRAY);
+            currentStyle = currentStyle.withColor(ChatFormatting.GRAY);
             visitChildren(heading);
             currentStyle = oldStyle;
 
@@ -176,7 +177,7 @@ public class MarkdownParser {
                 components.add(label);
             }
 
-            buffer = Text.empty();
+            buffer = Component.empty();
         }
 
         @Override
@@ -185,7 +186,7 @@ public class MarkdownParser {
             var panel = FlowWidget.vertical();
             panel.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
             panel.setPadding(Insets.of(6));
-            var text = Text.literal(codeBlock.getLiteral()).formatted(Formatting.GRAY);
+            var text = Component.literal(codeBlock.getLiteral()).withStyle(ChatFormatting.GRAY);
             panel.child(new LabelWidget(text));
             components.add(panel);
         }
@@ -212,7 +213,7 @@ public class MarkdownParser {
             this.currentIndentation = depth - 1;
 
             if (parent instanceof BulletList) {
-                buffer.append(Text.literal("• ").formatted(Formatting.DARK_GRAY));
+                buffer.append(Component.literal("• ").withStyle(ChatFormatting.DARK_GRAY));
             } else if (parent instanceof OrderedList orderedList) {
                 int index = 1;
                 var sibling = listItem.getPrevious();
@@ -221,7 +222,7 @@ public class MarkdownParser {
                     sibling = sibling.getPrevious();
                 }
                 int n = orderedList.getStartNumber() + index - 1;
-                buffer.append(Text.literal(n + ". ").formatted(Formatting.DARK_GRAY));
+                buffer.append(Component.literal(n + ". ").withStyle(ChatFormatting.DARK_GRAY));
             }
             visitChildren(listItem);
             flushBuffer();
@@ -256,7 +257,7 @@ public class MarkdownParser {
 
         @Override
         public void visit(org.commonmark.node.Text text) {
-            if (buffer != null) buffer.append(Text.literal(text.getLiteral()).setStyle(currentStyle));
+            if (buffer != null) buffer.append(Component.literal(text.getLiteral()).setStyle(currentStyle));
         }
 
         @Override
@@ -278,8 +279,8 @@ public class MarkdownParser {
         @Override
         public void visit(Link link) {
             var old = currentStyle;
-            var clickEvent = new ClickEvent(ClickEvent.Action.OPEN_URL, link.getDestination());
-            currentStyle = currentStyle.withColor(Formatting.BLUE).withUnderline(true).withClickEvent(clickEvent);
+            var clickEvent = new ClickEvent.OpenUrl(URI.create(link.getDestination()));
+            currentStyle = currentStyle.withColor(ChatFormatting.BLUE).withUnderlined(true).withClickEvent(clickEvent);
 
             if (link.getFirstChild() == null && (link.getTitle() == null || link.getTitle().isBlank())) {
                 var linkTitle = getLinkText(link.getDestination(), wikiId, contentPath);
@@ -292,41 +293,41 @@ public class MarkdownParser {
         @Override
         public void visit(Code inlineCode) {
             if (buffer != null) {
-                buffer.append(Text.literal(inlineCode.getLiteral()).formatted(Formatting.DARK_AQUA));
+                buffer.append(Component.literal(inlineCode.getLiteral()).withStyle(ChatFormatting.DARK_AQUA));
             }
         }
 
         @Override
         public void visit(SoftLineBreak n) {
-            if (buffer != null) buffer.append(Text.literal(" "));
+            if (buffer != null) buffer.append(Component.literal(" "));
         }
 
         @Override
         public void visit(HardLineBreak n) {
-            if (buffer != null) buffer.append(Text.literal("\n"));
+            if (buffer != null) buffer.append(Component.literal("\n"));
         }
     }
 
     // ---------------------------------------------------------------- helpers
 
-    public static MutableText getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+    public static MutableComponent getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
         if (link.startsWith("@")) {
             Identifier id = Identifier.tryParse(link.substring(1));
             if (id != null && id.getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
-                Item item = Registries.ITEM.get(id);
+                Item item = BuiltInRegistries.ITEM.getValue(id);
                 if (item != null) {
-                    return Text.translatable(item.getTranslationKey());
+                    return Component.translatable(item.getDescriptionId());
                 }
             }
         }
 
-        return Text.literal(getLinkTextLiteral(link, activeWikiId, sourceEntryPath));
+        return Component.literal(getLinkTextLiteral(link, activeWikiId, sourceEntryPath));
     }
 
     public static String getLinkTextLiteral(String link, String activeWikiId, Identifier sourceEntryPath) {
         var linkTarget = getLinkTarget(link, activeWikiId, sourceEntryPath);
         if (linkTarget == null) return "<invalid link>";
-        var rm = MinecraftClient.getInstance().getResourceManager();
+        var rm = Minecraft.getInstance().getResourceManager();
         var rc = rm.getResource(linkTarget);
         if (rc.isEmpty()) return "<invalid link>";
         String title = TitleLookup.getTitle(linkTarget);
@@ -343,14 +344,14 @@ public class MarkdownParser {
             var format = OracleClient.getWikiFormat(activeWikiId);
             var p = "books/" + activeWikiId + "/" + format.getDocsPagePath(link.substring(1));
             if (!p.endsWith(".mdx")) p += ".mdx";
-            targetFile = Identifier.of(Oracle.MOD_ID, p);
+            targetFile = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, p);
         } else if (link.startsWith("+")) {
             var id = link.substring(1);
             targetFile = OracleClient.getPage(activeWikiId, id);
         } else {
             var p = OracleScreen.parsePathLink(link, sourceEntryPath);
             if (!p.endsWith(".mdx")) p += ".mdx";
-            targetFile = Identifier.of(Oracle.MOD_ID, p);
+            targetFile = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, p);
         }
         return targetFile;
     }
@@ -372,7 +373,7 @@ public class MarkdownParser {
         }
 
         return new PageTitleWidget(
-            Text.literal(TitleLookup.getTitle(pageId)).formatted(Formatting.DARK_GRAY),
+            Component.literal(TitleLookup.getTitle(pageId)).withStyle(ChatFormatting.DARK_GRAY),
             iconStack,
             itemStacks,
             linkHandler,
@@ -381,8 +382,8 @@ public class MarkdownParser {
     }
 
     private static ItemStack getIconStack(String iconId) {
-        if (Identifier.validate(iconId).isSuccess() && Registries.ITEM.containsId(Identifier.of(iconId))) {
-            return new ItemStack(Registries.ITEM.get(Identifier.of(iconId)));
+        if (Identifier.tryParse(iconId) != null && BuiltInRegistries.ITEM.containsKey(Identifier.parse(iconId))) {
+            return new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(iconId)));
         }
         return ItemStack.EMPTY;
     }
@@ -412,7 +413,7 @@ public class MarkdownParser {
         private int iconX;
         private int iconY;
 
-        PageTitleWidget(Text title, ItemStack iconStack, List<ItemStack> itemStacks, Predicate<String> linkHandler, int contentWidthPx) {
+        PageTitleWidget(Component title, ItemStack iconStack, List<ItemStack> itemStacks, Predicate<String> linkHandler, int contentWidthPx) {
             this.titleLabel = new LabelWidget(title).scale(2f).linkHandler(linkHandler);
             this.icon = iconStack.isEmpty() ? null : new ItemWidget(iconStack);
             if (icon != null) {
@@ -510,7 +511,7 @@ public class MarkdownParser {
         }
 
         @Override
-        protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
+        protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
             WikiSurface.BEDROCK_PANEL.render(context, titleX, titleY, titleW, titleH);
             titleLabel.render(context, mouseX, mouseY, delta);
 
@@ -528,7 +529,7 @@ public class MarkdownParser {
         }
 
         @Override
-        public List<Text> tooltip(int mouseX, int mouseY) {
+        public List<Component> tooltip(int mouseX, int mouseY) {
             if (icon != null && icon.isInBounds(mouseX, mouseY)) {
                 return icon.tooltip(mouseX, mouseY);
             }
@@ -549,14 +550,14 @@ public class MarkdownParser {
         }
     }
 
-    private static UIComponent buildPropertiesPanel(Map<String, Text> properties, int contentWidthPx) {
-        var tr = MinecraftClient.getInstance().textRenderer;
-        int titleWidth = tr.getWidth("Details");
+    private static UIComponent buildPropertiesPanel(Map<String, Component> properties, int contentWidthPx) {
+        var tr = Minecraft.getInstance().font;
+        int titleWidth = tr.width("Details");
         int keyWidth = 0;
         int valueWidth = 0;
         for (var entry : properties.entrySet()) {
-            keyWidth = Math.max(keyWidth, tr.getWidth(entry.getKey()));
-            valueWidth = Math.max(valueWidth, tr.getWidth(entry.getValue()));
+            keyWidth = Math.max(keyWidth, tr.width(entry.getKey()));
+            valueWidth = Math.max(valueWidth, tr.width(entry.getValue()));
         }
         int innerWidth = Math.clamp(Math.max(titleWidth, keyWidth + valueWidth + 28) + 20, 160, Math.max(contentWidthPx, 165));
         var outer = FlowWidget.vertical().gap(2);
@@ -564,44 +565,44 @@ public class MarkdownParser {
         outer.setPadding(Insets.of(10));
         outer.size(innerWidth, 0);
         outer.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
-        outer.child(new LabelWidget(Text.literal("Details").formatted(Formatting.BOLD, Formatting.GRAY)));
+        outer.child(new LabelWidget(Component.literal("Details").withStyle(ChatFormatting.BOLD, ChatFormatting.GRAY)));
 
         for (var entry : properties.entrySet()) {
-            outer.child(new PropertyRowWidget(Text.literal(entry.getKey()).formatted(Formatting.GOLD), entry.getValue()));
+            outer.child(new PropertyRowWidget(Component.literal(entry.getKey()).withStyle(ChatFormatting.GOLD), entry.getValue()));
         }
         return outer;
     }
 
     private static class PropertyRowWidget extends UIComponent {
-        private final Text key;
-        private final Text value;
+        private final Component key;
+        private final Component value;
 
-        PropertyRowWidget(Text key, Text value) {
+        PropertyRowWidget(Component key, Component value) {
             this.key = key;
             this.value = value;
         }
 
         @Override
         public int getPreferredWidth(int widthHint) {
-            return widthHint > 0 ? widthHint : MinecraftClient.getInstance().textRenderer.getWidth(key) + 28 + MinecraftClient.getInstance().textRenderer.getWidth(value);
+            return widthHint > 0 ? widthHint : Minecraft.getInstance().font.width(key) + 28 + Minecraft.getInstance().font.width(value);
         }
 
         @Override
         public int getPreferredHeight(int widthHint) {
-            return MinecraftClient.getInstance().textRenderer.fontHeight;
+            return Minecraft.getInstance().font.lineHeight;
         }
 
         @Override
-        protected void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
-            var tr = MinecraftClient.getInstance().textRenderer;
-            context.drawText(tr, key, x, y, 0xFFFFFFFF, false);
-            context.drawText(tr, value, x + width - tr.getWidth(value), y, 0xFFFFFFFF, false);
+        protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+            var tr = Minecraft.getInstance().font;
+            context.text(tr, key, x, y, 0xFFFFFFFF, false);
+            context.text(tr, value, x + width - tr.width(value), y, 0xFFFFFFFF, false);
         }
     }
 
     public static UIComponent buildRecipe(List<String> inputs, String resultId, int resultCount) {
         if (inputs.size() != 9) {
-            return new LabelWidget(Text.literal("Invalid crafting recipe data: expected 9 inputs").formatted(Formatting.RED));
+            return new LabelWidget(Component.literal("Invalid crafting recipe data: expected 9 inputs").withStyle(ChatFormatting.RED));
         }
 
         // Layered: a 3x3 grid of slots with items overlaid on top.
@@ -611,20 +612,20 @@ public class MarkdownParser {
             var input = inputs.get(i);
             ItemStack stack = ItemStack.EMPTY;
             if (!input.isEmpty() && !input.equals("minecraft:air")) {
-                var id = Identifier.of(input);
-                if (Registries.ITEM.containsId(id)) stack = new ItemStack(Registries.ITEM.get(id));
+                var id = Identifier.parse(input);
+                if (BuiltInRegistries.ITEM.containsKey(id)) stack = new ItemStack(BuiltInRegistries.ITEM.getValue(id));
             }
             var item = new ItemWidget(stack);
             grid.set(i / 3, i % 3, new ItemSlotWidget(item));
         }
 
         // → arrow
-        var arrow = new TextureWidget(Identifier.of(Oracle.MOD_ID, "textures/arrow_empty.png"), 29, 16);
+        var arrow = new TextureWidget(Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "textures/arrow_empty.png"), 29, 16);
 
         // result slot
-        var resultIdObj = Identifier.of(resultId);
-        var resultStack = Registries.ITEM.containsId(resultIdObj)
-            ? new ItemStack(Registries.ITEM.get(resultIdObj), resultCount)
+        var resultIdObj = Identifier.parse(resultId);
+        var resultStack = BuiltInRegistries.ITEM.containsKey(resultIdObj)
+            ? new ItemStack(BuiltInRegistries.ITEM.getValue(resultIdObj), resultCount)
             : ItemStack.EMPTY;
         var result = new ItemWidget(resultStack);
         var resultSlot = new ItemSlotWidget(result);
@@ -648,12 +649,12 @@ public class MarkdownParser {
         var budget = Math.max(16, contentWidthPx - 12);
 
         // case 1: ingame item → render as ItemWidget
-        var itemIdCandidate = Identifier.of(location);
-        if (Registries.ITEM.containsId(itemIdCandidate)) {
+        var itemIdCandidate = Identifier.parse(location);
+        if (BuiltInRegistries.ITEM.containsKey(itemIdCandidate)) {
             // items default to ~10% of content width when no width is specified
             if (widthRatio == 0.5f) widthRatio = 0.1f;
             int displaySize = Math.max(16, (int) (budget * widthRatio));
-            var itemWidget = new ItemWidget(new ItemStack(Registries.ITEM.get(itemIdCandidate)));
+            var itemWidget = new ItemWidget(new ItemStack(BuiltInRegistries.ITEM.getValue(itemIdCandidate)));
             itemWidget.size(displaySize, displaySize);
             itemWidget.setHideItemDecorations(true);
             return itemWidget;
@@ -666,15 +667,15 @@ public class MarkdownParser {
         var imageModId = parts.length > 0 ? parts[0] : wikiId;
         var imagePath = parts.length > 1 ? parts[1] : location;
         var extension = imagePath.contains(".") ? "" : ".png";
-        searchPath = Identifier.of(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + extension);
+        searchPath = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + extension);
 
-        var rm = MinecraftClient.getInstance().getResourceManager();
+        var rm = Minecraft.getInstance().getResourceManager();
         var resource = rm.getResource(searchPath);
         if (resource.isEmpty()) {
-            return new LabelWidget(Text.literal("Image not found: " + searchPath).formatted(Formatting.RED));
+            return new LabelWidget(Component.literal("Image not found: " + searchPath).withStyle(ChatFormatting.RED));
         }
         try {
-            var image = NativeImage.read(resource.get().getInputStream());
+            var image = NativeImage.read(resource.get().open());
             int srcW = image.getWidth();
             int srcH = image.getHeight();
             int displayW = Math.max(16, (int) (budget * widthRatio));
@@ -689,7 +690,7 @@ public class MarkdownParser {
             widget.size(displayW, displayH);
             return widget;
         } catch (IOException e) {
-            return new LabelWidget(Text.literal("Error reading image: " + location).formatted(Formatting.RED));
+            return new LabelWidget(Component.literal("Error reading image: " + location).withStyle(ChatFormatting.RED));
         }
     }
 
