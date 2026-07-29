@@ -1,2 +1,1 @@
-- Optimize images
-- Fix neoforge accesswiedener inclusion
+- Straight port to 26.1.2. No known feature changes / improvements
