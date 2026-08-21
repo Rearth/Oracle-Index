@@ -1,0 +1,12 @@
+{
+  "pack": {
+    "description": "Oracle Index example wiki for Minecraft 1.21.1 through 26.1.2",
+    "pack_format": 34,
+    "supported_formats": {
+      "min_inclusive": 34,
+      "max_inclusive": 84
+    },
+    "min_format": 34,
+    "max_format": 84
+  }
+}

@@ -47,6 +47,9 @@ A simple ingame wiki / documentation viewer, built for neoforge and fabric 1.21.
 so mod wikis can be created for both ingame usage and online view without having to rewrite the pages. Support both documentation and content wikis.
 If both are found in a wiki, it'll include a button to switch in the navigation panel.
 
+Content can be included either via a mods resources or via a resource pack. An example of a resource pack is on github in this repo:
+https://github.com/Rearth/Oracle-Index/tree/26.1.2/example_resource_pack
+
 Includes a basic markdown parser for the content, and support for some custom html tags similar to moddedmc.wiki. 
 Relevant items can be defined per wiki page, allowing
 the users to directly open the relevant wiki pages from the items tooltip.

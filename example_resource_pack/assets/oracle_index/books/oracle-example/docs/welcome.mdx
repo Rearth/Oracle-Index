@@ -1,0 +1,49 @@
+---
+title: Oracle Index Example
+icon: minecraft:book
+related_items: ["minecraft:book", "minecraft:compass"]
+---
+
+# A normal documentation page
+
+Welcome! This small book demonstrates a **normal documentation page** in
+Oracle Index. Markdown headings, **bold text**, *italic text*, and lists are all
+available.
+
+## A short checklist
+
+- Switch between the **Docs** and **Content** tabs in the sidebar.
+- Open the Compass, Crafting Table, and Diamond Pickaxe entries.
+- Click this [Compass content-page link](@minecraft:compass).
+- Hover the real item shown below.
+
+<Callout variant="info">
+This callout is an Oracle Index-supported ModdedMC component.
+</Callout>
+
+<center>
+<ModAsset location="minecraft:compass" width={64} />
+</center>
+
+## A recipe component
+
+The component below is deliberately simple and uses only vanilla items.
+
+<CraftingRecipe
+    slots={[
+        '',
+        'minecraft:stick',
+        '',
+        '',
+        'minecraft:stick',
+        '',
+        '',
+        'minecraft:diamond',
+        ''
+    ]}
+    result="minecraft:diamond_shovel"
+    count={1}
+/>
+
+That is enough structure for a compact in-game manual while leaving the files
+pleasant to maintain.
