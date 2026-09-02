@@ -571,10 +571,9 @@ public class MarkdownParser {
         }
 
         private static ImageStyle of(MdxAttributes attributes) {
-            HorizontalAlignment alignment = attributes.has("right")
-                ? FlowWidget.HorizontalAlignment.RIGHT
-                : attributes.has("left") ? FlowWidget.HorizontalAlignment.LEFT
-                : FlowWidget.HorizontalAlignment.CENTER;
+            HorizontalAlignment alignment = attributes.has("center") || attributes.has("right")
+                ? FlowWidget.HorizontalAlignment.CENTER
+                : FlowWidget.HorizontalAlignment.LEFT;
             String rawWidth = attributes.get("width");
             Float ratio = rawWidth != null && rawWidth.endsWith("%") ? convertImageWidth(rawWidth) : null;
             return new ImageStyle(ratio, attributes.getPixels("width"), attributes.getPixels("height"), attributes.has("item"), alignment);
