@@ -20,7 +20,9 @@ public class MdxBlockFactory extends AbstractBlockParserFactory {
             return startLeaf(new MdxComponentBlock.AssetBlock("Asset"), "Asset", line, state);
         } else if (line.startsWith("<Audio")) {
             return startLeaf(new MdxComponentBlock.AudioBlock(), "Audio", line, state);
-        } 
+        } else if (line.startsWith("<VideoEmbed")) {
+            return startLeaf(new MdxComponentBlock.VideoEmbedBlock(), "VideoEmbed", line, state);
+        }
 
         // container blocks
         if (line.startsWith("<Callout")) {
