@@ -18,11 +18,15 @@ import org.commonmark.ext.gfm.tables.*;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
 import org.jetbrains.annotations.Nullable;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.widgets.*;
+import rearth.oracle.ui.widgets.FlowWidget.HorizontalAlignment;
 import rearth.oracle.ui.widgets.TableWidget.Cell;
+import rearth.oracle.util.MdxAttributes.Match;
 
 import java.io.IOException;
 import java.util.*;
@@ -191,6 +195,7 @@ public class MarkdownParser {
         @Override
         public void visit(Heading heading) {
             buffer = Component.empty();
+            stripHeadingAttributes(heading);
             var oldStyle = currentStyle;
             currentStyle = currentStyle.withColor(ChatFormatting.GRAY);
             visitChildren(heading);
@@ -280,7 +285,7 @@ public class MarkdownParser {
                 }
                 case MdxComponentBlock.AssetBlock asset -> {
                     flushBuffer();
-                    components.add(buildImage(asset.location, asset.width, wikiId, contentWidthPx));
+                    components.add(buildImage(asset.location, ImageStyle.ofWidthSource(asset.width), wikiId, contentWidthPx));
                 }
                 case MdxComponentBlock.CalloutBlock callout -> {
                     flushBuffer();
@@ -308,9 +313,37 @@ public class MarkdownParser {
         }
 
         @Override
+        public void visit(HtmlBlock htmlBlock) {
+            visitRawHtml(htmlBlock.getLiteral());
+        }
+
+        @Override
+        public void visit(HtmlInline htmlInline) {
+            visitRawHtml(htmlInline.getLiteral());
+        }
+
+        private void visitRawHtml(String html) {
+            org.jsoup.nodes.Document fragment = Jsoup.parseBodyFragment(html);
+
+            Element image = fragment.selectFirst("img");
+            if (image != null && image.hasAttr("src")) {
+                flushBuffer();
+                components.add(buildImage(image.attr("src"), ImageStyle.ofHtml(image), wikiId, contentWidthPx));
+            }
+        }
+
+        @Override
         public void visit(Image image) {
+            ImageStyle style = ImageStyle.consume(image);
+            UIComponent widget = buildImage(image.getDestination(), style, wikiId, contentWidthPx);
             flushBuffer();
-            components.add(buildImage(image.getDestination(), "60%", wikiId, contentWidthPx));
+
+            String caption = altText(image);
+            if (isStandalone(image) && !caption.isBlank()) {
+                components.add(new FigureWidget(widget, Component.literal(caption), style.alignment()));
+            } else {
+                components.add(widget);
+            }
         }
 
         private void buildTable(TableBlock table) {
@@ -398,6 +431,38 @@ public class MarkdownParser {
         }
     }
 
+    private static void stripHeadingAttributes(Heading heading) {
+        Node last = heading.getLastChild();
+        if (!(last instanceof org.commonmark.node.Text text)) return;
+
+        Match match = MdxAttributes.matchTrailing(text.getLiteral());
+        if (match == null) return;
+
+        text.setLiteral(match.remainder());
+    }
+
+    private static boolean isStandalone(Image image) {
+        if (!(image.getParent() instanceof Paragraph paragraph)) return false;
+
+        for (var sibling = paragraph.getFirstChild(); sibling != null; sibling = sibling.getNext()) {
+            if (sibling == image || sibling instanceof Text text && text.getLiteral().isBlank() || sibling instanceof SoftLineBreak)
+                continue;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static String altText(Image image) {
+        StringBuilder alt = new StringBuilder();
+        for (var child = image.getFirstChild(); child != null; child = child.getNext()) {
+            if (child instanceof org.commonmark.node.Text text) {
+                alt.append(text.getLiteral());
+            }
+        }
+        return alt.toString().trim();
+    }
+
     public record GitHubAlert(CalloutVariant variant, @Nullable Component title, boolean collapsible, boolean collapsed) {
         private static final Pattern HEADER = Pattern.compile("^\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)]([+-]?)\\s*(.*)$");
 
@@ -437,9 +502,74 @@ public class MarkdownParser {
         }
     }
 
+    public record ImageStyle(@Nullable Float widthRatio, @Nullable Integer width, @Nullable Integer height,
+                             boolean item, FlowWidget.HorizontalAlignment alignment
+    ) {
+        private static final int ITEM_SIZE = 32;
+
+        public static final ImageStyle DEFAULT = new ImageStyle(null, null, null, false, FlowWidget.HorizontalAlignment.CENTER);
+
+        private static ImageStyle consume(Image image) {
+            if (!(image.getNext() instanceof org.commonmark.node.Text text)) return DEFAULT;
+
+            Match match = MdxAttributes.matchLeading(text.getLiteral());
+            if (match == null) return DEFAULT;
+
+            text.setLiteral(match.remainder());
+
+            return of(match.attributes());
+        }
+
+        private static ImageStyle of(MdxAttributes attributes) {
+            HorizontalAlignment alignment = attributes.has("right")
+                ? FlowWidget.HorizontalAlignment.RIGHT
+                : attributes.has("left") ? FlowWidget.HorizontalAlignment.LEFT
+                : FlowWidget.HorizontalAlignment.CENTER;
+            String rawWidth = attributes.get("width");
+            Float ratio = rawWidth != null && rawWidth.endsWith("%") ? convertImageWidth(rawWidth) : null;
+            return new ImageStyle(ratio, attributes.getPixels("width"), attributes.getPixels("height"), attributes.has("item"), alignment);
+        }
+
+        private static ImageStyle ofHtml(Element element) {
+            Map<String, String> attributes = new HashMap<>();
+            if (element.hasAttr("width")) {
+                attributes.put("width", element.attr("width"));
+            }
+            if (element.hasAttr("height")) {
+                attributes.put("height", element.attr("height"));
+            }
+
+            Set<String> flags = new HashSet<>();
+            for (var name : element.attr("class").split("\\s+")) {
+                if (!name.isBlank()) flags.add(name);
+            }
+
+            if (element.hasAttr("align")) {
+                flags.add(element.attr("align").toLowerCase(Locale.ROOT));
+            }
+
+            return of(new MdxAttributes(attributes, flags));
+        }
+
+        private static ImageStyle ofWidthSource(@Nullable String widthSource) {
+            float ratio = convertImageWidth(widthSource);
+            return new ImageStyle(ratio > 0 ? ratio : null, null, null, false, FlowWidget.HorizontalAlignment.CENTER);
+        }
+
+        private int resolveWidth(int budget, float defaultRatio) {
+            if (item) return ITEM_SIZE;
+            if (width != null && width > 0) return Math.min(width, budget);
+            float ratio = widthRatio != null && widthRatio > 0 ? widthRatio : defaultRatio;
+            return Math.max(16, (int) (budget * ratio));
+        }
+    }
+
     // ---------------------------------------------------------------- helpers
 
     public static MutableComponent getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+        int anchor = link.indexOf('#');
+        if (anchor > 0) link = link.substring(0, anchor);
+
         if (link.startsWith("@")) {
             Identifier id = Identifier.tryParse(link.substring(1));
             if (id != null && id.getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
@@ -781,20 +911,35 @@ public class MarkdownParser {
         return panel;
     }
 
-    public static UIComponent buildImage(String location, String widthSource, String wikiId, int contentWidthPx) {
-        var widthRatio = convertImageWidth(widthSource);
-        if (widthRatio <= 0) widthRatio = 0.5f;
+    public static Identifier resolveAssetPath(String location, String wikiId, String defaultExtension) {
+        if (location.startsWith("@")) location = location.substring(1);
+
+        var assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
+        var parts = location.split(":", 2);
+        var assetModId = parts.length > 1 ? parts[0] : wikiId;
+        var assetPath = parts.length > 1 ? parts[1] : location;
+        var extension = assetPath.contains(".") ? "" : defaultExtension;
+
+        return Identifier.fromNamespaceAndPath(
+            Oracle.MOD_ID,
+            ROOT_DIR + "/" + wikiId + assetsRoot + "/" + assetModId + "/" + assetPath + extension
+        );
+    }
+
+    public static UIComponent buildImage(String location, ImageStyle style, String wikiId, int contentWidthPx) {
+        if (location == null || location.isBlank()) {
+            return new LabelWidget(Component.literal("Missing image location").withStyle(ChatFormatting.RED));
+        }
         if (location.startsWith("@")) location = location.substring(1);
 
         // available pixel budget after scrollbar gutter + a tiny breathing margin
         var budget = Math.max(16, contentWidthPx - 12);
 
         // case 1: ingame item → render as ItemWidget
-        var itemIdCandidate = Identifier.parse(location);
-        if (BuiltInRegistries.ITEM.containsKey(itemIdCandidate)) {
-            // items default to ~10% of content width when no width is specified
-            if (widthRatio == 0.5f) widthRatio = 0.1f;
-            int displaySize = Math.max(16, (int) (budget * widthRatio));
+        var itemIdCandidate = Identifier.tryParse(location);
+        if (itemIdCandidate != null && BuiltInRegistries.ITEM.containsKey(itemIdCandidate)) {
+            // items default to ~10% of content width when no size is specified
+            int displaySize = style.resolveWidth(budget, 0.1f);
             var itemWidget = new ItemWidget(new ItemStack(BuiltInRegistries.ITEM.getValue(itemIdCandidate)));
             itemWidget.size(displaySize, displaySize);
             itemWidget.setHideItemDecorations(true);
@@ -802,14 +947,7 @@ public class MarkdownParser {
         }
 
         // case 2: texture path
-        var assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
-        Identifier searchPath;
-        var parts = location.split(":", 2);
-        var imageModId = parts.length > 0 ? parts[0] : wikiId;
-        var imagePath = parts.length > 1 ? parts[1] : location;
-        var extension = imagePath.contains(".") ? "" : ".png";
-        searchPath = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + extension);
-
+        var searchPath = resolveAssetPath(location, wikiId, ".png");
         var rm = Minecraft.getInstance().getResourceManager();
         var resource = rm.getResource(searchPath);
         if (resource.isEmpty()) {
@@ -819,12 +957,15 @@ public class MarkdownParser {
             var image = NativeImage.read(resource.get().open());
             int srcW = image.getWidth();
             int srcH = image.getHeight();
-            int displayW = Math.max(16, (int) (budget * widthRatio));
-            int displayH = (int) (displayW * (srcH / (float) srcW));
+            int displayW = style.resolveWidth(budget, 0.5f);
+            int displayH = style.item() ? displayW
+                : style.height() != null && style.height() > 0 ? style.height()
+                : (int) (displayW * (srcH / (float) srcW));
+            var alignment = style.alignment();
             var widget = new TextureWidget(searchPath, srcW, srcH) {
                 @Override
-                public @Nullable FlowWidget.HorizontalAlignment getOverrideAlignment() {
-                    return FlowWidget.HorizontalAlignment.CENTER;
+                public FlowWidget.HorizontalAlignment getOverrideAlignment() {
+                    return alignment;
                 }
             };
             widget.region(0, 0, srcW, srcH);
