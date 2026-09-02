@@ -1,33 +1,37 @@
 package rearth.oracle.util;
 
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.network.chat.*;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.Component;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.ChatFormatting;
-import net.minecraft.resources.Identifier;
 import org.apache.commons.lang3.StringUtils;
 import org.commonmark.Extension;
 import org.commonmark.ext.front.matter.YamlFrontMatterExtension;
 import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
+import org.commonmark.ext.gfm.tables.*;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
 import org.jetbrains.annotations.Nullable;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.widgets.*;
+import rearth.oracle.ui.widgets.FlowWidget.HorizontalAlignment;
+import rearth.oracle.ui.widgets.TableWidget.Cell;
+import rearth.oracle.util.MdxAttributes.Match;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
@@ -38,10 +42,10 @@ import static rearth.oracle.OracleClient.ROOT_DIR;
 public class MarkdownParser {
 
     private static final Identifier WIKI_LINK_EVENT =
-      Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "wiki_link");
+        Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "wiki_link");
     private static final String[] removedLines = {"<center>", "</center>", "<div>", "</div>", "<span>", "</span>"};
 
-    private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create());
+    private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create(), TablesExtension.create());
     private static final Set<Class<? extends Block>> ENABLED_BLOCKS = Set.of(
         Heading.class, HtmlBlock.class, ThematicBreak.class,
         FencedCodeBlock.class, BlockQuote.class, ListBlock.class
@@ -51,6 +55,7 @@ public class MarkdownParser {
         .enabledBlockTypes(ENABLED_BLOCKS)
         .extensions(EXTENSIONS)
         .customBlockParserFactory(new MdxBlockFactory())
+        .customInlineContentParserFactory(new HoverText.ParserFactory())
         .build();
 
     /**
@@ -156,6 +161,31 @@ public class MarkdownParser {
             currentIndentation = 0;
         }
 
+        private List<UIComponent> collectChildren(Node node) {
+            var previousComponents = this.components;
+            var previousBuffer = this.buffer;
+            var collected = new ArrayList<UIComponent>();
+            this.components = collected;
+            this.buffer = Component.empty();
+            visitChildren(node);
+            flushBuffer();
+            this.components = previousComponents;
+            this.buffer = previousBuffer;
+            return collected;
+        }
+
+        private MutableComponent collectInline(Node node, Style baseStyle) {
+            var previousBuffer = this.buffer;
+            var previousStyle = this.currentStyle;
+            this.buffer = Component.empty();
+            this.currentStyle = baseStyle;
+            visitChildren(node);
+            var collected = this.buffer;
+            this.buffer = previousBuffer;
+            this.currentStyle = previousStyle;
+            return collected;
+        }
+
         @Override
         public void visit(Paragraph paragraph) {
             visitChildren(paragraph);
@@ -165,6 +195,7 @@ public class MarkdownParser {
         @Override
         public void visit(Heading heading) {
             buffer = Component.empty();
+            stripHeadingAttributes(heading);
             var oldStyle = currentStyle;
             currentStyle = currentStyle.withColor(ChatFormatting.GRAY);
             visitChildren(heading);
@@ -185,12 +216,25 @@ public class MarkdownParser {
         @Override
         public void visit(FencedCodeBlock codeBlock) {
             flushBuffer();
-            var panel = FlowWidget.vertical();
-            panel.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
-            panel.setPadding(Insets.of(6));
-            var text = Component.literal(codeBlock.getLiteral()).withStyle(ChatFormatting.GRAY);
-            panel.child(new LabelWidget(text));
-            components.add(panel);
+            CodeFence fence = CodeFence.parse(codeBlock.getInfo());
+            components.add(new CodeBlockWidget(fence.fileName(), fence.language(), codeBlock.getLiteral()));
+        }
+
+        @Override
+        public void visit(BlockQuote blockQuote) {
+            flushBuffer();
+            GitHubAlert alert = GitHubAlert.consume(blockQuote);
+            List<UIComponent> inner = collectChildren(blockQuote);
+
+            if (alert != null) {
+                CalloutWidget callout = new CalloutWidget(alert.variant(), alert.title(), alert.collapsible(), alert.collapsed());
+                for (var c : inner) callout.addBodyChild(c);
+                components.add(callout);
+            } else {
+                var quote = new BlockQuoteWidget();
+                for (var c : inner) quote.child(c);
+                components.add(quote);
+            }
         }
 
         @Override
@@ -234,28 +278,132 @@ public class MarkdownParser {
 
         @Override
         public void visit(CustomBlock customBlock) {
-            if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock recipe) {
-                components.add(buildRecipe(recipe.slots, recipe.result, recipe.count));
-            } else if (customBlock instanceof MdxComponentBlock.AssetBlock image) {
-                components.add(buildImage(image.location, image.width, this.wikiId, contentWidthPx));
-            } else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
-                var oldComponents = this.components;
-                var inner = new ArrayList<UIComponent>();
-                this.components = inner;
-                visitChildren(callout);
-                flushBuffer();
-                this.components = oldComponents;
+            switch (customBlock) {
+                case MdxComponentBlock.CraftingRecipeBlock recipe -> {
+                    flushBuffer();
+                    components.add(buildRecipe(recipe.slots, recipe.result, recipe.count));
+                }
+                case MdxComponentBlock.AssetBlock asset -> {
+                    flushBuffer();
+                    components.add(buildImage(asset.location, ImageStyle.ofWidthSource(asset.width), wikiId, contentWidthPx));
+                }
+                case MdxComponentBlock.CalloutBlock callout -> {
+                    flushBuffer();
+                    var inner = collectChildren(callout);
+                    var title = callout.title == null ? null : Component.literal(callout.title);
+                    var widget = new CalloutWidget(callout.variant, title, callout.collapsible, callout.collapsed);
+                    for (var c : inner) widget.addBodyChild(c);
+                    components.add(widget);
+                }
+                case MdxComponentBlock.AudioBlock audio -> {
+                    flushBuffer();
+                    var widget = buildAudio(audio.src, wikiId);
+                    if (widget != null) components.add(widget);
+                }
+                case MdxComponentBlock.VideoEmbedBlock video -> {
+                    flushBuffer();
+                    if (video.videoId != null && !video.videoId.isBlank()) {
+                        components.add(new VideoEmbedWidget(video.videoId, linkHandler));
+                    }
+                }
+                case MdxComponentBlock.CodeTabsBlock codeTabs -> {
+                    flushBuffer();
+                    var widget = buildCodeTabs(codeTabs);
+                    if (widget != null) components.add(widget);
+                }
+                case TableBlock table -> buildTable(table);
+                default -> visitChildren(customBlock);
+            }
+        }
 
-                var widget = new CalloutWidget(callout.variant);
-                for (var c : inner) widget.addBodyChild(c);
-                components.add(widget);
+        @Override
+        public void visit(CustomNode customNode) {
+            if (customNode instanceof HoverText hoverText) {
+                var style = currentStyle
+                    .withUnderlined(true)
+                    .withHoverEvent(new HoverEvent.ShowText(Component.literal(hoverText.getHint())));
+                buffer.append(Component.literal(hoverText.getLabel()).setStyle(style));
+                return;
+            }
+            super.visit(customNode);
+        }
+
+        @Override
+        public void visit(HtmlBlock htmlBlock) {
+            visitRawHtml(htmlBlock.getLiteral());
+        }
+
+        @Override
+        public void visit(HtmlInline htmlInline) {
+            visitRawHtml(htmlInline.getLiteral());
+        }
+
+        private void visitRawHtml(String html) {
+            org.jsoup.nodes.Document fragment = Jsoup.parseBodyFragment(html);
+
+            Element image = fragment.selectFirst("img");
+            if (image != null && image.hasAttr("src")) {
+                flushBuffer();
+                components.add(buildImage(image.attr("src"), ImageStyle.ofHtml(image), wikiId, contentWidthPx));
             }
         }
 
         @Override
         public void visit(Image image) {
+            ImageStyle style = ImageStyle.consume(image);
+            UIComponent widget = buildImage(image.getDestination(), style, wikiId, contentWidthPx);
             flushBuffer();
-            components.add(buildImage(image.getDestination(), "60%", wikiId, contentWidthPx));
+
+            String caption = altText(image);
+            if (isStandalone(image) && !caption.isBlank()) {
+                components.add(new FigureWidget(widget, Component.literal(caption), style.alignment()));
+            } else {
+                components.add(widget);
+            }
+        }
+
+        private void buildTable(TableBlock table) {
+            flushBuffer();
+            ArrayList<List<Cell>> rows = new ArrayList<>();
+            boolean hasHeader = false;
+
+            for (Node section = table.getFirstChild(); section != null; section = section.getNext()) {
+                boolean header = section instanceof TableHead;
+
+                for (Node row = section.getFirstChild(); row != null; row = row.getNext()) {
+                    if (!(row instanceof TableRow)) continue;
+
+                    ArrayList<Cell> cells = new ArrayList<>();
+                    for (Node cell = row.getFirstChild(); cell != null; cell = cell.getNext()) {
+                        if (!(cell instanceof TableCell tableCell)) continue;
+
+                        Style style = header ? Style.EMPTY.withBold(true) : Style.EMPTY;
+                        cells.add(new TableWidget.Cell(collectInline(tableCell, style), getCellAlignment(tableCell)));
+                    }
+
+                    if (header) hasHeader = true;
+                    rows.add(cells);
+                }
+            }
+
+            if (!rows.isEmpty()) {
+                components.add(new TableWidget(rows, hasHeader, linkHandler));
+            }
+        }
+
+        @Nullable
+        private UIComponent buildCodeTabs(Node container) {
+            var tabs = new ArrayList<CodeTabsWidget.Tab>();
+            for (var child = container.getFirstChild(); child != null; child = child.getNext()) {
+                if (!(child instanceof FencedCodeBlock code)) continue;
+                var fence = CodeFence.parse(code.getInfo());
+                var title = fence.tabTitle() != null ? fence.tabTitle()
+                    : fence.fileName() != null ? fence.fileName()
+                    : fence.language() != null ? fence.language()
+                    : "Tab " + (tabs.size() + 1);
+                tabs.add(new CodeTabsWidget.Tab(title, code.getLiteral()));
+            }
+            return tabs.isEmpty() ? null : new CodeTabsWidget(tabs);
         }
 
         @Override
@@ -283,8 +431,8 @@ public class MarkdownParser {
         public void visit(Link link) {
             var old = currentStyle;
             var clickEvent = new ClickEvent.Custom(
-              WIKI_LINK_EVENT,
-              Optional.of(StringTag.valueOf(link.getDestination()))
+                WIKI_LINK_EVENT,
+                Optional.of(StringTag.valueOf(link.getDestination()))
             );
             currentStyle = currentStyle.withColor(ChatFormatting.BLUE).withUnderlined(true).withClickEvent(clickEvent);
 
@@ -314,9 +462,166 @@ public class MarkdownParser {
         }
     }
 
+    private static void stripHeadingAttributes(Heading heading) {
+        Node last = heading.getLastChild();
+        if (!(last instanceof org.commonmark.node.Text text)) return;
+
+        Match match = MdxAttributes.matchTrailing(text.getLiteral());
+        if (match == null) return;
+
+        text.setLiteral(match.remainder());
+    }
+
+    private static boolean isStandalone(Image image) {
+        if (!(image.getParent() instanceof Paragraph paragraph)) return false;
+
+        for (var sibling = paragraph.getFirstChild(); sibling != null; sibling = sibling.getNext()) {
+            if (sibling == image || sibling instanceof Text text && text.getLiteral().isBlank() || sibling instanceof SoftLineBreak)
+                continue;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static String altText(Image image) {
+        StringBuilder alt = new StringBuilder();
+        for (var child = image.getFirstChild(); child != null; child = child.getNext()) {
+            if (child instanceof org.commonmark.node.Text text) {
+                alt.append(text.getLiteral());
+            }
+        }
+        return alt.toString().trim();
+    }
+
+    public record CodeFence(@Nullable String language, @Nullable String fileName, @Nullable String tabTitle) {
+        private static final String TABS_MARKER = "!!tabs";
+
+        public static CodeFence parse(@Nullable String info) {
+            if (info == null || info.isBlank()) return new CodeFence(null, null, null);
+            String[] tokens = info.trim().split("\\s+");
+            String language = tokens[0].isBlank() ? null : tokens[0];
+
+            String fileName = null;
+            String tabTitle = null;
+            for (int i = 1; i < tokens.length; i++) {
+                if (TABS_MARKER.equals(tokens[i])) {
+                    if (i + 1 < tokens.length) tabTitle = String.join(" ", Arrays.copyOfRange(tokens, i + 1, tokens.length));
+                    break;
+                }
+                fileName = fileName == null ? tokens[i] : fileName + " " + tokens[i];
+            }
+
+            return new CodeFence(language, fileName, tabTitle);
+        }
+    }
+
+    public record GitHubAlert(CalloutVariant variant, @Nullable Component title, boolean collapsible, boolean collapsed) {
+        private static final Pattern HEADER = Pattern.compile("^\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)]([+-]?)\\s*(.*)$");
+
+        @Nullable
+        public static GitHubAlert consume(BlockQuote blockQuote) {
+            if (!(blockQuote.getFirstChild() instanceof Paragraph paragraph)) return null;
+
+            // collect the first line's plain text; formatting inside the header is not supported
+            var line = new StringBuilder();
+            var consumed = new ArrayList<Node>();
+            Node lineBreak = null;
+            for (var child = paragraph.getFirstChild(); child != null; child = child.getNext()) {
+                if (child instanceof org.commonmark.node.Text text) {
+                    line.append(text.getLiteral());
+                    consumed.add(child);
+                } else if (child instanceof SoftLineBreak || child instanceof HardLineBreak) {
+                    lineBreak = child;
+                    break;
+                } else {
+                    break;
+                }
+            }
+
+            var matcher = HEADER.matcher(line.toString().trim());
+            if (!matcher.matches()) return null;
+
+            for (var node : consumed) node.unlink();
+            if (lineBreak != null) lineBreak.unlink();
+            if (paragraph.getFirstChild() == null) paragraph.unlink();
+
+            var variant = CalloutVariant.byName(matcher.group(1), CalloutVariant.NOTE);
+            var marker = matcher.group(2);
+            var title = matcher.group(3).isBlank() ? null : Component.literal(matcher.group(3).trim());
+            boolean collapsed = "-".equals(marker);
+            boolean collapsible = collapsed || "+".equals(marker);
+            return new GitHubAlert(variant, title, collapsible, collapsed);
+        }
+    }
+
+    public record ImageStyle(@Nullable Float widthRatio, @Nullable Integer width, @Nullable Integer height,
+                             boolean item, FlowWidget.HorizontalAlignment alignment
+    ) {
+        private static final int ITEM_SIZE = 32;
+
+        public static final ImageStyle DEFAULT = new ImageStyle(null, null, null, false, FlowWidget.HorizontalAlignment.CENTER);
+
+        private static ImageStyle consume(Image image) {
+            if (!(image.getNext() instanceof org.commonmark.node.Text text)) return DEFAULT;
+
+            Match match = MdxAttributes.matchLeading(text.getLiteral());
+            if (match == null) return DEFAULT;
+
+            text.setLiteral(match.remainder());
+
+            return of(match.attributes());
+        }
+
+        private static ImageStyle of(MdxAttributes attributes) {
+            HorizontalAlignment alignment = attributes.has("center") || attributes.has("right")
+                ? FlowWidget.HorizontalAlignment.CENTER
+                : FlowWidget.HorizontalAlignment.LEFT;
+            String rawWidth = attributes.get("width");
+            Float ratio = rawWidth != null && rawWidth.endsWith("%") ? convertImageWidth(rawWidth) : null;
+            return new ImageStyle(ratio, attributes.getPixels("width"), attributes.getPixels("height"), attributes.has("item"), alignment);
+        }
+
+        private static ImageStyle ofHtml(Element element) {
+            Map<String, String> attributes = new HashMap<>();
+            if (element.hasAttr("width")) {
+                attributes.put("width", element.attr("width"));
+            }
+            if (element.hasAttr("height")) {
+                attributes.put("height", element.attr("height"));
+            }
+
+            Set<String> flags = new HashSet<>();
+            for (var name : element.attr("class").split("\\s+")) {
+                if (!name.isBlank()) flags.add(name);
+            }
+
+            if (element.hasAttr("align")) {
+                flags.add(element.attr("align").toLowerCase(Locale.ROOT));
+            }
+
+            return of(new MdxAttributes(attributes, flags));
+        }
+
+        private static ImageStyle ofWidthSource(@Nullable String widthSource) {
+            float ratio = convertImageWidth(widthSource);
+            return new ImageStyle(ratio > 0 ? ratio : null, null, null, false, FlowWidget.HorizontalAlignment.CENTER);
+        }
+
+        private int resolveWidth(int budget, float defaultRatio) {
+            if (item) return ITEM_SIZE;
+            if (width != null && width > 0) return Math.min(width, budget);
+            float ratio = widthRatio != null && widthRatio > 0 ? widthRatio : defaultRatio;
+            return Math.max(16, (int) (budget * ratio));
+        }
+    }
+
     // ---------------------------------------------------------------- helpers
 
     public static MutableComponent getLinkText(String link, String activeWikiId, Identifier sourceEntryPath) {
+        int anchor = link.indexOf('#');
+        if (anchor > 0) link = link.substring(0, anchor);
+
         if (link.startsWith("@")) {
             Identifier id = Identifier.tryParse(link.substring(1));
             if (id != null && id.getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
@@ -385,6 +690,18 @@ public class MarkdownParser {
             linkHandler,
             contentWidthPx
         );
+    }
+
+    private static FlowWidget.HorizontalAlignment getCellAlignment(TableCell cell) {
+        var alignment = cell.getAlignment();
+        if (alignment == null) {
+            return FlowWidget.HorizontalAlignment.LEFT;
+        }
+        return switch (alignment) {
+            case LEFT -> FlowWidget.HorizontalAlignment.LEFT;
+            case CENTER -> FlowWidget.HorizontalAlignment.CENTER;
+            case RIGHT -> FlowWidget.HorizontalAlignment.RIGHT;
+        };
     }
 
     private static ItemStack getIconStack(String iconId) {
@@ -646,20 +963,35 @@ public class MarkdownParser {
         return panel;
     }
 
-    public static UIComponent buildImage(String location, String widthSource, String wikiId, int contentWidthPx) {
-        var widthRatio = convertImageWidth(widthSource);
-        if (widthRatio <= 0) widthRatio = 0.5f;
+    public static Identifier resolveAssetPath(String location, String wikiId, String defaultExtension) {
+        if (location.startsWith("@")) location = location.substring(1);
+
+        var assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
+        var parts = location.split(":", 2);
+        var assetModId = parts.length > 1 ? parts[0] : wikiId;
+        var assetPath = parts.length > 1 ? parts[1] : location;
+        var extension = assetPath.contains(".") ? "" : defaultExtension;
+
+        return Identifier.fromNamespaceAndPath(
+            Oracle.MOD_ID,
+            ROOT_DIR + "/" + wikiId + assetsRoot + "/" + assetModId + "/" + assetPath + extension
+        );
+    }
+
+    public static UIComponent buildImage(String location, ImageStyle style, String wikiId, int contentWidthPx) {
+        if (location == null || location.isBlank()) {
+            return new LabelWidget(Component.literal("Missing image location").withStyle(ChatFormatting.RED));
+        }
         if (location.startsWith("@")) location = location.substring(1);
 
         // available pixel budget after scrollbar gutter + a tiny breathing margin
         var budget = Math.max(16, contentWidthPx - 12);
 
         // case 1: ingame item → render as ItemWidget
-        var itemIdCandidate = Identifier.parse(location);
-        if (BuiltInRegistries.ITEM.containsKey(itemIdCandidate)) {
-            // items default to ~10% of content width when no width is specified
-            if (widthRatio == 0.5f) widthRatio = 0.1f;
-            int displaySize = Math.max(16, (int) (budget * widthRatio));
+        var itemIdCandidate = Identifier.tryParse(location);
+        if (itemIdCandidate != null && BuiltInRegistries.ITEM.containsKey(itemIdCandidate)) {
+            // items default to ~10% of content width when no size is specified
+            int displaySize = style.resolveWidth(budget, 0.1f);
             var itemWidget = new ItemWidget(new ItemStack(BuiltInRegistries.ITEM.getValue(itemIdCandidate)));
             itemWidget.size(displaySize, displaySize);
             itemWidget.setHideItemDecorations(true);
@@ -667,14 +999,7 @@ public class MarkdownParser {
         }
 
         // case 2: texture path
-        var assetsRoot = OracleClient.getWikiFormat(wikiId).getAssetsRoot();
-        Identifier searchPath;
-        var parts = location.split(":", 2);
-        var imageModId = parts.length > 0 ? parts[0] : wikiId;
-        var imagePath = parts.length > 1 ? parts[1] : location;
-        var extension = imagePath.contains(".") ? "" : ".png";
-        searchPath = Identifier.fromNamespaceAndPath(Oracle.MOD_ID, ROOT_DIR + "/" + wikiId + assetsRoot + "/" + imageModId + "/" + imagePath + extension);
-
+        var searchPath = resolveAssetPath(location, wikiId, ".png");
         var rm = Minecraft.getInstance().getResourceManager();
         var resource = rm.getResource(searchPath);
         if (resource.isEmpty()) {
@@ -684,12 +1009,15 @@ public class MarkdownParser {
             var image = NativeImage.read(resource.get().open());
             int srcW = image.getWidth();
             int srcH = image.getHeight();
-            int displayW = Math.max(16, (int) (budget * widthRatio));
-            int displayH = (int) (displayW * (srcH / (float) srcW));
+            int displayW = style.resolveWidth(budget, 0.5f);
+            int displayH = style.item() ? displayW
+                : style.height() != null && style.height() > 0 ? style.height()
+                : (int) (displayW * (srcH / (float) srcW));
+            var alignment = style.alignment();
             var widget = new TextureWidget(searchPath, srcW, srcH) {
                 @Override
-                public @Nullable FlowWidget.HorizontalAlignment getOverrideAlignment() {
-                    return FlowWidget.HorizontalAlignment.CENTER;
+                public FlowWidget.HorizontalAlignment getOverrideAlignment() {
+                    return alignment;
                 }
             };
             widget.region(0, 0, srcW, srcH);
@@ -698,6 +1026,16 @@ public class MarkdownParser {
         } catch (IOException e) {
             return new LabelWidget(Component.literal("Error reading image: " + location).withStyle(ChatFormatting.RED));
         }
+    }
+
+    @Nullable
+    public static UIComponent buildAudio(@Nullable String source, String wikiId) {
+        if (source == null || source.isBlank()) return null;
+
+        Identifier path = resolveAssetPath(source, wikiId, ".ogg");
+        String[] segments = path.getPath().split("/");
+
+        return new AudioWidget(path, segments[segments.length - 1]);
     }
 
     public static Frontmatter parseFrontmatter(String markdown) {
