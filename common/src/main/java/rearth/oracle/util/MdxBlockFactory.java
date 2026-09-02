@@ -6,11 +6,11 @@ import org.commonmark.parser.block.MatchedBlockParser;
 import org.commonmark.parser.block.ParserState;
 
 public class MdxBlockFactory extends AbstractBlockParserFactory {
-    
+
     @Override
     public BlockStart tryStart(ParserState state, MatchedBlockParser matchedBlockParser) {
         String line = state.getLine().getContent().toString().trim();
-        
+
         // leaf blocks
         if (line.startsWith("<CraftingRecipe")) {
             return startLeaf(new MdxComponentBlock.CraftingRecipeBlock(), "CraftingRecipe", line, state);
@@ -19,22 +19,24 @@ public class MdxBlockFactory extends AbstractBlockParserFactory {
         } else if (line.startsWith("<Asset")) {
             return startLeaf(new MdxComponentBlock.AssetBlock("Asset"), "Asset", line, state);
         }
-        
+
         // container blocks
         if (line.startsWith("<Callout")) {
             return startContainer(new MdxComponentBlock.CalloutBlock(), "Callout", line, state);
+        } else if (line.startsWith("<CodeTabs")) {
+            return startContainer(new MdxComponentBlock.CodeTabsBlock(), "CodeTabs", line, state);
         }
-        
+
         return BlockStart.none();
     }
-    
+
     private BlockStart startLeaf(MdxComponentBlock block, String tagName, String line, ParserState state) {
         return BlockStart.of(new MdxLeafParser(block, tagName, line))
-                 .atIndex(state.getLine().getContent().length());
+            .atIndex(state.getLine().getContent().length());
     }
-    
+
     private BlockStart startContainer(MdxComponentBlock block, String tagName, String line, ParserState state) {
         return BlockStart.of(new MdxContainerParser(block, tagName, line))
-                 .atIndex(state.getLine().getContent().length());
+            .atIndex(state.getLine().getContent().length());
     }
 }
