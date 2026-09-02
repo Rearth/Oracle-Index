@@ -27,6 +27,7 @@ import rearth.oracle.ui.widgets.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
@@ -153,6 +154,19 @@ public class MarkdownParser {
             currentIndentation = 0;
         }
 
+        private List<UIComponent> collectChildren(Node node) {
+            var previousComponents = this.components;
+            var previousBuffer = this.buffer;
+            var collected = new ArrayList<UIComponent>();
+            this.components = collected;
+            this.buffer = Text.empty();
+            visitChildren(node);
+            flushBuffer();
+            this.components = previousComponents;
+            this.buffer = previousBuffer;
+            return collected;
+        }
+
         @Override
         public void visit(Paragraph paragraph) {
             visitChildren(paragraph);
@@ -188,6 +202,19 @@ public class MarkdownParser {
             var text = Text.literal(codeBlock.getLiteral()).formatted(Formatting.GRAY);
             panel.child(new LabelWidget(text));
             components.add(panel);
+        }
+
+        @Override
+        public void visit(BlockQuote blockQuote) {
+            flushBuffer();
+            var alert = GitHubAlert.consume(blockQuote);
+            var body = collectChildren(blockQuote);
+
+            if (alert != null) {
+                var callout = new CalloutWidget(alert.variant(), alert.title(), alert.collapsible(), alert.collapsed());
+                for (var child : body) callout.addBodyChild(child);
+                components.add(callout);
+            }
         }
 
         @Override
@@ -242,7 +269,8 @@ public class MarkdownParser {
                 flushBuffer();
                 this.components = oldComponents;
 
-                var widget = new CalloutWidget(callout.variant);
+                var title = callout.title == null ? null : Text.literal(callout.title);
+                var widget = new CalloutWidget(callout.variant, title, callout.collapsible, callout.collapsed);
                 for (var c : inner) widget.addBodyChild(c);
                 components.add(widget);
             }
@@ -304,6 +332,45 @@ public class MarkdownParser {
         @Override
         public void visit(HardLineBreak n) {
             if (buffer != null) buffer.append(Text.literal("\n"));
+        }
+    }
+
+    public record GitHubAlert(CalloutVariant variant, @Nullable Text title, boolean collapsible, boolean collapsed) {
+        private static final Pattern HEADER = Pattern.compile("^\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)]([+-]?)\\s*(.*)$");
+
+        @Nullable
+        public static GitHubAlert consume(BlockQuote blockQuote) {
+            if (!(blockQuote.getFirstChild() instanceof Paragraph paragraph)) return null;
+
+            // collect the first line's plain text; formatting inside the header is not supported
+            var line = new StringBuilder();
+            var consumed = new ArrayList<Node>();
+            Node lineBreak = null;
+            for (var child = paragraph.getFirstChild(); child != null; child = child.getNext()) {
+                if (child instanceof org.commonmark.node.Text text) {
+                    line.append(text.getLiteral());
+                    consumed.add(child);
+                } else if (child instanceof SoftLineBreak || child instanceof HardLineBreak) {
+                    lineBreak = child;
+                    break;
+                } else {
+                    break;
+                }
+            }
+
+            var matcher = HEADER.matcher(line.toString().trim());
+            if (!matcher.matches()) return null;
+
+            for (var node : consumed) node.unlink();
+            if (lineBreak != null) lineBreak.unlink();
+            if (paragraph.getFirstChild() == null) paragraph.unlink();
+
+            var variant = CalloutVariant.byName(matcher.group(1), CalloutVariant.NOTE);
+            var marker = matcher.group(2);
+            var title = matcher.group(3).isBlank() ? null : Text.literal(matcher.group(3).trim());
+            boolean collapsed = "-".equals(marker);
+            boolean collapsible = collapsed || "+".equals(marker);
+            return new GitHubAlert(variant, title, collapsible, collapsed);
         }
     }
 
