@@ -138,6 +138,21 @@ public abstract class MdxComponentBlock extends CustomBlock {
         }
     }
 
+    public static class VideoEmbedBlock extends MdxComponentBlock {
+        public String videoId;
+
+        @Override
+        void parseContent() {
+            var el = element("VideoEmbed");
+            if (el != null) this.videoId = el.attr("id");
+        }
+
+        @Override
+        public String toString() {
+            return "VideoEmbedBlock{videoId='" + videoId + "'}";
+        }
+    }
+
     public static class AudioBlock extends MdxComponentBlock {
         public String src;
 

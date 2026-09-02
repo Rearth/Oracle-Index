@@ -300,6 +300,12 @@ public class MarkdownParser {
                     var widget = buildAudio(audio.src, wikiId);
                     if (widget != null) components.add(widget);
                 }
+                case MdxComponentBlock.VideoEmbedBlock video -> {
+                    flushBuffer();
+                    if (video.videoId != null && !video.videoId.isBlank()) {
+                        components.add(new VideoEmbedWidget(video.videoId, linkHandler));
+                    }
+                }
                 case MdxComponentBlock.CodeTabsBlock codeTabs -> {
                     flushBuffer();
                     var widget = buildCodeTabs(codeTabs);

@@ -22,7 +22,7 @@ public class AudioWidget extends FlowWidget {
 
         setSurface(WikiSurface.BEDROCK_PANEL_DARK);
         setPadding(Insets.of(5, 7));
-        gap(7);
+        gap(5);
         verticalAlignment(VerticalAlignment.CENTER);
 
         ClickableWidget button = new ClickableWidget(glyph, b -> {
