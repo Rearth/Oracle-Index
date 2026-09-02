@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -180,6 +181,16 @@ public class LabelWidget extends UIComponent {
             context.drawText(tr, line, baseX + getLineOffset(line), baseY + i * lineHeight, color, false);
         }
         if (scaled) matrices.pop();
+    }
+    
+    @Override
+    public List<Text> tooltip(int mouseX, int mouseY) {
+        var style = styleAt(mouseX, mouseY);
+        if (style != null && style.getHoverEvent() != null) {
+            var hint = style.getHoverEvent().getValue(HoverEvent.Action.SHOW_TEXT);
+            if (hint != null) return List.of(hint);
+        }
+        return super.tooltip(mouseX, mouseY);
     }
     
     @Override

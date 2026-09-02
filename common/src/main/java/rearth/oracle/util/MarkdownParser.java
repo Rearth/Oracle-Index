@@ -7,6 +7,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -51,6 +52,7 @@ public class MarkdownParser {
         .enabledBlockTypes(ENABLED_BLOCKS)
         .extensions(EXTENSIONS)
         .customBlockParserFactory(new MdxBlockFactory())
+        .customInlineContentParserFactory(new HoverText.ParserFactory())
         .build();
 
     /**
@@ -291,6 +293,18 @@ public class MarkdownParser {
                 case TableBlock table -> buildTable(table);
                 default -> visitChildren(customBlock);
             }
+        }
+
+        @Override
+        public void visit(CustomNode customNode) {
+            if (customNode instanceof HoverText hoverText) {
+                var style = currentStyle
+                    .withUnderline(true)
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal(hoverText.getHint())));
+                buffer.append(Text.literal(hoverText.getLabel()).setStyle(style));
+                return;
+            }
+            super.visit(customNode);
         }
 
         @Override
