@@ -12,8 +12,9 @@
   "oracle_index.button.docs": "Docs",
   "oracle_index.button.content": "Content",
   "oracle_index.tooltip.docs": "Hold [ALT] for Documentation",
-  "oracle_index.callout.default": "Note",
-  "oracle_index.callout.info": "Info",
+  "oracle_index.callout.note": "Note",
+  "oracle_index.callout.tip": "Tip",
+  "oracle_index.callout.important": "Important",
   "oracle_index.callout.warning": "Warning",
-  "oracle_index.callout.danger": "Danger"
+  "oracle_index.callout.caution": "Caution"
 }
