@@ -28,6 +28,7 @@ public class LabelWidget extends UIComponent {
     private float scale = 1.0f;
     private int color = 0xFFFFFFFF;
     private int lineSpacing = 0;
+    private FlowWidget.HorizontalAlignment textAlignment = FlowWidget.HorizontalAlignment.LEFT;
     /**
      * -1 means "use the layout-supplied hint".
      */
@@ -74,6 +75,11 @@ public class LabelWidget extends UIComponent {
     public LabelWidget lineSpacing(int lineSpacing) {
         this.lineSpacing = lineSpacing;
         invalidateWrap();
+        return this;
+    }
+    
+    public LabelWidget textAlignment(FlowWidget.HorizontalAlignment alignment) {
+        this.textAlignment = alignment;
         return this;
     }
     
@@ -171,7 +177,7 @@ public class LabelWidget extends UIComponent {
         int lineHeight = tr.fontHeight + lineSpacing;
         for (int i = 0; i < lines.size(); i++) {
             var line = lines.get(i);
-            context.drawText(tr, line, baseX, baseY + i * lineHeight, color, false);
+            context.drawText(tr, line, baseX + getLineOffset(line), baseY + i * lineHeight, color, false);
         }
         if (scaled) matrices.pop();
     }
@@ -188,6 +194,15 @@ public class LabelWidget extends UIComponent {
         return super.handleClick(mouseX, mouseY, button);
     }
     
+    private int getLineOffset(OrderedText line) {
+        if (textAlignment == FlowWidget.HorizontalAlignment.LEFT || width <= 0) return 0;
+        int available = MathHelper.floor(width / scale);
+        int lineWidth = textRenderer().getWidth(line);
+        int slack = available - lineWidth;
+        if (slack <= 0) return 0;
+        return textAlignment == FlowWidget.HorizontalAlignment.CENTER ? slack / 2 : slack;
+    }
+    
     /**
      * Returns the {@link Style} under the given mouse position, or null.
      */
@@ -201,7 +216,9 @@ public class LabelWidget extends UIComponent {
         int lineHeight = tr.fontHeight + lineSpacing;
         int lineIndex = (int) Math.floor(localY / lineHeight);
         if (lineIndex < 0 || lineIndex >= lines.size()) return null;
-        return tr.getTextHandler().getStyleAt(lines.get(lineIndex), MathHelper.floor(localX));
+        double lineX = localX - getLineOffset(lines.get(lineIndex));
+        if (lineX < 0) return null;
+        return tr.getTextHandler().getStyleAt(lines.get(lineIndex), MathHelper.floor(lineX));
     }
     
 }
