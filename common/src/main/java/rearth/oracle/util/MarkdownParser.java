@@ -6,10 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.StringTag;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.*;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -54,6 +51,7 @@ public class MarkdownParser {
         .enabledBlockTypes(ENABLED_BLOCKS)
         .extensions(EXTENSIONS)
         .customBlockParserFactory(new MdxBlockFactory())
+        .customInlineContentParserFactory(new HoverText.ParserFactory())
         .build();
 
     /**
@@ -298,6 +296,18 @@ public class MarkdownParser {
         }
 
         @Override
+        public void visit(CustomNode customNode) {
+            if (customNode instanceof HoverText hoverText) {
+                var style = currentStyle
+                    .withUnderlined(true)
+                    .withHoverEvent(new HoverEvent.ShowText(Component.literal(hoverText.getHint())));
+                buffer.append(Component.literal(hoverText.getLabel()).setStyle(style));
+                return;
+            }
+            super.visit(customNode);
+        }
+
+        @Override
         public void visit(Image image) {
             flushBuffer();
             components.add(buildImage(image.getDestination(), "60%", wikiId, contentWidthPx));
@@ -357,8 +367,8 @@ public class MarkdownParser {
         public void visit(Link link) {
             var old = currentStyle;
             var clickEvent = new ClickEvent.Custom(
-              WIKI_LINK_EVENT,
-              Optional.of(StringTag.valueOf(link.getDestination()))
+                WIKI_LINK_EVENT,
+                Optional.of(StringTag.valueOf(link.getDestination()))
             );
             currentStyle = currentStyle.withColor(ChatFormatting.BLUE).withUnderlined(true).withClickEvent(clickEvent);
 

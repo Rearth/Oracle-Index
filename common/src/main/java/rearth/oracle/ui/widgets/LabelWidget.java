@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
@@ -179,6 +180,15 @@ public class LabelWidget extends UIComponent {
             context.text(tr, line, baseX + getLineOffset(line), baseY + i * lineHeight, color, false);
         }
         if (scaled) matrices.popMatrix();
+    }
+
+    @Override
+    public List<Component> tooltip(int mouseX, int mouseY) {
+        var style = styleAt(mouseX, mouseY);
+        if (style != null && style.getHoverEvent() instanceof HoverEvent.ShowText showText) {
+            return List.of(showText.value());
+        }
+        return super.tooltip(mouseX, mouseY);
     }
 
     @Override
