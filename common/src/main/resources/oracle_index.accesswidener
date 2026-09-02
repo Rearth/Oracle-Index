@@ -1,3 +1,6 @@
 accessWidener v2 official
 
 accessible field net/minecraft/client/multiplayer/ClientAdvancements progress Ljava/util/Map;
+accessible field net/minecraft/client/sounds/SoundManager soundCache Ljava/util/Map;
+accessible field net/minecraft/client/sounds/SoundManager soundEngine Lnet/minecraft/client/sounds/SoundEngine;
+accessible field net/minecraft/client/sounds/SoundEngine instanceToChannel Ljava/util/Map;

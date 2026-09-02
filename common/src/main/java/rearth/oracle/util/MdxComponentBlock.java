@@ -138,6 +138,22 @@ public abstract class MdxComponentBlock extends CustomBlock {
         }
     }
 
+    public static class AudioBlock extends MdxComponentBlock {
+        public String src;
+
+        @Override
+        void parseContent() {
+            var el = element("Audio");
+            if (el == null) el = element("audio");
+            if (el != null) this.src = el.attr("src");
+        }
+
+        @Override
+        public String toString() {
+            return "AudioBlock{src='" + src + "'}";
+        }
+    }
+
     public static class CodeTabsBlock extends MdxComponentBlock {
         @Override
         void parseContent() {
