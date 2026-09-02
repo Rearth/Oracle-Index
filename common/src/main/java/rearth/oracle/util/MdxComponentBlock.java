@@ -137,7 +137,18 @@ public abstract class MdxComponentBlock extends CustomBlock {
                 '}';
         }
     }
-    
+
+    public static class CodeTabsBlock extends MdxComponentBlock {
+        @Override
+        void parseContent() {
+        }
+
+        @Override
+        public String toString() {
+            return "CodeTabsBlock{}";
+        }
+    }
+
     @Nullable
     protected Element element(String tagName) {
         return Jsoup.parseBodyFragment(rawContent).selectFirst(tagName);

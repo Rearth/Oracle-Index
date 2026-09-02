@@ -216,12 +216,8 @@ public class MarkdownParser {
         @Override
         public void visit(FencedCodeBlock codeBlock) {
             flushBuffer();
-            var panel = FlowWidget.vertical();
-            panel.setSurface(WikiSurface.BEDROCK_PANEL_DARK);
-            panel.setPadding(Insets.of(6));
-            var text = Component.literal(codeBlock.getLiteral()).withStyle(ChatFormatting.GRAY);
-            panel.child(new LabelWidget(text));
-            components.add(panel);
+            CodeFence fence = CodeFence.parse(codeBlock.getInfo());
+            components.add(new CodeBlockWidget(fence.fileName(), fence.language(), codeBlock.getLiteral()));
         }
 
         @Override
@@ -298,6 +294,11 @@ public class MarkdownParser {
                     var widget = new CalloutWidget(callout.variant, title, callout.collapsible, callout.collapsed);
                     for (var c : inner) widget.addBodyChild(c);
                     components.add(widget);
+                }
+                case MdxComponentBlock.CodeTabsBlock codeTabs -> {
+                    flushBuffer();
+                    var widget = buildCodeTabs(codeTabs);
+                    if (widget != null) components.add(widget);
                 }
                 case TableBlock table -> buildTable(table);
                 default -> visitChildren(customBlock);
@@ -377,6 +378,21 @@ public class MarkdownParser {
             if (!rows.isEmpty()) {
                 components.add(new TableWidget(rows, hasHeader, linkHandler));
             }
+        }
+
+        @Nullable
+        private UIComponent buildCodeTabs(Node container) {
+            var tabs = new ArrayList<CodeTabsWidget.Tab>();
+            for (var child = container.getFirstChild(); child != null; child = child.getNext()) {
+                if (!(child instanceof FencedCodeBlock code)) continue;
+                var fence = CodeFence.parse(code.getInfo());
+                var title = fence.tabTitle() != null ? fence.tabTitle()
+                    : fence.fileName() != null ? fence.fileName()
+                    : fence.language() != null ? fence.language()
+                    : "Tab " + (tabs.size() + 1);
+                tabs.add(new CodeTabsWidget.Tab(title, code.getLiteral()));
+            }
+            return tabs.isEmpty() ? null : new CodeTabsWidget(tabs);
         }
 
         @Override
@@ -465,6 +481,28 @@ public class MarkdownParser {
             }
         }
         return alt.toString().trim();
+    }
+
+    public record CodeFence(@Nullable String language, @Nullable String fileName, @Nullable String tabTitle) {
+        private static final String TABS_MARKER = "!!tabs";
+
+        public static CodeFence parse(@Nullable String info) {
+            if (info == null || info.isBlank()) return new CodeFence(null, null, null);
+            String[] tokens = info.trim().split("\\s+");
+            String language = tokens[0].isBlank() ? null : tokens[0];
+
+            String fileName = null;
+            String tabTitle = null;
+            for (int i = 1; i < tokens.length; i++) {
+                if (TABS_MARKER.equals(tokens[i])) {
+                    if (i + 1 < tokens.length) tabTitle = String.join(" ", Arrays.copyOfRange(tokens, i + 1, tokens.length));
+                    break;
+                }
+                fileName = fileName == null ? tokens[i] : fileName + " " + tokens[i];
+            }
+
+            return new CodeFence(language, fileName, tabTitle);
+        }
     }
 
     public record GitHubAlert(CalloutVariant variant, @Nullable Component title, boolean collapsible, boolean collapsed) {
