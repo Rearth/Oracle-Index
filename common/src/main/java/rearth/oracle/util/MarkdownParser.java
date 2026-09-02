@@ -227,13 +227,17 @@ public class MarkdownParser {
         @Override
         public void visit(BlockQuote blockQuote) {
             flushBuffer();
-            var alert = GitHubAlert.consume(blockQuote);
-            var body = collectChildren(blockQuote);
+            GitHubAlert alert = GitHubAlert.consume(blockQuote);
+            List<UIComponent> inner = collectChildren(blockQuote);
 
             if (alert != null) {
-                var callout = new CalloutWidget(alert.variant(), alert.title(), alert.collapsible(), alert.collapsed());
-                for (var child : body) callout.addBodyChild(child);
+                CalloutWidget callout = new CalloutWidget(alert.variant(), alert.title(), alert.collapsible(), alert.collapsed());
+                for (var c : inner) callout.addBodyChild(c);
                 components.add(callout);
+            } else {
+                var quote = new BlockQuoteWidget();
+                for (var c : inner) quote.child(c);
+                components.add(quote);
             }
         }
 
