@@ -1,22 +1,23 @@
 package rearth.oracle.util;
 
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.Component;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.ChatFormatting;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.apache.commons.lang3.StringUtils;
 import org.commonmark.Extension;
 import org.commonmark.ext.front.matter.YamlFrontMatterExtension;
 import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
+import org.commonmark.ext.gfm.tables.*;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
 import org.jetbrains.annotations.Nullable;
@@ -24,6 +25,7 @@ import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.widgets.*;
+import rearth.oracle.ui.widgets.TableWidget.Cell;
 
 import java.io.IOException;
 import java.util.*;
@@ -39,10 +41,10 @@ import static rearth.oracle.OracleClient.ROOT_DIR;
 public class MarkdownParser {
 
     private static final Identifier WIKI_LINK_EVENT =
-      Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "wiki_link");
+        Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "wiki_link");
     private static final String[] removedLines = {"<center>", "</center>", "<div>", "</div>", "<span>", "</span>"};
 
-    private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create());
+    private static final List<Extension> EXTENSIONS = List.of(YamlFrontMatterExtension.create(), TablesExtension.create());
     private static final Set<Class<? extends Block>> ENABLED_BLOCKS = Set.of(
         Heading.class, HtmlBlock.class, ThematicBreak.class,
         FencedCodeBlock.class, BlockQuote.class, ListBlock.class
@@ -170,6 +172,18 @@ public class MarkdownParser {
             return collected;
         }
 
+        private MutableComponent collectInline(Node node, Style baseStyle) {
+            var previousBuffer = this.buffer;
+            var previousStyle = this.currentStyle;
+            this.buffer = Component.empty();
+            this.currentStyle = baseStyle;
+            visitChildren(node);
+            var collected = this.buffer;
+            this.buffer = previousBuffer;
+            this.currentStyle = previousStyle;
+            return collected;
+        }
+
         @Override
         public void visit(Paragraph paragraph) {
             visitChildren(paragraph);
@@ -261,22 +275,25 @@ public class MarkdownParser {
 
         @Override
         public void visit(CustomBlock customBlock) {
-            if (customBlock instanceof MdxComponentBlock.CraftingRecipeBlock recipe) {
-                components.add(buildRecipe(recipe.slots, recipe.result, recipe.count));
-            } else if (customBlock instanceof MdxComponentBlock.AssetBlock image) {
-                components.add(buildImage(image.location, image.width, this.wikiId, contentWidthPx));
-            } else if (customBlock instanceof MdxComponentBlock.CalloutBlock callout) {
-                var oldComponents = this.components;
-                var inner = new ArrayList<UIComponent>();
-                this.components = inner;
-                visitChildren(callout);
-                flushBuffer();
-                this.components = oldComponents;
-
-                var title = callout.title == null ? null : Component.literal(callout.title);
-                var widget = new CalloutWidget(callout.variant, title, callout.collapsible, callout.collapsed);
-                for (var c : inner) widget.addBodyChild(c);
-                components.add(widget);
+            switch (customBlock) {
+                case MdxComponentBlock.CraftingRecipeBlock recipe -> {
+                    flushBuffer();
+                    components.add(buildRecipe(recipe.slots, recipe.result, recipe.count));
+                }
+                case MdxComponentBlock.AssetBlock asset -> {
+                    flushBuffer();
+                    components.add(buildImage(asset.location, asset.width, wikiId, contentWidthPx));
+                }
+                case MdxComponentBlock.CalloutBlock callout -> {
+                    flushBuffer();
+                    var inner = collectChildren(callout);
+                    var title = callout.title == null ? null : Component.literal(callout.title);
+                    var widget = new CalloutWidget(callout.variant, title, callout.collapsible, callout.collapsed);
+                    for (var c : inner) widget.addBodyChild(c);
+                    components.add(widget);
+                }
+                case TableBlock table -> buildTable(table);
+                default -> visitChildren(customBlock);
             }
         }
 
@@ -284,6 +301,35 @@ public class MarkdownParser {
         public void visit(Image image) {
             flushBuffer();
             components.add(buildImage(image.getDestination(), "60%", wikiId, contentWidthPx));
+        }
+
+        private void buildTable(TableBlock table) {
+            flushBuffer();
+            ArrayList<List<Cell>> rows = new ArrayList<>();
+            boolean hasHeader = false;
+
+            for (Node section = table.getFirstChild(); section != null; section = section.getNext()) {
+                boolean header = section instanceof TableHead;
+
+                for (Node row = section.getFirstChild(); row != null; row = row.getNext()) {
+                    if (!(row instanceof TableRow)) continue;
+
+                    ArrayList<Cell> cells = new ArrayList<>();
+                    for (Node cell = row.getFirstChild(); cell != null; cell = cell.getNext()) {
+                        if (!(cell instanceof TableCell tableCell)) continue;
+
+                        Style style = header ? Style.EMPTY.withBold(true) : Style.EMPTY;
+                        cells.add(new TableWidget.Cell(collectInline(tableCell, style), getCellAlignment(tableCell)));
+                    }
+
+                    if (header) hasHeader = true;
+                    rows.add(cells);
+                }
+            }
+
+            if (!rows.isEmpty()) {
+                components.add(new TableWidget(rows, hasHeader, linkHandler));
+            }
         }
 
         @Override
@@ -452,6 +498,18 @@ public class MarkdownParser {
             linkHandler,
             contentWidthPx
         );
+    }
+
+    private static FlowWidget.HorizontalAlignment getCellAlignment(TableCell cell) {
+        var alignment = cell.getAlignment();
+        if (alignment == null) {
+            return FlowWidget.HorizontalAlignment.LEFT;
+        }
+        return switch (alignment) {
+            case LEFT -> FlowWidget.HorizontalAlignment.LEFT;
+            case CENTER -> FlowWidget.HorizontalAlignment.CENTER;
+            case RIGHT -> FlowWidget.HorizontalAlignment.RIGHT;
+        };
     }
 
     private static ItemStack getIconStack(String iconId) {

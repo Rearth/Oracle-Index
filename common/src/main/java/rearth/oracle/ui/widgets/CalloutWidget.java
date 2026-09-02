@@ -54,6 +54,8 @@ public class CalloutWidget extends FlowWidget {
     private void tintBodyText(UIComponent child) {
         if (child instanceof LabelWidget label) {
             label.color(BODY_TEXT_COLOR);
+        } else if (child instanceof TableWidget table) {
+            table.color(BODY_TEXT_COLOR);
         } else if (child instanceof FlowWidget flow && flow.getSurface().isNone()) {
             for (var nested : flow.children()) {
                 tintBodyText(nested);
