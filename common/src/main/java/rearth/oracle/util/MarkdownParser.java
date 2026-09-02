@@ -295,6 +295,11 @@ public class MarkdownParser {
                     for (var c : inner) widget.addBodyChild(c);
                     components.add(widget);
                 }
+                case MdxComponentBlock.AudioBlock audio -> {
+                    flushBuffer();
+                    var widget = buildAudio(audio.src, wikiId);
+                    if (widget != null) components.add(widget);
+                }
                 case MdxComponentBlock.CodeTabsBlock codeTabs -> {
                     flushBuffer();
                     var widget = buildCodeTabs(codeTabs);
@@ -1013,6 +1018,16 @@ public class MarkdownParser {
         } catch (IOException e) {
             return new LabelWidget(Text.literal("Error reading image: " + location).formatted(Formatting.RED));
         }
+    }
+
+    @Nullable
+    public static UIComponent buildAudio(@Nullable String source, String wikiId) {
+        if (source == null || source.isBlank()) return null;
+
+        Identifier path = resolveAssetPath(source, wikiId, ".ogg");
+        String[] segments = path.getPath().split("/");
+
+        return new AudioWidget(path, segments[segments.length - 1]);
     }
 
     public static Frontmatter parseFrontmatter(String markdown) {
