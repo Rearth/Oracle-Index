@@ -22,6 +22,7 @@ import rearth.oracle.docs.DocsMode;
 import rearth.oracle.progress.AdvancementProgressValidator;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.ui.SearchScreen;
+import rearth.oracle.util.AudioPlayer;
 import rearth.oracle.util.TitleLookup;
 
 import java.util.*;
@@ -78,6 +79,7 @@ public final class OracleClient {
         
         ReloadListenerRegistry.register(ResourceType.CLIENT_RESOURCES, (SynchronousResourceReloader) manager -> {
             Oracle.LOGGER.info("Indexing Oracle Wiki Resources...");
+            AudioPlayer.release();
             findAllResourceEntries(manager);
             getOrCreateSearch();    // start search to begin indexing in advance
         });

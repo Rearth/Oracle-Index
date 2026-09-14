@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
@@ -28,6 +29,7 @@ public class LabelWidget extends UIComponent {
     private float scale = 1.0f;
     private int color = 0xFFFFFFFF;
     private int lineSpacing = 0;
+    private FlowWidget.HorizontalAlignment textAlignment = FlowWidget.HorizontalAlignment.LEFT;
     /**
      * -1 means "use the layout-supplied hint".
      */
@@ -74,6 +76,11 @@ public class LabelWidget extends UIComponent {
     public LabelWidget lineSpacing(int lineSpacing) {
         this.lineSpacing = lineSpacing;
         invalidateWrap();
+        return this;
+    }
+    
+    public LabelWidget textAlignment(FlowWidget.HorizontalAlignment alignment) {
+        this.textAlignment = alignment;
         return this;
     }
     
@@ -171,9 +178,19 @@ public class LabelWidget extends UIComponent {
         int lineHeight = tr.fontHeight + lineSpacing;
         for (int i = 0; i < lines.size(); i++) {
             var line = lines.get(i);
-            context.drawText(tr, line, baseX, baseY + i * lineHeight, color, false);
+            context.drawText(tr, line, baseX + getLineOffset(line), baseY + i * lineHeight, color, false);
         }
         if (scaled) matrices.pop();
+    }
+    
+    @Override
+    public List<Text> tooltip(int mouseX, int mouseY) {
+        var style = styleAt(mouseX, mouseY);
+        if (style != null && style.getHoverEvent() != null) {
+            var hint = style.getHoverEvent().getValue(HoverEvent.Action.SHOW_TEXT);
+            if (hint != null) return List.of(hint);
+        }
+        return super.tooltip(mouseX, mouseY);
     }
     
     @Override
@@ -186,6 +203,15 @@ public class LabelWidget extends UIComponent {
             return super.handleClick(mouseX, mouseY, button);
         if (linkHandler.test(click.getValue())) return true;
         return super.handleClick(mouseX, mouseY, button);
+    }
+    
+    private int getLineOffset(OrderedText line) {
+        if (textAlignment == FlowWidget.HorizontalAlignment.LEFT || width <= 0) return 0;
+        int available = MathHelper.floor(width / scale);
+        int lineWidth = textRenderer().getWidth(line);
+        int slack = available - lineWidth;
+        if (slack <= 0) return 0;
+        return textAlignment == FlowWidget.HorizontalAlignment.CENTER ? slack / 2 : slack;
     }
     
     /**
@@ -201,7 +227,9 @@ public class LabelWidget extends UIComponent {
         int lineHeight = tr.fontHeight + lineSpacing;
         int lineIndex = (int) Math.floor(localY / lineHeight);
         if (lineIndex < 0 || lineIndex >= lines.size()) return null;
-        return tr.getTextHandler().getStyleAt(lines.get(lineIndex), MathHelper.floor(localX));
+        double lineX = localX - getLineOffset(lines.get(lineIndex));
+        if (lineX < 0) return null;
+        return tr.getTextHandler().getStyleAt(lines.get(lineIndex), MathHelper.floor(lineX));
     }
     
 }

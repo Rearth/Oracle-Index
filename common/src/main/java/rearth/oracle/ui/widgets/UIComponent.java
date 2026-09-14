@@ -172,6 +172,10 @@ public abstract class UIComponent {
         return padding;
     }
     
+    public WikiSurface getSurface() {
+        return surface;
+    }
+
     public boolean isVisible() {
         return visible;
     }
