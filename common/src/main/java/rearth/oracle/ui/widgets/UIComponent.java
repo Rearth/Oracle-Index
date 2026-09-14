@@ -127,6 +127,11 @@ public abstract class UIComponent {
     public void setLayoutRequester(@Nullable Runnable layoutRequester) {
         this.layoutRequester = layoutRequester;
     }
+
+    @Nullable
+    protected Runnable getLayoutRequester() {
+        return layoutRequester;
+    }
     
     // --------------------------------------------------------------- mouse
     

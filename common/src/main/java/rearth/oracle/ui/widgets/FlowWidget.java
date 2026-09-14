@@ -2,6 +2,7 @@ package rearth.oracle.ui.widgets;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,12 +71,20 @@ public class FlowWidget extends UIComponent {
     
     public final FlowWidget child(UIComponent child) {
         children.add(child);
+        child.setLayoutRequester(getLayoutRequester());
         return this;
     }
     
     public FlowWidget clearChildren() {
+        children.forEach(child -> child.setLayoutRequester(null));
         children.clear();
         return this;
+    }
+
+    @Override
+    public void setLayoutRequester(@Nullable Runnable layoutRequester) {
+        super.setLayoutRequester(layoutRequester);
+        children.forEach(child -> child.setLayoutRequester(layoutRequester));
     }
     
     public List<UIComponent> children() {
