@@ -48,6 +48,7 @@ public class SearchScreen extends WikiBaseScreen {
     private int searchBarW;
     private int searchBarH;
     private int waitFrames = 0;
+    private boolean searchReady;
     
     public SearchScreen(Screen parent) {
         super(Text.translatable("oracle_index.title.search"));
@@ -114,31 +115,36 @@ public class SearchScreen extends WikiBaseScreen {
     
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        boolean searchReady;
+        boolean wasReady = searchReady;
         try {
             searchReady = OracleClient.getOrCreateSearch().isReady();
         } catch (Throwable error) {
             error.printStackTrace();
             var p = MinecraftClient.getInstance().player;
             if (p != null) {
-                p.sendMessage(Text.literal("Sorry, Oracle Index Search is not available on your platform."));
-                p.sendMessage(Text.literal("If you want this search feature, you can use the xplat jar available on the mods github."));
+                p.sendMessage(Text.translatable("oracle_index.search.unavailable"));
+                p.sendMessage(Text.translatable("oracle_index.search.xplat_hint"));
                 p.sendMessage(Text.literal("https://github.com/Rearth/Oracle-Index"));
-                p.sendMessage(Text.literal("This is not the default file due to jar size limitations."));
+                p.sendMessage(Text.translatable("oracle_index.search.jar_size_hint"));
             }
             this.close();
             return;
         }
         
         if (searchReady) {
-            if (!searchField.isActive()) searchField.setEditable(true);
-            if (searchField.getText().startsWith("Indexing")) searchField.setText("");
+            searchField.setEditable(true);
+            var query = searchField.getText();
+            searchField.setSuggestion(query.isEmpty()
+                ? Text.translatable("oracle_index.searchbar.placeholder").getString()
+                : "");
+            if (!wasReady && !query.isEmpty()) onSearchTyped(query);
         } else {
             waitFrames++;
             int dots = (waitFrames / 2) % 3 + 1;
-            searchField.setEditable(false);
-            searchField.setText("Indexing" + ".".repeat(dots));
-            searchField.setSuggestion("");
+            searchField.setEditable(true);
+            searchField.setSuggestion(searchField.getText().isEmpty()
+                ? Text.translatable("oracle_index.searchbar.indexing", ".".repeat(dots)).getString()
+                : "");
         }
         
         super.render(context, mouseX, mouseY, delta);
@@ -158,9 +164,9 @@ public class SearchScreen extends WikiBaseScreen {
     }
     
     private void onSearchTyped(String query) {
-        if (query.startsWith("Indexing")) return;
         var placeholder = Text.translatable("oracle_index.searchbar.placeholder").getString();
         searchField.setSuggestion(query.isEmpty() ? placeholder : "");
+        if (!searchReady) return;
         if (query.length() <= 2) return;
         
         List<SemanticSearch.SearchResult> results;
@@ -317,7 +323,8 @@ public class SearchScreen extends WikiBaseScreen {
                 var n = expression.evaluate();
                 var calc = String.format("%s = **%s**", input.replace("*", "x"),
                   new DecimalFormat("#.####").format(n));
-                return Optional.of(new SemanticSearch.SearchResult(List.of(calc), 1, "Calculation: ",
+                return Optional.of(new SemanticSearch.SearchResult(List.of(calc), 1,
+                  Text.translatable("oracle_index.search.calculation").getString(),
                   Identifier.of(Oracle.MOD_ID, "expression"), "minecraft:comparator"));
             }
         } catch (RuntimeException ignored) {

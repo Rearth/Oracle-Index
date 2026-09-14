@@ -7,6 +7,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
+import rearth.oracle.OracleClient;
+import rearth.oracle.docs.DocsIndexer;
 import rearth.oracle.ui.OracleScreen;
 import rearth.oracle.util.MarkdownParser.Frontmatter;
 
@@ -20,18 +22,14 @@ public class TitleLookup {
     private static final Map<Identifier, String> cachedTitles = new HashMap<>();
 
     public static String getTitle(Identifier pagePath) {
-        return cachedTitles.computeIfAbsent(pagePath, TitleLookup::computeTitle);
+        Identifier localizedPath = getLocalizedPath(pagePath);
+        return cachedTitles.computeIfAbsent(localizedPath, ignored -> computeTitle(localizedPath, pagePath));
     }
 
-    private static String computeTitle(Identifier pagePath) {
-        String cached = cachedTitles.get(pagePath);
-        if (cached != null) {
-            return cached;
-        }
-
+    private static String computeTitle(Identifier pagePath, Identifier fallbackPath) {
         String markdown = parseContents(pagePath);
         if (markdown == null) {
-            return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, "No title found");
+            return fallbackTitle(fallbackPath);
         }
 
         Frontmatter frontMatter = MarkdownParser.parseFrontmatter(markdown);
@@ -52,7 +50,20 @@ public class TitleLookup {
             return item;
         }
 
-        return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, "No title found");
+        return fallbackTitle(fallbackPath);
+    }
+
+    private static Identifier getLocalizedPath(Identifier pagePath) {
+        String wikiId = DocsIndexer.extractModid(pagePath.getPath());
+        if (wikiId == null || !OracleClient.LOADED_WIKIS.containsKey(wikiId)) return pagePath;
+
+        var format = OracleClient.getWikiFormat(wikiId);
+        if (format.isTranslatedPath(pagePath.getPath())) return pagePath;
+        return OracleClient.getTranslatedPath(pagePath, wikiId).orElse(pagePath);
+    }
+
+    private static String fallbackTitle(Identifier pagePath) {
+        return OracleScreen.PAGE_FALLBACK_NAMES.getOrDefault(pagePath, I18n.translate("oracle_index.page.untitled"));
     }
 
     public static void clearCache() {

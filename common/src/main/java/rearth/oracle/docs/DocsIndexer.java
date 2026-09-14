@@ -1,12 +1,9 @@
 package rearth.oracle.docs;
 
-import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.resource.language.I18n;
-import net.minecraft.registry.Registries;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
@@ -17,6 +14,7 @@ import rearth.oracle.Oracle;
 import rearth.oracle.OracleClient.ItemArticleRef;
 import rearth.oracle.util.MarkdownParser;
 import rearth.oracle.util.MarkdownParser.Frontmatter;
+import rearth.oracle.util.TitleLookup;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -24,7 +22,6 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.function.Supplier;
 
 import static rearth.oracle.OracleClient.ROOT_DIR;
 
@@ -140,17 +137,9 @@ public class DocsIndexer {
 
                         var itemId = Identifier.of(id);
 
-                        Supplier<String> lazyTitle;
-                        var title = frontmatter.getOrDefault("title", "missing");
-                        if (title.equals("missing") && Registries.ITEM.containsId(itemId)) {
-                            // Use supplier as translations may not be available at this time yet
-                            lazyTitle = Suppliers.memoize(() -> I18n.translate(Registries.ITEM.get(itemId).getTranslationKey()));
-                        } else {
-                            lazyTitle = () -> title;
-                        }
-
                         // TODO Pick best page for item
-                        this.itemLinkCandidates.put(itemId, new ItemArticleRef(resourceId, lazyTitle, modId, ids.size()));
+                        this.itemLinkCandidates.put(itemId,
+                            new ItemArticleRef(resourceId, () -> TitleLookup.getTitle(resourceId), modId, ids.size()));
                     }
                 }
             }
@@ -160,8 +149,8 @@ public class DocsIndexer {
                 var baseString = frontmatter.getOne("related_items").replace("[", "").replace("]", "").replace("\"", "");
                 for (var itemString : baseString.split(", ")) {
                     var itemId = Identifier.of(itemString.trim());
-                    var title = frontmatter.getOrDefault("title", "missing");
-                    this.itemLinkCandidates.put(itemId, new ItemArticleRef(resourceId, () -> title, modId, 0));
+                    this.itemLinkCandidates.put(itemId,
+                        new ItemArticleRef(resourceId, () -> TitleLookup.getTitle(resourceId), modId, 0));
                 }
             }
 

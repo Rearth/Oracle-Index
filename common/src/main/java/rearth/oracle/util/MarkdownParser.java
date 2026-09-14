@@ -400,7 +400,7 @@ public class MarkdownParser {
                 var title = fence.tabTitle() != null ? fence.tabTitle()
                     : fence.fileName() != null ? fence.fileName()
                     : fence.language() != null ? fence.language()
-                    : "Tab " + (tabs.size() + 1);
+                    : Text.translatable("oracle_index.code_tab", tabs.size() + 1).getString();
                 tabs.add(new CodeTabsWidget.Tab(title, code.getLiteral()));
             }
             return tabs.isEmpty() ? null : new CodeTabsWidget(tabs);
@@ -872,11 +872,12 @@ public class MarkdownParser {
 
     private static UIComponent buildPropertiesPanel(Map<String, Text> properties, int contentWidthPx) {
         var tr = MinecraftClient.getInstance().textRenderer;
-        int titleWidth = tr.getWidth("Details");
+        var title = Text.translatable("oracle_index.properties.title");
+        int titleWidth = tr.getWidth(title);
         int keyWidth = 0;
         int valueWidth = 0;
         for (var entry : properties.entrySet()) {
-            keyWidth = Math.max(keyWidth, tr.getWidth(entry.getKey()));
+            keyWidth = Math.max(keyWidth, tr.getWidth(Text.translatable(entry.getKey())));
             valueWidth = Math.max(valueWidth, tr.getWidth(entry.getValue()));
         }
         int innerWidth = Math.clamp(Math.max(titleWidth, keyWidth + valueWidth + 28) + 20, 160, Math.max(contentWidthPx, 165));
@@ -885,10 +886,11 @@ public class MarkdownParser {
         outer.setPadding(Insets.of(10));
         outer.size(innerWidth, 0);
         outer.horizontalAlignment(FlowWidget.HorizontalAlignment.CENTER);
-        outer.child(new LabelWidget(Text.literal("Details").formatted(Formatting.BOLD, Formatting.GRAY)));
+        outer.child(new LabelWidget(title.copy().formatted(Formatting.BOLD, Formatting.GRAY)));
 
         for (var entry : properties.entrySet()) {
-            outer.child(new PropertyRowWidget(Text.literal(entry.getKey()).formatted(Formatting.GOLD), entry.getValue()));
+            var key = Text.translatable(entry.getKey()).formatted(Formatting.GOLD);
+            outer.child(new PropertyRowWidget(key, entry.getValue()));
         }
         return outer;
     }
@@ -922,7 +924,7 @@ public class MarkdownParser {
 
     public static UIComponent buildRecipe(List<String> inputs, String resultId, int resultCount) {
         if (inputs.size() != 9) {
-            return new LabelWidget(Text.literal("Invalid crafting recipe data: expected 9 inputs").formatted(Formatting.RED));
+            return new LabelWidget(Text.translatable("oracle_index.error.recipe_inputs").formatted(Formatting.RED));
         }
 
         // Layered: a 3x3 grid of slots with items overlaid on top.
@@ -977,7 +979,7 @@ public class MarkdownParser {
 
     public static UIComponent buildImage(String location, ImageStyle style, String wikiId, int contentWidthPx) {
         if (location == null || location.isBlank()) {
-            return new LabelWidget(Text.literal("Missing image location").formatted(Formatting.RED));
+            return new LabelWidget(Text.translatable("oracle_index.error.image_location").formatted(Formatting.RED));
         }
         if (location.startsWith("@")) location = location.substring(1);
 
@@ -1000,7 +1002,7 @@ public class MarkdownParser {
         var rm = MinecraftClient.getInstance().getResourceManager();
         var resource = rm.getResource(searchPath);
         if (resource.isEmpty()) {
-            return new LabelWidget(Text.literal("Image not found: " + searchPath).formatted(Formatting.RED));
+            return new LabelWidget(Text.translatable("oracle_index.error.image_not_found", searchPath).formatted(Formatting.RED));
         }
         try {
             var image = NativeImage.read(resource.get().getInputStream());
@@ -1021,7 +1023,7 @@ public class MarkdownParser {
             widget.size(displayW, displayH);
             return widget;
         } catch (IOException e) {
-            return new LabelWidget(Text.literal("Error reading image: " + location).formatted(Formatting.RED));
+            return new LabelWidget(Text.translatable("oracle_index.error.image_read", location).formatted(Formatting.RED));
         }
     }
 

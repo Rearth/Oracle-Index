@@ -33,9 +33,7 @@ public class CodeTabsWidget extends FlowWidget {
             ClickableWidget button = new ClickableWidget(label, b -> select(index))
                 .centerChild()
                 .selected(i == 0)
-                .surfaces(WikiSurface.BEDROCK_PANEL_DARK, WikiSurface.BEDROCK_PANEL_HOVER,
-                    WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_DARK);
-            button.setPadding(Insets.of(5, 10));
+                .tabStyle();
             tabButtons.add(button);
             header.child(button);
         }
@@ -50,7 +48,7 @@ public class CodeTabsWidget extends FlowWidget {
     }
 
     private Text tabTitle(int index) {
-        var color = index == active ? Formatting.DARK_GRAY : Formatting.WHITE;
+        var color = index == active ? Formatting.WHITE : Formatting.DARK_GRAY;
         return Text.literal(tabs.get(index).title()).formatted(color);
     }
 

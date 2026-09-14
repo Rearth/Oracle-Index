@@ -72,6 +72,13 @@ public class ClickableWidget extends UIComponent {
         this.disabledSurface = disabled;
         return this;
     }
+
+    public ClickableWidget tabStyle() {
+        surfaces(WikiSurface.BEDROCK_PANEL, WikiSurface.BEDROCK_PANEL_HOVER,
+            WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_PRESSED, WikiSurface.BEDROCK_PANEL_DISABLED);
+        setPadding(Insets.of(5, 12));
+        return this;
+    }
     
     @Override
     public int getPreferredWidth(int widthHint) {
