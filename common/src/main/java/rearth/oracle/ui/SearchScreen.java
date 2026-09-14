@@ -122,10 +122,10 @@ public class SearchScreen extends WikiBaseScreen {
             error.printStackTrace();
             var p = Minecraft.getInstance().player;
             if (p != null) {
-                p.sendSystemMessage(Component.literal("Sorry, Oracle Index Search is not available on your platform."));
-                p.sendSystemMessage(Component.literal("If you want this search feature, you can use the xplat jar available on the mods github."));
+                p.sendSystemMessage(Component.translatable("oracle_index.search.unavailable"));
+                p.sendSystemMessage(Component.translatable("oracle_index.search.xplat_hint"));
                 p.sendSystemMessage(Component.literal("https://github.com/Rearth/Oracle-Index"));
-                p.sendSystemMessage(Component.literal("This is not the default file due to jar size limitations."));
+                p.sendSystemMessage(Component.translatable("oracle_index.search.jar_size_hint"));
             }
             this.onClose();
             return;
@@ -142,7 +142,9 @@ public class SearchScreen extends WikiBaseScreen {
             waitFrames++;
             int dots = (waitFrames / 2) % 3 + 1;
             searchField.setEditable(true);
-            searchField.setSuggestion(searchField.getValue().isEmpty() ? "Indexing" + ".".repeat(dots) : "");
+            searchField.setSuggestion(searchField.getValue().isEmpty()
+                ? Component.translatable("oracle_index.searchbar.indexing", ".".repeat(dots)).getString()
+                : "");
         }
         
         super.extractRenderState(context, mouseX, mouseY, delta);
@@ -321,7 +323,8 @@ public class SearchScreen extends WikiBaseScreen {
                 var n = expression.evaluate();
                 var calc = String.format("%s = **%s**", input.replace("*", "x"),
                   new DecimalFormat("#.####").format(n));
-                return Optional.of(new SemanticSearch.SearchResult(List.of(calc), 1, "Calculation: ",
+                return Optional.of(new SemanticSearch.SearchResult(List.of(calc), 1,
+                  Component.translatable("oracle_index.search.calculation").getString(),
                   Identifier.fromNamespaceAndPath(Oracle.MOD_ID, "expression"), "minecraft:comparator"));
             }
         } catch (RuntimeException ignored) {
