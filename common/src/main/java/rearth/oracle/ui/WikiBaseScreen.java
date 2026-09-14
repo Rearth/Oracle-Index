@@ -6,6 +6,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 import rearth.oracle.ui.widgets.UIComponent;
+import rearth.oracle.util.AudioPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -94,6 +95,12 @@ public abstract class WikiBaseScreen extends Screen {
             if (w.isVisible() && w.isInBounds(mouseX, mouseY)) return w;
         }
         return null;
+    }
+    
+    @Override
+    public void removed() {
+        super.removed();
+        AudioPlayer.stop();
     }
     
     @Override

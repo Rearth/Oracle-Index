@@ -15,6 +15,7 @@ public enum WikiSurface {
     BEDROCK_PANEL_HOVER(ninePatch("bedrock_panel_hover")),
     BEDROCK_PANEL_PRESSED(ninePatch("bedrock_panel_pressed")),
     BEDROCK_PANEL_NOTE(ninePatch("bedrock_panel_note")),
+    BEDROCK_PANEL_IMPORTANT(ninePatch("bedrock_panel_important")),
     BEDROCK_PANEL_WARNING(ninePatch("bedrock_panel_warning")),
     BEDROCK_PANEL_DANGER(ninePatch("bedrock_panel_danger")),
     BEDROCK_PANEL_DARK(ninePatch("bedrock_panel_dark")),

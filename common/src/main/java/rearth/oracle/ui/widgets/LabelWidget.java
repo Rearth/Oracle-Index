@@ -3,10 +3,12 @@ package rearth.oracle.ui.widgets;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
@@ -22,60 +24,65 @@ import java.util.function.Predicate;
  * for URL and wiki-link styles via a {@link Predicate} that can veto navigation.</p>
  */
 public class LabelWidget extends UIComponent {
-    
     private Component text;
     private float scale = 1.0f;
     private int color = 0xFFFFFFFF;
     private int lineSpacing = 0;
+    private FlowWidget.HorizontalAlignment textAlignment = FlowWidget.HorizontalAlignment.LEFT;
     /**
      * -1 means "use the layout-supplied hint".
      */
     private int wrapWidth = -1;
     private boolean fillWidth = false;
-    
+
     private Predicate<String> linkHandler;
-    
+
     // Cached wrap result
     private List<FormattedCharSequence> wrappedLines = new ArrayList<>();
     private int lastWrapWidth = -1;
     private Component lastWrappedText;
     private float lastWrapScale = -1;
-    
+
     public LabelWidget(Component text) {
         this.text = text;
     }
-    
+
     public LabelWidget text(Component text) {
         this.text = text;
         invalidateWrap();
         return this;
     }
-    
+
     public Component text() {
         return text;
     }
-    
+
     public LabelWidget scale(float scale) {
         this.scale = scale;
         invalidateWrap();
         return this;
     }
-    
+
     public float scale() {
         return scale;
     }
-    
+
     public LabelWidget color(int argb) {
         this.color = argb;
         return this;
     }
-    
+
     public LabelWidget lineSpacing(int lineSpacing) {
         this.lineSpacing = lineSpacing;
         invalidateWrap();
         return this;
     }
-    
+
+    public LabelWidget textAlignment(FlowWidget.HorizontalAlignment alignment) {
+        this.textAlignment = alignment;
+        return this;
+    }
+
     /**
      * Set an explicit wrap width (in unscaled pixels). -1 means use the layout-supplied hint.
      */
@@ -84,27 +91,27 @@ public class LabelWidget extends UIComponent {
         invalidateWrap();
         return this;
     }
-    
+
     public LabelWidget fillWidth() {
         this.fillWidth = true;
         return this;
     }
-    
+
     public LabelWidget linkHandler(Predicate<String> handler) {
         this.linkHandler = handler;
         return this;
     }
-    
+
     private void invalidateWrap() {
         lastWrapWidth = -1;
         lastWrappedText = null;
         lastWrapScale = -1;
     }
-    
+
     private Font textRenderer() {
         return Minecraft.getInstance().font;
     }
-    
+
     /**
      * Width in unscaled font pixels available for wrapping, given a layout hint.
      */
@@ -116,7 +123,7 @@ public class LabelWidget extends UIComponent {
         // wrap is done in the unscaled font space, so undo the scale
         return Math.max(1, (int) Math.floor(avail / scale));
     }
-    
+
     private List<FormattedCharSequence> wrap(int widthHint) {
         int wrapPx = effectiveWrapWidthPx(widthHint);
         if (wrapPx == lastWrapWidth && text == lastWrappedText && scale == lastWrapScale && !wrappedLines.isEmpty()) {
@@ -128,7 +135,7 @@ public class LabelWidget extends UIComponent {
         wrappedLines = textRenderer().split(text, wrapPx);
         return wrappedLines;
     }
-    
+
     @Override
     public int getPreferredWidth(int widthHint) {
         if (preferredWidth > 0) return preferredWidth;
@@ -138,7 +145,7 @@ public class LabelWidget extends UIComponent {
         for (var line : lines) max = Math.max(max, textRenderer().width(line));
         return Mth.ceil(max * scale);
     }
-    
+
     @Override
     public int getPreferredHeight(int widthHint) {
         if (preferredHeight > 0) return preferredHeight;
@@ -147,13 +154,13 @@ public class LabelWidget extends UIComponent {
         int total = n * textRenderer().lineHeight + Math.max(0, n - 1) * lineSpacing;
         return Mth.ceil(total * scale);
     }
-    
+
     @Override
     public void layout(int parentWidthHint, int parentHeightHint) {
         // Ensure wrap is valid for current layout; size remains externally driven.
         wrap(parentWidthHint);
     }
-    
+
     @Override
     protected void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         var lines = wrap(width > 0 ? width : Integer.MAX_VALUE / 2);
@@ -170,11 +177,20 @@ public class LabelWidget extends UIComponent {
         int lineHeight = tr.lineHeight + lineSpacing;
         for (int i = 0; i < lines.size(); i++) {
             var line = lines.get(i);
-            context.text(tr, line, baseX, baseY + i * lineHeight, color, false);
+            context.text(tr, line, baseX + getLineOffset(line), baseY + i * lineHeight, color, false);
         }
         if (scaled) matrices.popMatrix();
     }
-    
+
+    @Override
+    public List<Component> tooltip(int mouseX, int mouseY) {
+        var style = styleAt(mouseX, mouseY);
+        if (style != null && style.getHoverEvent() instanceof HoverEvent.ShowText showText) {
+            return List.of(showText.value());
+        }
+        return super.tooltip(mouseX, mouseY);
+    }
+
     @Override
     public boolean handleClick(double mouseX, double mouseY, int button) {
         if (linkHandler == null || button != 0) return super.handleClick(mouseX, mouseY, button);
@@ -185,14 +201,23 @@ public class LabelWidget extends UIComponent {
         if (click instanceof ClickEvent.OpenUrl openUrl) {
             destination = openUrl.uri().toString();
         } else if (click instanceof ClickEvent.Custom custom) {
-            destination = custom.payload().flatMap(tag -> tag.asString()).orElse(null);
+            destination = custom.payload().flatMap(Tag::asString).orElse(null);
         } else {
             return super.handleClick(mouseX, mouseY, button);
         }
         if (destination != null && linkHandler.test(destination)) return true;
         return super.handleClick(mouseX, mouseY, button);
     }
-    
+
+    private int getLineOffset(FormattedCharSequence line) {
+        if (textAlignment == FlowWidget.HorizontalAlignment.LEFT || width <= 0) return 0;
+        int available = Mth.floor(width / scale);
+        int lineWidth = textRenderer().width(line);
+        int slack = available - lineWidth;
+        if (slack <= 0) return 0;
+        return textAlignment == FlowWidget.HorizontalAlignment.CENTER ? slack / 2 : slack;
+    }
+
     /**
      * Returns the {@link Style} under the given mouse position, or null.
      */
@@ -206,11 +231,13 @@ public class LabelWidget extends UIComponent {
         int lineHeight = tr.lineHeight + lineSpacing;
         int lineIndex = (int) Math.floor(localY / lineHeight);
         if (lineIndex < 0 || lineIndex >= lines.size()) return null;
+        double lineX = localX - getLineOffset(lines.get(lineIndex));
+        if (lineX < 0) return null;
         float[] measuredWidth = {0};
         Style[] result = {null};
         lines.get(lineIndex).accept((position, style, codePoint) -> {
             measuredWidth[0] += tr.width(new String(Character.toChars(codePoint)));
-            if (measuredWidth[0] >= localX) {
+            if (measuredWidth[0] >= lineX) {
                 result[0] = style;
                 return false;
             }
@@ -218,5 +245,5 @@ public class LabelWidget extends UIComponent {
         });
         return result[0];
     }
-    
+
 }

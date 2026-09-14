@@ -52,6 +52,8 @@ dependencies {
     include 'org.commonmark:commonmark:0.27.1'
     implementation 'org.commonmark:commonmark-ext-yaml-front-matter:0.27.1'
     include 'org.commonmark:commonmark-ext-yaml-front-matter:0.27.1'
+    implementation 'org.commonmark:commonmark-ext-gfm-tables:0.27.1'
+    include 'org.commonmark:commonmark-ext-gfm-tables:0.27.1'
     // exp4j for math expressions in search bar
     implementation 'net.objecthunter:exp4j:0.4.8'
     include 'net.objecthunter:exp4j:0.4.8'

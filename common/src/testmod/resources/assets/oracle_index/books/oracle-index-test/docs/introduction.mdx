@@ -10,6 +10,73 @@ Green Apple by ref default title: [](+my_green_apple).
 
 Vanilla link: [](@minecraft:apple)
 
+## Tables
+
+| Some table  | One | Two | Three | Four |
+|-------------|-----|-----|-------|------|
+| First value | Yes | ❌  | 1     | 4    |
+| Lorem ipsum | No  | ✅  | 2     | 5    |
+| Foo bar     | Yes | 🟢  | 3     | 6    |
+
+## Markdown sugar
+
+### Block quote
+
+> Example block quote text.
+> Lorem ipsum dolor sit amet.
+
+### Assets
+
+![](@oracle_index_test:folder_layout)
+
+<img src="@oracle_index_test:folder_layout" />
+
+### GitHub-style Alert
+
+> [!NOTE]
+> Useful information that users should know, even when skimming content.
+ 
+> [!TIP]
+> Helpful advice for doing things better or more easily.
+ 
+> [!IMPORTANT]
+> Key information users need to know to achieve their goal.
+ 
+> [!WARNING]
+> Urgent info that needs immediate user attention to avoid problems.
+ 
+> [!CAUTION]
+> Advises about risks or negative outcomes of certain actions.
+
+#### Collapsible
+
+> [!TIP] Pro tip
+> A callout with a custom title.
+ 
+> [!WARNING]+
+> A collapsible callout, expanded by default.
+ 
+> [!CAUTION]- At your own risk
+> A collapsible callout with a custom title, collapsed by default.
+
+### Hover text
+
+A pickaxe is required to ?[mine](break while also dropping an item) this block.
+
+### Figures
+
+![Folder layout](@oracle_index_test:folder_layout)
+
+### Image attributes
+
+![Folder layout](@oracle_index_test:folder_layout){center width=100}
+
+![Folder layout](@oracle_index_test:folder_layout){item}
+
+## Heading attributes {clear #attrs}
+
+![Folder layout](@oracle_index_test:folder_layout){right}
+
 ## Components
 
 ### `Asset`
@@ -36,6 +103,15 @@ Vanilla link: [](@minecraft:apple)
 }
 ```
 
+<!-- Plain code -->
+```
+function noLanguage(ipsum, dolor = 1) {
+    const sit = ipsum == null ? 0 : ipsum.sit
+    dolor = sit - amet(dolor)
+    return sit ? consectetur(ipsum) : []
+}
+```
+
 ### `Callout`
 
 <Callout>
@@ -46,12 +122,26 @@ Vanilla link: [](@minecraft:apple)
     This is a sample info callout
 </Callout>
 
+<Callout variant="important">
+    This is a sample important callout
+</Callout>
+
 <Callout variant="warning">
     This is a sample warning callout
 </Callout>
 
 <Callout variant="danger">
     This is a sample danger callout
+</Callout>
+
+#### Collapsible
+
+<Callout variant="info" collapsible>
+    This is a sample collapsible info callout
+</Callout>
+
+<Callout variant="info" collapsed>
+    This is a sample collapsed info callout
 </Callout>
 
 ### `CodeTabs`
