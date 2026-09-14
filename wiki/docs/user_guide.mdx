@@ -18,5 +18,8 @@ Mod developers can add wiki links to ingame items. If a wiki page is available f
 Hold the [ALT] button to open the corresponding wiki entry when seeing the items tooltip.
 
 ## Language
-The oracle index will automatically display translated content if available. Both page contents and the navigation bar will be translated. The search does not support searching
-for translated content yet, but will open results in the translated version if available.
+Oracle Index automatically uses translated content for your exact Minecraft language when the wiki provides it. Page contents, navigation metadata, page titles, built-in controls, callouts, and status messages can all be translated.
+
+Translated pages mirror the base page path under `translated/<locale>/` in schema 1 wikis, or `.translated/<locale>/` in legacy wikis. When a translated page or metadata file is missing, Oracle Index falls back to the base-language resource.
+
+Search currently indexes the base-language page text. Results still open the translated page when one is available, and displayed page titles use the active language.

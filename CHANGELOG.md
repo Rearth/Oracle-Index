@@ -1,2 +1,4 @@
-- Optimize images
-- Fix neoforge accesswiedener inclusion
+- Add support for tables, block quotes, GitHub-style alerts, hover text, image attributes and captions, enhanced code blocks, code tabs, audio, video links, and additional callout variants (huge thanks to @Su5eD)
+- Add a wiki resource-pack example to GitHub
+- Improve translatability across controls, callouts, errors, content properties, search, and locale-specific page titles
+- Fix image alignment, collapsible callout layout invalidation, code-tab sizing and styling, and other minor content-rendering issues

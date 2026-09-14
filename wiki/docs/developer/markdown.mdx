@@ -1,0 +1,158 @@
+---
+title: Markdown and MDX Reference
+---
+
+Oracle Index renders a practical subset of the syntax supported by ModdedMC Wiki. The same page can be used online and in-game as long as its in-game presentation stays within the features below.
+
+## Standard Markdown
+
+Supported Markdown includes:
+
+- headings
+- paragraphs and line breaks
+- **bold**, *italic*, and `inline code`
+- ordered and unordered lists, including nested lists
+- relative, content-ID, page-reference, vanilla item, and web links
+- fenced code blocks with an optional language and filename
+- block quotes
+- GitHub-style tables
+- images with alt-text captions and sizing attributes
+
+The in-game renderer does not execute arbitrary HTML, JSX, JavaScript, or CSS. Unsupported HTML blocks and custom components are ignored rather than rendered as text.
+
+## Links
+
+Normal relative links resolve from the current page. Oracle Index also understands these wiki link forms:
+
+```md
+[Relative page](../machines/generator)
+[](@minecraft:diamond_pickaxe)
+[](+custom_page_ref)
+[]($getting_started)
+[Website](https://example.com)
+```
+
+`@namespace:id` opens the content page indexed for that registry ID. `+ref` uses a content page's `ref` frontmatter value. `$slug` targets a documentation page. Empty link labels use the target page title, or the translated vanilla item name where applicable.
+
+Links to heading anchors are not currently supported in-game. A trailing heading attribute block is hidden from the displayed heading for compatibility, but IDs and attributes such as `{#details}` or `{clear}` do not affect layout or provide a scroll target.
+
+## Images and assets
+
+Markdown images, plain HTML `<img>` elements, and the `<Asset>`/`<ModAsset>` aliases are supported:
+
+```md
+![](@example:machine_layout)
+![Machine layout](@example:machine_layout){center width=160}
+![Small icon](@example:icon){item}
+<img src="@example:machine_layout" width="160" />
+<Asset location="example:machine_layout.png" width="50%" />
+```
+
+Images are centered by default. `{left}` opts into left alignment. `{center}` centers explicitly. `{right}` is accepted for compatibility, but Oracle Index cannot float content beside text and therefore centers it in-game. Width and height attributes use screen pixels; percentage widths use the available content width. Images are capped to that available width.
+
+The `{item}` attribute always renders at 32×32 and is intended for item-style icons. Registry item IDs such as `@minecraft:diamond` use the actual in-game item model. Standalone Markdown images with alt text show that text as a caption.
+
+Schema 1 assets are loaded from `assets/<namespace>/` inside the wiki. File extensions default to `.png` for images and `.ogg` for audio. Legacy wikis use `.assets/<namespace>/`.
+
+## Alerts and callouts
+
+GitHub-style alerts support `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`:
+
+```md
+> [!TIP] Optional custom title
+> Helpful content.
+
+> [!WARNING]+
+> Expanded by default and collapsible.
+
+> [!CAUTION]- At your own risk
+> Collapsed by default and expandable.
+```
+
+The `+` marker makes an alert collapsible and initially expanded. The `-` marker makes it collapsible and initially collapsed.
+
+The equivalent component supports `note`/`info`, `tip`, `important`, `warning`, and `caution`/`danger` variants:
+
+```mdx
+<Callout variant="warning" title="Back up first" collapsible>
+    Callout content can contain supported Markdown.
+</Callout>
+
+<Callout variant="danger" collapsed>
+    This starts collapsed.
+</Callout>
+```
+
+`collapsible` starts expanded. `collapsed` implies collapsible and starts closed. Built-in variant names are translated by Oracle Index; custom titles are page content and belong in each translated MDX file.
+
+## Code blocks and tabs
+
+A fenced code block can include a language and a filename:
+
+````md
+```json recipe.json
+{"type": "minecraft:crafting_shaped"}
+```
+````
+
+Code tabs contain direct fenced-code children. Put `!!tabs` after the language and follow it with the visible tab title:
+
+````mdx
+<CodeTabs>
+```js !!tabs main.js
+console.log("Hello");
+```
+
+```css !!tabs styles.css
+body { margin: 0; }
+```
+</CodeTabs>
+````
+
+Syntax highlighting and a dedicated monospaced font are not currently provided. The language is metadata only, and each tab displays plain text using Minecraft's font. Nested wrappers inside `<CodeTabs>` are not inspected.
+
+## Other supported components
+
+`CraftingRecipe` renders one shaped 3×3 recipe. Its `slots` array must contain exactly nine item IDs or empty strings. It does not query the recipe manager or support recipes of other dimensions.
+
+```mdx
+<CraftingRecipe
+    slots={['', 'minecraft:stick', '', '', 'minecraft:stick', '', '', 'minecraft:diamond', '']}
+    result="minecraft:diamond_shovel"
+    count={1}
+/>
+```
+
+`Audio` plays an `.ogg` asset through an in-game play/stop control:
+
+```mdx
+<Audio controls src="example:sounds/notification.ogg" />
+```
+
+`VideoEmbed` creates a button that opens the video on YouTube. Oracle Index does not stream or embed the video inside the game:
+
+```mdx
+<VideoEmbed id="Y_WnAEKoeA4" />
+```
+
+Hover text uses `?[label](description)`:
+
+```md
+A pickaxe is required to ?[mine](break while also dropping an item) this block.
+```
+
+The label and description are plain text. Nested formatting and closing parentheses inside the description are not supported.
+
+## Translation behavior
+
+For schema 1, translated files mirror their base paths below `translated/<locale>/`. For example:
+
+```text
+docs/machines/generator.mdx
+translated/de_de/docs/machines/generator.mdx
+translated/de_de/docs/machines/_meta.json
+```
+
+Legacy wikis use `.translated/<locale>/` instead. Locale matching uses the exact active Minecraft language code. English locales use the base resources. Missing translated files fall back to the base page or metadata.
+
+Page titles are read from the translated page's `title` frontmatter, first level-one heading, or translated in-game item name. Search indexes base-language body text only, but opens translated results and displays locale-aware titles.

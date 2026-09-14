@@ -2,6 +2,9 @@
   "setup.mdx": {
     "name": "Ingame Mod View Setup"
   },
+  "markdown.mdx": {
+    "name": "Markdown and MDX Reference"
+  },
   "gradle_task.mdx": {
     "name": "(Optional) Automatic Gradle Wiki Sync"
   },
