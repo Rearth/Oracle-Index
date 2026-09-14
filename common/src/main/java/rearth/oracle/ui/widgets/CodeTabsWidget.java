@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CodeTabsWidget extends FlowWidget {
-    private static final int CODE_COLOR = 0xFFB0B4BC;
+    private static final int CODE_COLOR = 0xFFE0E0E0;
 
     private final List<Tab> tabs;
     private final List<LabelWidget> tabLabels = new ArrayList<>();
@@ -50,7 +50,8 @@ public class CodeTabsWidget extends FlowWidget {
     }
 
     private Text tabTitle(int index) {
-        return Text.literal(tabs.get(index).title()).formatted(Formatting.DARK_GRAY);
+        var color = index == active ? Formatting.DARK_GRAY : Formatting.WHITE;
+        return Text.literal(tabs.get(index).title()).formatted(color);
     }
 
     private Text codeText(int index) {

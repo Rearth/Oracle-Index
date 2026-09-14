@@ -3,6 +3,7 @@ package rearth.oracle.ui.widgets;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -36,10 +37,18 @@ public class ScrollWidget extends UIComponent {
     }
     
     public ScrollWidget child(UIComponent child) {
+        if (this.child != null) this.child.setLayoutRequester(null);
         this.child = child;
+        child.setLayoutRequester(getLayoutRequester());
         scrollOffset = 0;
         targetScrollOffset = 0;
         return this;
+    }
+
+    @Override
+    public void setLayoutRequester(@Nullable Runnable layoutRequester) {
+        super.setLayoutRequester(layoutRequester);
+        if (child != null) child.setLayoutRequester(layoutRequester);
     }
     
     public ScrollWidget scrollSpeed(int linesPerNotch) {
