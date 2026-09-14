@@ -1,0 +1,19 @@
+{
+  "oracle_index.title.oracle_index": "Oracle Index",
+  "oracle_index.title.oracle-index": "Oracle Index",
+  "key.oracle_index.open": "Відкрити Oracle Index",
+  "key.oracle_index.search": "Відкрити пошук Oracle",
+  "key.categories.oracle": "Oracle Index",
+  "oracle_index.searchbar.placeholder" : "Знайти чи розрахувати",
+  "oracle_index.searchbar.tooltip" : "Розумний пошук, який підтримує повні речення та математичні вирази.",
+  "tooltip.oracle_index.open_search": "Відкрити пошук. Ви завжди можете відкрити його, затиснувши [Ctrl + %s] або [%s].",
+  "tooltip.oracle_index.back": "Повернутися до останньої сторінки.",
+  "tooltip.oracle_index.close_screen": "Закрити вікі.",
+  "oracle_index.button.docs": "Документація",
+  "oracle_index.button.content": "Зміст",
+  "oracle_index.tooltip.docs": "Утримуйте [Alt], щоби відкрити документацію",
+  "oracle_index.callout.default": "Нотатка",
+  "oracle_index.callout.info": "Інфо",
+  "oracle_index.callout.warning": "Попередження",
+  "oracle_index.callout.danger": "Небезпека"
+}
