@@ -1,1 +1,4 @@
-- Straight port to 26.1.2. No known feature changes / improvements
+- Add support for new Wiki markdown features (huge thanks to @Su5eD for this one). Adds all the missing markdown functionality available in the online version, including tables
+- Add wiki resource pack example to github 
+- Improve translatability
+- Small bugfixes and minor improvements
