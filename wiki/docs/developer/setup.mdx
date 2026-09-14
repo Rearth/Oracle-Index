@@ -9,7 +9,7 @@ This page is aimed at developers that want their wiki to be accessible via the o
 2. Make sure you have _meta.json files with entries for **all** your content. Oracle Index uses the meta.json files to build the
 navigation bar.
 3. Copy the entire wiki to your mods resources folder. This can be automated, see [auto gradle sync](../developer/gradle_task). The correct path is: "resources/assets/oracle_index/books/your-mod-id/".
-5. The oracle index will automatically load your mods resources.
+4. The oracle index will automatically load your mods resources.
 
 The resulting directory tree should look like this:
 
@@ -23,20 +23,15 @@ The ingame wiki resources can be added through resource packs (which may also be
 of how to set things up. An example of a resource pack is on github in the oracle index repo:
 https://github.com/Rearth/Oracle-Index/tree/26.1.2/example_resource_pack
 
-### Limitations
-The Oracle Index only includes a primitive markdown parser. This means that most html tags are not supported.
-Most markdown features, such as headings, bold, italic, links between pages, etc. are supported. Some moddedmc-specific html tags such as the "ModAsset", "Callout" or "CraftingRecipe" are
-supported. Non-supported html tags will be
-ignored, and will not be displayed at all.
+### Markdown compatibility
 
-If you want to use other html tags, feel free to open a PR.
+Oracle Index supports the Markdown and MDX features commonly needed by ModdedMC wikis, including tables, alerts, images, code tabs, callouts, recipes, audio, and video links. See the [Markdown and MDX reference](./markdown) for syntax and exact limitations.
 
-If a `<ModAsset>` (or item asset) image matches an existing ingame item, the actual ingame item (or blockitem) will be displayed instead. This means that you don't need to include the rendered textures of your items.
-All images are expected in the ".assets/modid/" folder, not the ".assets/item/modid" subfolder. Content wikis will have their item properties collected
-from the ingame registries, instead of using the predefined json files.
+This is a dedicated in-game renderer rather than a web browser. Arbitrary HTML, JSX, JavaScript, CSS, and custom React components are not evaluated. Unsupported HTML blocks are ignored. A plain `<img>` is supported, while `<center>`, `<div>`, and `<span>` wrapper tags are discarded when they use their plain tag forms.
 
-If you have something in a paragraph that you don't want to display inside the ingame wiki (e.g. a table or other not-supported element), you can wrap the paragraph in a div like this:
-`<div onlineOnly="true" >`
+For schema 1 wikis, image and audio files belong under `assets/<namespace>/` within the wiki directory. Legacy-format wikis use `.assets/<namespace>/`. The old `.assets/item/<namespace>/` directory is unnecessary because a registry item ID is rendered using its in-game model.
+
+Content pages with a valid `id` also receive an in-game properties panel. Its stack size, durability, mining information, light level, and similar values come from the active game registries.
 
 ### Item Links
 One extra feature added by the Oracle Index is the ability to link relevant items for a wiki page. To do so, a new parameter is added to the mdx frontmatter: "related_items", which contains an array
@@ -57,8 +52,11 @@ Oracle Index does not come with a guide book by default. However, in your mod, y
 You could also open the book via other mechanisms, such as a button in another screen.
 
 Call the following code on the client side:
-```
+```java
 // Oritech is the wiki name here.
-// The second parameter is the entry to open. The namespace is always "oracle_index"
-OracleClient.openScreen("oritech", "oracle_index:books/oritech/intro.mdx");
+// Entry resources always use the oracle_index namespace.
+Identifier entry = Identifier.fromNamespaceAndPath(
+    "oracle_index", "books/oritech/docs/intro.mdx"
+);
+OracleClient.openScreen("oritech", entry, Minecraft.getInstance().screen);
 ```

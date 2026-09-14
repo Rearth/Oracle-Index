@@ -19,3 +19,9 @@ for each chunk, and for the search query. The embedding vectors are stored in me
 The closest N results are then displayed to the user.
 
 The library used for this is Langchain4j, which uses the DJL Framework. The embedding model is about 15mb in size.
+
+## Limits
+
+Search indexes base-language page text and does not currently build a separate semantic index for translated text. Selecting a result still opens its translated page when available, and result titles use the active language.
+
+The embedding model and native runtime make the search-enabled artifact larger. If the installed platform artifact does not include that runtime, Oracle Index reports that search is unavailable and points to the cross-platform artifact instead. Normal wiki browsing does not depend on semantic search.
