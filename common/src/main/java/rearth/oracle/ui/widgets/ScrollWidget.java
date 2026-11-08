@@ -31,6 +31,8 @@ public class ScrollWidget extends UIComponent {
     private int contentHeight = 0;
     private int scrollBarVisibleFrames = 0;
     private int scrollSpeed = 12;
+    private boolean draggingScrollBar;
+    private double thumbGrabOffset;
     
     public ScrollWidget(UIComponent child) {
         this.child = child;
@@ -42,6 +44,7 @@ public class ScrollWidget extends UIComponent {
         child.setLayoutRequester(getLayoutRequester());
         scrollOffset = 0;
         targetScrollOffset = 0;
+        draggingScrollBar = false;
         return this;
     }
 
@@ -98,6 +101,7 @@ public class ScrollWidget extends UIComponent {
         contentHeight = child instanceof FlowWidget flow ? Math.max(childH, flow.laidOutHeight()) : Math.max(childH, child.getHeight());
         targetScrollOffset = clampOffset(targetScrollOffset);
         scrollOffset = MathHelper.clamp(scrollOffset, 0, maxOffset());
+        if (maxOffset() == 0) draggingScrollBar = false;
     }
     
     @Override
@@ -124,7 +128,7 @@ public class ScrollWidget extends UIComponent {
         }
         
         boolean hovered = isInBounds(mouseX, mouseY);
-        if (hovered) scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
+        if (hovered || draggingScrollBar) scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
         updateScrollOffset();
         int visibleOffset = visibleOffset();
         
@@ -137,7 +141,7 @@ public class ScrollWidget extends UIComponent {
         context.disableScissor();
         
         renderEdgeFades(context, visibleOffset);
-        renderScrollBar(context, visibleOffset);
+        renderScrollBar(context, mouseX, mouseY);
         
         if (scrollBarVisibleFrames > 0) scrollBarVisibleFrames--;
     }
@@ -168,13 +172,41 @@ public class ScrollWidget extends UIComponent {
         }
     }
     
-    private void renderScrollBar(DrawContext context, int visibleOffset) {
+    private int thumbHeight() {
+        return Math.min(height, Math.max(15, (int) (height * (height / (float) Math.max(1, contentHeight)))));
+    }
+
+    private int thumbY() {
+        return y + (int) ((height - thumbHeight()) * (visibleOffset() / (float) Math.max(1, maxOffset())));
+    }
+
+    private boolean isOverScrollBar(double mouseX, double mouseY) {
+        return maxOffset() > 0 && isInBounds(mouseX, mouseY) && mouseX >= x + width - SCROLL_BAR_WIDTH;
+    }
+
+    private boolean isOverThumb(double mouseX, double mouseY) {
+        return isOverScrollBar(mouseX, mouseY) && mouseY >= thumbY() && mouseY < thumbY() + thumbHeight();
+    }
+
+    private void dragScrollBar(double mouseY) {
+        int travel = height - thumbHeight();
+        if (travel <= 0) return;
+        double progress = MathHelper.clamp((mouseY - y - thumbGrabOffset) / travel, 0.0, 1.0);
+        targetScrollOffset = clampOffset((int) Math.round(progress * maxOffset()));
+        // Dragging follows the cursor directly; wheel scrolling keeps its easing.
+        scrollOffset = targetScrollOffset;
+        scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
+    }
+
+    private void renderScrollBar(DrawContext context, int mouseX, int mouseY) {
         if (contentHeight <= height) return;
         if (scrollBarVisibleFrames <= 0) return;
         
         float alphaRatio = MathHelper.clamp(scrollBarVisibleFrames / (float) SCROLL_BAR_VISIBLE_TICKS, 0f, 1f);
         int trackAlpha = (int) (0x40 * alphaRatio);
-        int thumbAlpha = (int) (0xC0 * alphaRatio);
+        boolean thumbHovered = isOverThumb(mouseX, mouseY);
+        int thumbAlpha = (int) ((thumbHovered || draggingScrollBar ? 0xFF : 0xC0) * alphaRatio);
+        int thumbColor = draggingScrollBar ? 0x80BFFF : thumbHovered ? 0xFFFFFF : 0xCCCCCC;
         
         int barX = x + width - SCROLL_BAR_WIDTH;
         int barY = y;
@@ -182,9 +214,9 @@ public class ScrollWidget extends UIComponent {
         // track
         context.fill(barX, barY, barX + SCROLL_BAR_WIDTH, barY + barH, (trackAlpha << 24) | 0x000000);
         // thumb
-        int thumbH = Math.max(15, (int) (barH * (height / (float) contentHeight)));
-        int thumbY = barY + (int) ((barH - thumbH) * (visibleOffset / (float) Math.max(1, contentHeight - height)));
-        context.fill(barX + 1, thumbY, barX + SCROLL_BAR_WIDTH - 1, thumbY + thumbH, (thumbAlpha << 24) | 0xFFFFFF);
+        int thumbH = thumbHeight();
+        int thumbY = thumbY();
+        context.fill(barX + 1, thumbY, barX + SCROLL_BAR_WIDTH - 1, thumbY + thumbH, (thumbAlpha << 24) | thumbColor);
     }
     
     @Override
@@ -203,6 +235,7 @@ public class ScrollWidget extends UIComponent {
     public boolean handleMouseScroll(double mouseX, double mouseY, double scrollDelta) {
         if (!isInBounds(mouseX, mouseY)) return false;
         if (contentHeight <= height) return false;
+        if (draggingScrollBar) return true;
         int delta = -(int) scrollDelta * scrollSpeed;
         targetScrollOffset = clampOffset(targetScrollOffset + delta);
         scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
@@ -212,17 +245,36 @@ public class ScrollWidget extends UIComponent {
     @Override
     public boolean handleClick(double mouseX, double mouseY, int button) {
         if (!isInBounds(mouseX, mouseY) || child == null) return false;
+        if (button == 0 && isOverScrollBar(mouseX, mouseY)) {
+            thumbGrabOffset = isOverThumb(mouseX, mouseY) ? mouseY - thumbY() : thumbHeight() / 2.0;
+            draggingScrollBar = true;
+            // Stop any wheel animation at the thumb's currently visible position.
+            targetScrollOffset = visibleOffset();
+            scrollOffset = targetScrollOffset;
+            scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
+            if (!isOverThumb(mouseX, mouseY)) dragScrollBar(mouseY);
+            return true;
+        }
         return child.handleClick(mouseX, mouseY + visibleOffset(), button);
     }
     
     @Override
     public boolean handleDrag(double mouseX, double mouseY, double dx, double dy, int button) {
+        if (draggingScrollBar && button == 0) {
+            dragScrollBar(mouseY);
+            return true;
+        }
         if (child == null) return false;
         return child.handleDrag(mouseX, mouseY + visibleOffset(), dx, dy, button);
     }
     
     @Override
     public boolean handleMouseRelease(double mouseX, double mouseY, int button) {
+        if (draggingScrollBar && button == 0) {
+            draggingScrollBar = false;
+            scrollBarVisibleFrames = SCROLL_BAR_VISIBLE_TICKS;
+            return true;
+        }
         if (child == null) return false;
         return child.handleMouseRelease(mouseX, mouseY + visibleOffset(), button);
     }

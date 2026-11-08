@@ -1,0 +1,1 @@
+- Added draggable scrollbars with click-to-jump track navigation and hover feedback.
